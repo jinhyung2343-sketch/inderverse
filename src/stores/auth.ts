@@ -1,42 +1,72 @@
 import { create } from 'zustand'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
+import { Database } from '@/lib/supabase/types'
+
+type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface AuthState {
   user: User | null;
-  profile: any | null; // 구체적 프로필 정보 확장 가능
+  profile: Profile | null;
   isLoading: boolean;
+  // 프로토타입용 mock 상태
+  isLoggedIn: boolean;
+  userNickname: string;
   checkSession: () => Promise<void>;
   signOut: () => Promise<void>;
+  mockSignUp: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   profile: null,
   isLoading: true,
+  isLoggedIn: false,
+  userNickname: 'Guest',
   
   checkSession: async () => {
     set({ isLoading: true })
     const supabase = createClient()
-    // getSession() 대신 getUser()를 사용: 서버 측 JWT 유효성 검증 (보안)
     const { data: { user }, error } = await supabase.auth.getUser()
-    
+
     if (user && !error) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
-        
-      set({ user, profile, isLoading: false })
+
+      const fallbackNickname =
+        user.user_metadata?.display_name ||
+        user.email?.split('@')[0] ||
+        '유저'
+
+      set({
+        user,
+        profile,
+        isLoading: false,
+        isLoggedIn: true,
+        userNickname: profile?.display_name || fallbackNickname,
+      })
     } else {
-      set({ user: null, profile: null, isLoading: false })
+      set({
+        user: null,
+        profile: null,
+        isLoading: false,
+        isLoggedIn: false,
+        userNickname: 'Guest',
+      })
     }
   },
 
   signOut: async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    set({ user: null, profile: null })
+    set({ user: null, profile: null, isLoggedIn: false, userNickname: 'Guest' })
+  },
+
+  // 프로토타입 가입용 모의 액션
+  mockSignUp: () => {
+    set({ isLoggedIn: true, userNickname: '유저님' })
   }
 }))

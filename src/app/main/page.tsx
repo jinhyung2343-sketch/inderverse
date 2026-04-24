@@ -46,7 +46,7 @@ const MENUS = [
 
 export default function MainHubPage() {
   const router = useRouter();
-  const { profile, isLoading, checkSession } = useAuthStore();
+  const { isLoading, checkSession, isLoggedIn, userNickname } = useAuthStore();
   
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
@@ -57,6 +57,12 @@ export default function MainHubPage() {
   }, [checkSession]);
 
   const handleMenuClick = (menuId: string, path: string) => {
+    // 권한 가드 로직: 작품 탐색이 아니고 로그인 안된 경우 차단
+    if (menuId !== 'explore' && !isLoggedIn) {
+      alert('몰입을 위해 로그인이 필요한 서비스입니다.');
+      return;
+    }
+
     setIsTransitioning(menuId);
     // 애니메이션 후 라우팅
     setTimeout(() => {
@@ -65,7 +71,7 @@ export default function MainHubPage() {
   };
 
   const activeAmbient = MENUS.find(m => m.id === hoveredMenu)?.ambientColor || 'bg-white';
-  const displayNickname = profile?.display_name || 'Guest';
+  const displayNickname = isLoggedIn ? userNickname : 'Guest';
 
   return (
     <main className="relative flex min-h-screen flex-col bg-[#050505] overflow-hidden selection:bg-white/30 text-white">

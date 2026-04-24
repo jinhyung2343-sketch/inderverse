@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,16 +13,30 @@ export async function POST(req: NextRequest) {
 
     const { amount, paymentProvider, idempotencyKey } = await req.json()
 
-    if (!amount || amount <= 0) {
+    if (process.env.ENABLE_DEV_COIN_CHARGE !== 'true') {
+      return NextResponse.json(
+        {
+          error: 'Coin charge is disabled until server-side payment verification is implemented.',
+        },
+        { status: 503 }
+      )
+    }
+
+    if (typeof amount !== 'number' || !Number.isInteger(amount) || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
     }
 
-    // 실제 앱에서는 여기서 아임포트/Toss/Stripe 등 결제 검증 로직 발생
+    if (typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
+      return NextResponse.json({ error: 'Invalid idempotency key' }, { status: 400 })
+    }
 
-    // 서비스 롤(Admin) 클라이언트를 통해 코인 원장 조작 
+    if (paymentProvider !== undefined && typeof paymentProvider !== 'string') {
+      return NextResponse.json({ error: 'Invalid payment provider' }, { status: 400 })
+    }
+
+    // 결제 검증 연동 전까지는 개발 환경에서만 제한적으로 사용한다.
     const adminClient = createAdminClient()
 
-    // 1. 중복 충전 방지 대조
     const { data: existingTx } = await adminClient
       .from('coin_transactions')
       .select('id')
@@ -43,11 +56,8 @@ export async function POST(req: NextRequest) {
 
     if (walletError || !wallet) throw new Error('Wallet not found')
 
-    // 3. 지갑 잔액 업데이트 및 트랜잭션 기록
     const newPaidBalance = wallet.paid_balance + amount
 
-    // (참고: 프로덕션에서는 이 과정을 Supabase RPC Transaction으로 묶어서 원자성을 보장해야 합니다)
-    
     await adminClient
       .from('coin_wallets')
       .update({ paid_balance: newPaidBalance })
@@ -60,15 +70,16 @@ export async function POST(req: NextRequest) {
         type: 'charge',
         coin_type: 'paid',
         amount: amount,
-        balance_after: newPaidBalance + wallet.free_balance, // 총 잔액 기록용이라면
+        balance_after: newPaidBalance + wallet.free_balance,
         payment_provider: paymentProvider,
         idempotency_key: idempotencyKey,
-        description: '유료 코인 충전'
+        description: '개발용 유료 코인 충전'
       })
 
     return NextResponse.json({ success: true, balance: newPaidBalance }, { status: 200 })
-  } catch (error: any) {
-    console.error('Error charging coins:', error.message)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Error charging coins:', message)
     return NextResponse.json({ error: 'Charge failed' }, { status: 500 })
   }
 }

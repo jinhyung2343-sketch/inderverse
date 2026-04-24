@@ -12,21 +12,20 @@ export async function POST(req: NextRequest) {
     }
 
     const { episodeId, channelId } = await req.json()
+
+    if (typeof episodeId !== 'string' || episodeId.trim().length === 0) {
+      return NextResponse.json({ error: 'Invalid episode id' }, { status: 400 })
+    }
+
+    if (channelId !== undefined && (typeof channelId !== 'string' || channelId.trim().length === 0)) {
+      return NextResponse.json({ error: 'Invalid channel id' }, { status: 400 })
+    }
+
     const adminClient = createAdminClient()
 
-    // 채널 설정 확인 (wait_free_hours 조회용)
-    const { data: channel } = await adminClient
-      .from('channels')
-      .select('wait_free_hours')
-      .eq('id', channelId)
-      .single()
-
-    if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
-
-    // 에피소드가 기다무(wait_free) 대상인지 유형 검증
     const { data: episode } = await adminClient
       .from('episodes')
-      .select('pricing_type')
+      .select('pricing_type, channel_id')
       .eq('id', episodeId)
       .single()
 
@@ -35,12 +34,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This episode is not eligible for wait-free' }, { status: 400 })
     }
 
-    // 유저의 마지막 기다무 해금 기록 확인
+    if (channelId && channelId !== episode.channel_id) {
+      return NextResponse.json({ error: 'Episode does not belong to the provided channel' }, { status: 400 })
+    }
+
+    const { data: channel } = await adminClient
+      .from('channels')
+      .select('wait_free_hours')
+      .eq('id', episode.channel_id)
+      .single()
+
+    if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
+
     const { data: lastUnlock } = await adminClient
       .from('wait_free_unlocks')
       .select('*')
       .eq('user_id', user.id)
-      .eq('channel_id', channelId)
+      .eq('channel_id', episode.channel_id)
       .order('unlocked_at', { ascending: false })
       .limit(1)
       .single()
@@ -64,13 +74,13 @@ export async function POST(req: NextRequest) {
       .from('wait_free_unlocks')
       .insert({
         user_id: user.id,
-        channel_id: channelId,
+        channel_id: episode.channel_id,
         episode_id: episodeId,
         next_unlock_available_at: nextUnlockAvailableAt.toISOString()
       })
 
     return NextResponse.json({ success: true, next_unlock_available_at: nextUnlockAvailableAt }, { status: 200 })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Wait free error:', error)
     return NextResponse.json({ error: 'Failed to unlock wait free' }, { status: 500 })
   }
