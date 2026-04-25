@@ -624,7 +624,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      charge_coins: {
+        Args: {
+          p_amount: number
+          p_idempotency_key: string
+          p_payment_provider: string | null
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      purchase_episode: {
+        Args: {
+          p_episode_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       age_verify_provider: "pass" | "phone" | "manual"
@@ -780,4 +795,3 @@ export const Constants = {
     },
   },
 } as const
-

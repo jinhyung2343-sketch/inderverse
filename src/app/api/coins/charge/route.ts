@@ -34,49 +34,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payment provider' }, { status: 400 })
     }
 
-    // 결제 검증 연동 전까지는 개발 환경에서만 제한적으로 사용한다.
     const adminClient = createAdminClient()
+    const { data, error } = await adminClient.rpc('charge_coins', {
+      p_user_id: user.id,
+      p_amount: amount,
+      p_payment_provider: paymentProvider ?? null,
+      p_idempotency_key: idempotencyKey,
+    })
 
-    const { data: existingTx } = await adminClient
-      .from('coin_transactions')
-      .select('id')
-      .eq('idempotency_key', idempotencyKey)
-      .single()
+    if (error) {
+      const message = error.message || 'Charge failed'
 
-    if (existingTx) {
+      if (message.includes('Wallet not found')) {
+        return NextResponse.json({ error: 'Wallet not found' }, { status: 404 })
+      }
+
+      if (message.includes('Invalid amount')) {
+        return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+      }
+
+      if (message.includes('Invalid idempotency key')) {
+        return NextResponse.json({ error: 'Invalid idempotency key' }, { status: 400 })
+      }
+
+      throw error
+    }
+
+    if (data && typeof data === 'object' && 'status' in data && data.status === 'already_processed') {
       return NextResponse.json({ message: 'Already processed' }, { status: 200 })
     }
 
-    // 2. 유저 지갑 조회
-    const { data: wallet, error: walletError } = await adminClient
-      .from('coin_wallets')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-
-    if (walletError || !wallet) throw new Error('Wallet not found')
-
-    const newPaidBalance = wallet.paid_balance + amount
-
-    await adminClient
-      .from('coin_wallets')
-      .update({ paid_balance: newPaidBalance })
-      .eq('id', wallet.id)
-
-    await adminClient
-      .from('coin_transactions')
-      .insert({
-        user_id: user.id,
-        type: 'charge',
-        coin_type: 'paid',
-        amount: amount,
-        balance_after: newPaidBalance + wallet.free_balance,
-        payment_provider: paymentProvider,
-        idempotency_key: idempotencyKey,
-        description: '개발용 유료 코인 충전'
-      })
-
-    return NextResponse.json({ success: true, balance: newPaidBalance }, { status: 200 })
+    return NextResponse.json({ success: true, result: data }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     console.error('Error charging coins:', message)

@@ -9,6 +9,7 @@ interface AuthState {
   user: User | null;
   profile: Profile | null;
   isLoading: boolean;
+  isAdultVerified: boolean;
   // 프로토타입용 mock 상태
   isLoggedIn: boolean;
   userNickname: string;
@@ -21,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   profile: null,
   isLoading: true,
+  isAdultVerified: false,
   isLoggedIn: false,
   userNickname: 'Guest',
   
@@ -45,6 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         user,
         profile,
         isLoading: false,
+        isAdultVerified: profile?.is_adult_verified ?? false,
         isLoggedIn: true,
         userNickname: profile?.display_name || fallbackNickname,
       })
@@ -53,6 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         user: null,
         profile: null,
         isLoading: false,
+        isAdultVerified: false,
         isLoggedIn: false,
         userNickname: 'Guest',
       })
@@ -62,11 +66,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    set({ user: null, profile: null, isLoggedIn: false, userNickname: 'Guest' })
+    set({ user: null, profile: null, isAdultVerified: false, isLoggedIn: false, userNickname: 'Guest' })
   },
 
   // 프로토타입 가입용 모의 액션
   mockSignUp: () => {
-    set({ isLoggedIn: true, userNickname: '유저님' })
+    set({ isLoggedIn: true, isAdultVerified: false, userNickname: '유저님' })
   }
 }))

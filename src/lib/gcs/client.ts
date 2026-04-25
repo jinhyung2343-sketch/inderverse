@@ -1,3 +1,4 @@
+import 'server-only'
 import { Storage } from '@google-cloud/storage'
 
 // GCS 클라이언트 설정. 
@@ -11,4 +12,4 @@ export const storage = new Storage({
   },
 })
 
-export const bucket = storage.bucket(process.env.GCS_BUCKET_NAME || 'indetune-images')
+export const bucket = storage.bucket(process.env.GCS_BUCKET_NAME || 'inderverse-images')

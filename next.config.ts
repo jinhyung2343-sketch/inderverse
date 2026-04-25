@@ -19,14 +19,29 @@ const nextConfig: NextConfig = {
         // GCS 원본 버킷
         protocol: "https",
         hostname: "storage.googleapis.com",
-        pathname: "/indetune-images/**",
+        pathname: "/inderverse-images/**",
       },
       {
         // CDN (프로덕션 배포 후 사용)
         protocol: "https",
-        hostname: "cdn.indetune.com",
+        hostname: "cdn.inderverse.com",
       },
     ],
+  },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          '**/.git/**',
+          '**/.next/**',
+          '**/node_modules/**',
+          '**/public/sw.js',
+        ],
+      }
+    }
+
+    return config
   },
 };
 

@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next'
+import { BRAND } from '@/lib/brand'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'InDeTune - 인더튠',
-    short_name: '인더튠',
-    description: '독립 작가 중심의 고품질 웹툰 플랫폼',
+    name: `${BRAND.name} - ${BRAND.koreanName}`,
+    short_name: BRAND.koreanName,
+    description: BRAND.description,
     start_url: '/',
     display: 'standalone',
     background_color: '#000000',

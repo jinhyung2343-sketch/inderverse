@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { BRAND } from '@/lib/brand';
 import { useAuthStore } from '@/stores/auth';
 
 const MENUS = [
@@ -91,7 +92,7 @@ export default function MainHubPage() {
         <div className="flex items-center gap-6">
           {/* 뒤로가기 버튼 */}
           <Link 
-            href="/" 
+            href="/join-prompt" 
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors backdrop-blur-md"
             aria-label="뒤로 가기"
           >
@@ -101,7 +102,7 @@ export default function MainHubPage() {
           </Link>
           
           <div className="flex items-center gap-4">
-            <span className="text-xl font-black tracking-tighter">InTune</span>
+            <span className="text-xl font-black tracking-tighter">{BRAND.name}</span>
             
             {/* 접속 상태 / 닉네임 */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5 backdrop-blur-sm">

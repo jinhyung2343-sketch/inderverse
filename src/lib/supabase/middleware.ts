@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { Database } from './types'
 
-export async function updateSession(request: NextRequest) {
+type AccessProfile = Pick<Database['public']['Tables']['profiles']['Row'], 'role' | 'is_adult_verified'> | null
+
+export type SessionContext = {
+  response: NextResponse
+  userId: string | null
+  profile: AccessProfile
+}
+
+export async function updateSession(request: NextRequest): Promise<SessionContext> {
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -15,7 +24,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -29,7 +38,25 @@ export async function updateSession(request: NextRequest) {
 
   // Do not wrap this in a try/catch block.
   // We want to perform a database call to refresh the session naturally.
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  return supabaseResponse
+  let profile: AccessProfile = null
+
+  if (user) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, is_adult_verified')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    profile = data
+  }
+
+  return {
+    response: supabaseResponse,
+    userId: user?.id ?? null,
+    profile,
+  }
 }

@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://indetune.com", "http://localhost:3000"],
+    "origin": ["https://inderverse.com", "http://localhost:3000"],
     "method": ["PUT"],
     "responseHeader": ["Content-Type", "x-goog-content-length-range"],
     "maxAgeSeconds": 3600

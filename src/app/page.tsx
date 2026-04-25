@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BRAND } from '@/lib/brand';
 
 export default function LandingPage() {
   return (
@@ -12,13 +13,13 @@ export default function LandingPage() {
       {/* Central Logo Placeholder */}
       <div className="z-10 flex flex-col items-center justify-center flex-1">
         <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white animate-fade-in">
-          InTune
+          {BRAND.name}
         </h1>
         <p 
           className="mt-6 text-zinc-400 font-light tracking-[0.2em] text-xs md:text-sm animate-fade-in opacity-0" 
           style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
         >
-          깊이감 있는 몰입의 시작
+          독립 창작의 주도권을 되찾는 세계
         </p>
       </div>
 
@@ -28,7 +29,7 @@ export default function LandingPage() {
         style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
       >
         <Link 
-          href="/main"
+          href="/join-prompt"
           className="group relative inline-flex items-center justify-center px-12 py-4 font-medium text-white transition-all duration-700 ease-out"
         >
           {/* Base Button Background with Glassmorphism & Glow */}

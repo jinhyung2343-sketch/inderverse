@@ -13,16 +13,39 @@ export async function POST(req: NextRequest) {
 
     const { channelId, episodeId, sortOrder, contentType } = await req.json()
 
+    if (typeof channelId !== 'string' || channelId.trim().length === 0) {
+      return NextResponse.json({ error: 'Invalid channel id' }, { status: 400 })
+    }
+
+    if (typeof episodeId !== 'string' || episodeId.trim().length === 0) {
+      return NextResponse.json({ error: 'Invalid episode id' }, { status: 400 })
+    }
+
+    if (!Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 10000) {
+      return NextResponse.json({ error: 'Invalid sort order' }, { status: 400 })
+    }
+
     // channelId가 현재 유저 소유 채널인지 검증 (보안)
     const { data: ownedChannel, error: channelError } = await supabase
       .from('channels')
-      .select('id')
+      .select('id, creator_id')
       .eq('id', channelId)
       .eq('creator_id', user.id)
       .single()
 
     if (channelError || !ownedChannel) {
       return NextResponse.json({ error: 'Forbidden: not your channel' }, { status: 403 })
+    }
+
+    const { data: episode, error: episodeError } = await supabase
+      .from('episodes')
+      .select('id')
+      .eq('id', episodeId)
+      .eq('channel_id', ownedChannel.id)
+      .single()
+
+    if (episodeError || !episode) {
+      return NextResponse.json({ error: 'Episode does not belong to your channel' }, { status: 403 })
     }
 
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
