@@ -55,7 +55,6 @@ export function LibraryShelf() {
         {savedArtworks.map((artwork) => (
           <ArtworkCard
             key={artwork.id}
-            id={artwork.id}
             title={artwork.title}
             authorName={artwork.authorName}
             coverImageUrl={artwork.coverImageUrl}

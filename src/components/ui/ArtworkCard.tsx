@@ -1,9 +1,7 @@
-import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
 interface ArtworkCardProps {
-  id: string;
   title: string;
   authorName: string;
   coverImageUrl: string;

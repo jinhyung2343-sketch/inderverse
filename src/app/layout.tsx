@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: `${BRAND.name} - ${BRAND.koreanName}`,
   },
   description: BRAND.description,
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

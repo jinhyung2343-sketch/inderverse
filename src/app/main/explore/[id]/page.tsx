@@ -161,7 +161,6 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                 {recommended.map((item) => (
                   <ArtworkCard
                     key={item.id}
-                    id={item.id}
                     title={item.title}
                     authorName={item.authorName}
                     coverImageUrl={item.coverImageUrl}

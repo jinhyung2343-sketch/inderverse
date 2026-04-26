@@ -149,7 +149,6 @@ export default function ExplorePage() {
                 {filteredArtworks.map((artwork) => (
                   <ArtworkCard
                     key={artwork.id}
-                    id={artwork.id}
                     title={artwork.title}
                     authorName={artwork.authorName}
                     coverImageUrl={artwork.coverImageUrl}
