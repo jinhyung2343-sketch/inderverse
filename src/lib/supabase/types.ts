@@ -107,11 +107,16 @@ export type Database = {
           description: string | null
           id: string
           is_adult_only: boolean
+          spark_caption: string | null
+          spark_format: Database["public"]["Enums"]["spark_format"] | null
+          spark_meta: Json
+          spark_panel_count: number | null
           serialization_days: Json
           status: Database["public"]["Enums"]["channel_status"]
           title: string
           updated_at: string
           wait_free_hours: number
+          work_type: Database["public"]["Enums"]["work_type"]
         }
         Insert: {
           cover_image_url?: string | null
@@ -120,11 +125,16 @@ export type Database = {
           description?: string | null
           id?: string
           is_adult_only?: boolean
+          spark_caption?: string | null
+          spark_format?: Database["public"]["Enums"]["spark_format"] | null
+          spark_meta?: Json
+          spark_panel_count?: number | null
           serialization_days?: Json
           status?: Database["public"]["Enums"]["channel_status"]
           title: string
           updated_at?: string
           wait_free_hours?: number
+          work_type?: Database["public"]["Enums"]["work_type"]
         }
         Update: {
           cover_image_url?: string | null
@@ -133,11 +143,16 @@ export type Database = {
           description?: string | null
           id?: string
           is_adult_only?: boolean
+          spark_caption?: string | null
+          spark_format?: Database["public"]["Enums"]["spark_format"] | null
+          spark_meta?: Json
+          spark_panel_count?: number | null
           serialization_days?: Json
           status?: Database["public"]["Enums"]["channel_status"]
           title?: string
           updated_at?: string
           wait_free_hours?: number
+          work_type?: Database["public"]["Enums"]["work_type"]
         }
         Relationships: [
           {
@@ -649,9 +664,11 @@ export type Database = {
       episode_pricing: "free" | "paid" | "wait_free"
       episode_status: "draft" | "published" | "hidden"
       payout_method: "bank_transfer" | "paypal"
+      spark_format: "single_cut" | "four_cut"
       settlement_status: "pending" | "processing" | "completed" | "failed"
       tag_category: "genre" | "mood" | "warning"
       user_role: "reader" | "creator" | "admin"
+      work_type: "webtoon" | "spark"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { resolveEpisodeReference } from '@/lib/server/episode-reference'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,31 +12,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { episodeId, channelId } = await req.json()
+    const { episodeId, channelId, episodeNumber } = await req.json()
+    const hasEpisodeId = typeof episodeId === 'string' && episodeId.trim().length > 0
+    const hasChannelReference =
+      typeof channelId === 'string' &&
+      channelId.trim().length > 0 &&
+      typeof episodeNumber === 'number' &&
+      Number.isInteger(episodeNumber) &&
+      episodeNumber > 0
 
-    if (typeof episodeId !== 'string' || episodeId.trim().length === 0) {
-      return NextResponse.json({ error: 'Invalid episode id' }, { status: 400 })
-    }
-
-    if (channelId !== undefined && (typeof channelId !== 'string' || channelId.trim().length === 0)) {
-      return NextResponse.json({ error: 'Invalid channel id' }, { status: 400 })
+    if (!hasEpisodeId && !hasChannelReference) {
+      return NextResponse.json({ error: 'Invalid episode reference' }, { status: 400 })
     }
 
     const adminClient = createAdminClient()
-
-    const { data: episode } = await adminClient
-      .from('episodes')
-      .select('pricing_type, channel_id')
-      .eq('id', episodeId)
-      .single()
+    const episode = await resolveEpisodeReference(adminClient, {
+      episodeId,
+      channelId,
+      episodeNumber,
+    })
 
     if (!episode) return NextResponse.json({ error: 'Episode not found' }, { status: 404 })
     if (episode.pricing_type !== 'wait_free') {
       return NextResponse.json({ error: 'This episode is not eligible for wait-free' }, { status: 400 })
-    }
-
-    if (channelId && channelId !== episode.channel_id) {
-      return NextResponse.json({ error: 'Episode does not belong to the provided channel' }, { status: 400 })
     }
 
     const { data: channel } = await adminClient
@@ -75,7 +74,7 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.id,
         channel_id: episode.channel_id,
-        episode_id: episodeId,
+        episode_id: episode.id,
         next_unlock_available_at: nextUnlockAvailableAt.toISOString()
       })
 

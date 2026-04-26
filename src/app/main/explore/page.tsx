@@ -1,33 +1,176 @@
-import Link from 'next/link'
-import { BRAND } from '@/lib/brand'
+'use client'
 
-const pillars = [
-  '작가가 채널 단위로 세계관과 수익 구조를 직접 설계할 수 있습니다.',
-  '성인물은 법적 테두리 안에서 연령 게이트와 경고 태그를 통해 유통합니다.',
-  '에피소드 결제, 기다리면 무료, 라이브러리 축적이 하나의 흐름으로 이어집니다.',
-]
+import Link from 'next/link'
+import { useState } from 'react'
+import { BRAND } from '@/lib/brand'
+import { ArtworkCard } from '@/components/ui/ArtworkCard'
+import { artworks, categories, categoryTags, quickFilters } from '@/lib/mock/explore-data'
 
 export default function ExplorePage() {
+  const [activeCategory, setActiveCategory] = useState('전체')
+  const [activeFilter, setActiveFilter] = useState('추천')
+  const [searchQuery, setSearchQuery] = useState('')
+  const activeTags = categoryTags[activeCategory] ?? []
+
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredArtworks = artworks.filter((artwork) => {
+    const matchesCategory = activeCategory === '전체' || artwork.category === activeCategory
+    const matchesFilter = activeFilter === '추천' || artwork.filterTags.includes(activeFilter)
+    const matchesQuery =
+      normalizedQuery.length === 0 ||
+      artwork.title.toLowerCase().includes(normalizedQuery) ||
+      artwork.authorName.toLowerCase().includes(normalizedQuery) ||
+      artwork.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
+
+    return matchesCategory && matchesFilter && matchesQuery
+  })
+
   return (
-    <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
-        <header className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Explore</p>
-          <h1 className="text-4xl font-black tracking-tight">{BRAND.name} 작품 탐색</h1>
-          <p className="max-w-2xl text-zinc-400">
-            독립 창작 플랫폼이라는 방향성에 맞춰, 탐색 화면도 장르 다양성과 작가 중심 큐레이션을 우선하는 구조로 확장될 예정입니다.
-          </p>
+    <main className="min-h-[100dvh] overflow-hidden bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <header className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-3">
+              <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Explore</p>
+              <h1 className="text-4xl font-black tracking-tight">{BRAND.name} 작품보기</h1>
+              <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
+                장르, 분위기, 작가 결에 따라 작품을 탐색할 수 있는 기본 구조입니다. 카테고리와 검색을 먼저 고정해두고,
+                이후 추천 로직과 상세 진입 흐름을 덧붙일 수 있게 설계했습니다.
+              </p>
+            </div>
+
+            <Link href="/main" className="hidden rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 md:inline-flex">
+              허브로 돌아가기
+            </Link>
+          </div>
+
+          <section className="rounded-[32px] border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-5">
+            <div className="flex flex-col gap-4">
+              <div className="relative">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="작품명, 작가명, 태그로 검색"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-white/25"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => {
+                  const isActive = category === activeCategory
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setActiveCategory(category)}
+                      className={`rounded-full px-4 py-2 text-sm transition ${
+                        isActive
+                          ? 'border border-cyan-400/40 bg-cyan-500/15 text-cyan-100'
+                          : 'border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+                {activeTags.map((tag) => (
+                  <span key={tag} className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-zinc-400">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          {pillars.map((pillar) => (
-            <article key={pillar} className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <p className="text-sm leading-6 text-zinc-300">{pillar}</p>
-            </article>
-          ))}
+        <section className="grid gap-4 lg:grid-cols-[1.2fr_2.8fr]">
+          <article className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Quick Menu</p>
+            <div className="mt-5 grid gap-3">
+              {quickFilters.map((filter) => {
+                const isActive = filter === activeFilter
+
+                return (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setActiveFilter(filter)}
+                    className={`rounded-2xl border px-4 py-4 text-left transition ${
+                      isActive
+                        ? 'border-white/20 bg-white/10 text-white'
+                        : 'border-white/10 bg-black/20 text-zinc-400 hover:bg-white/8 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="block text-base font-semibold">{filter}</span>
+                    <span className="mt-1 block text-sm text-zinc-500">
+                      {filter === '추천' && '지금 가장 먼저 보여주고 싶은 작품'}
+                      {filter === '최신' && '방금 도착한 새로운 연재 흐름'}
+                      {filter === '인기' && '반응이 빠르게 모이는 작품'}
+                      {filter === '완결' && '정주행하기 좋은 완결 작품'}
+                      {filter === '기다리면 무료' && '부담 없이 이어 읽을 수 있는 작품'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </article>
+
+          <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+            <div className="flex flex-col gap-3 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Curated Feed</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight">
+                  {activeCategory} · {activeFilter}
+                </h2>
+              </div>
+              <p className="text-sm text-zinc-400">총 {filteredArtworks.length}개의 작품이 표시되고 있습니다.</p>
+            </div>
+
+            {filteredArtworks.length > 0 ? (
+              <div className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
+                {filteredArtworks.map((artwork) => (
+                  <ArtworkCard
+                    key={artwork.id}
+                    id={artwork.id}
+                    title={artwork.title}
+                    authorName={artwork.authorName}
+                    coverImageUrl={artwork.coverImageUrl}
+                    status={artwork.status}
+                    isAdultOnly={artwork.isAdultOnly}
+                    isCommentEnabled={artwork.isCommentEnabled}
+                    tags={artwork.tags}
+                    href={`/main/explore/${artwork.id}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-12 text-center">
+                <p className="text-lg font-semibold text-white">조건에 맞는 작품이 아직 없습니다.</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">카테고리를 바꾸거나 검색어를 비워두면 더 많은 작품을 볼 수 있습니다.</p>
+              </div>
+            )}
+          </section>
         </section>
 
-        <Link href="/main" className="text-sm text-zinc-400 underline underline-offset-4">
+        <Link href="/main" className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 md:hidden">
           허브로 돌아가기
         </Link>
       </div>

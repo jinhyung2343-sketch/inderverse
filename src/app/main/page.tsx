@@ -9,12 +9,21 @@ import { useAuthStore } from '@/stores/auth';
 const MENUS = [
   {
     id: 'explore',
-    title: '작품 탐색',
+    title: '작품보기',
     description: '무한한 세계로 빠져들 시간',
     path: '/main/explore',
     ambientColor: 'bg-indigo-500', // 블루/퍼플
     glowColor: 'group-hover:shadow-[0_0_40px_rgba(99,102,241,0.2)]',
     borderColor: 'group-hover:border-indigo-500/30'
+  },
+  {
+    id: 'spark',
+    title: 'Spark',
+    description: '짧고 날카로운 숏폼 만평',
+    path: '/main/spark',
+    ambientColor: 'bg-sky-500',
+    glowColor: 'group-hover:shadow-[0_0_40px_rgba(14,165,233,0.2)]',
+    borderColor: 'group-hover:border-sky-500/30'
   },
   {
     id: 'studio',
@@ -26,13 +35,13 @@ const MENUS = [
     borderColor: 'group-hover:border-emerald-500/30'
   },
   {
-    id: 'store',
-    title: '충전소',
-    description: '이야기를 멈추지 않는 원동력',
-    path: '/main/store',
-    ambientColor: 'bg-amber-500', // 골드
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(245,158,11,0.2)]',
-    borderColor: 'group-hover:border-amber-500/30'
+    id: 'community',
+    title: '커뮤니티',
+    description: '함께 모여 세계를 나누는 광장',
+    path: '/community',
+    ambientColor: 'bg-cyan-500',
+    glowColor: 'group-hover:shadow-[0_0_40px_rgba(6,182,212,0.2)]',
+    borderColor: 'group-hover:border-cyan-500/30'
   },
   {
     id: 'library',
@@ -42,6 +51,15 @@ const MENUS = [
     ambientColor: 'bg-rose-500', // 로즈
     glowColor: 'group-hover:shadow-[0_0_40px_rgba(244,63,94,0.2)]',
     borderColor: 'group-hover:border-rose-500/30'
+  },
+  {
+    id: 'store',
+    title: '충전하기',
+    description: '이야기를 멈추지 않는 원동력',
+    path: '/main/store',
+    ambientColor: 'bg-amber-500', // 골드
+    glowColor: 'group-hover:shadow-[0_0_40px_rgba(245,158,11,0.2)]',
+    borderColor: 'group-hover:border-amber-500/30'
   }
 ];
 
@@ -59,7 +77,7 @@ export default function MainHubPage() {
 
   const handleMenuClick = (menuId: string, path: string) => {
     // 권한 가드 로직: 작품 탐색이 아니고 로그인 안된 경우 차단
-    if (menuId !== 'explore' && !isLoggedIn) {
+    if (menuId !== 'explore' && menuId !== 'spark' && !isLoggedIn) {
       alert('몰입을 위해 로그인이 필요한 서비스입니다.');
       return;
     }

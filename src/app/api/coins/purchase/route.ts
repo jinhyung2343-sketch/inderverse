@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { resolveEpisodeReference } from '@/lib/server/episode-reference'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,15 +12,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { episodeId } = await req.json()
-    if (typeof episodeId !== 'string' || episodeId.trim().length === 0) {
-      return NextResponse.json({ error: 'Invalid episode id' }, { status: 400 })
+    const { episodeId, channelId, episodeNumber } = await req.json()
+    const hasEpisodeId = typeof episodeId === 'string' && episodeId.trim().length > 0
+    const hasChannelReference =
+      typeof channelId === 'string' &&
+      channelId.trim().length > 0 &&
+      typeof episodeNumber === 'number' &&
+      Number.isInteger(episodeNumber) &&
+      episodeNumber > 0
+
+    if (!hasEpisodeId && !hasChannelReference) {
+      return NextResponse.json({ error: 'Invalid episode reference' }, { status: 400 })
     }
 
     const adminClient = createAdminClient()
+    const episode = await resolveEpisodeReference(adminClient, {
+      episodeId,
+      channelId,
+      episodeNumber,
+    })
+
+    if (!episode) {
+      return NextResponse.json({ error: 'Episode not found' }, { status: 404 })
+    }
+
     const { data, error } = await adminClient.rpc('purchase_episode', {
       p_user_id: user.id,
-      p_episode_id: episodeId,
+      p_episode_id: episode.id,
     })
 
     if (error) {

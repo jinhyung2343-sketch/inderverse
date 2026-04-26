@@ -1,3 +1,5 @@
+import { LibraryShelf } from '@/components/library/LibraryShelf'
+
 export default function LibraryPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
@@ -10,9 +12,7 @@ export default function LibraryPage() {
           </p>
         </header>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm leading-6 text-zinc-300">
-          라이브러리 UI는 아직 본격 구현 전이지만, 구매 내역과 해금 내역을 받쳐주는 데이터 모델은 이미 준비되어 있습니다.
-        </section>
+        <LibraryShelf />
       </div>
     </main>
   )

@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface ArtworkCardProps {
   id: string;
@@ -8,6 +9,8 @@ interface ArtworkCardProps {
   coverImageUrl: string;
   status: 'publishing' | 'completed';
   isAdultOnly: boolean;
+  href?: string;
+  tags?: string[];
   // 작가주의 시스템: 댓글 활성화 여부 표기 (Mock)
   isCommentEnabled?: boolean;
 }
@@ -18,9 +21,11 @@ export function ArtworkCard({
   coverImageUrl,
   status,
   isAdultOnly,
+  href,
+  tags = [],
   isCommentEnabled = true
 }: ArtworkCardProps) {
-  return (
+  const content = (
     <div className="group relative flex flex-col gap-3 min-w-[160px] md:min-w-[200px] cursor-pointer">
       {/* 썸네일 컨테이너 */}
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-bg-card transition-all duration-300 ease-out group-hover:scale-[1.02] group-hover:shadow-2xl">
@@ -83,7 +88,26 @@ export function ArtworkCard({
         <p className="line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
           {authorName}
         </p>
+        {tags.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }
