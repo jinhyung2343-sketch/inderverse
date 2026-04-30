@@ -24,6 +24,7 @@ export default function NewSparkPage() {
           heading="새 스파크 만들기"
           description="스파크는 웹툰 연재보다 짧고 날카로운 포맷입니다. 지금은 최소 메타데이터와 이미지 URL만으로 공개 가능한 형태까지 연결합니다."
           submitLabel="스파크 저장"
+          channelId={undefined}
         />
       </div>
     </main>

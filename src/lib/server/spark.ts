@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { SparkRecord, SparkStatus } from '@/lib/spark'
@@ -28,6 +29,22 @@ interface SparkChannelQueryRow
   creator?: Pick<ProfileRow, 'display_name'> | null
 }
 
+export interface SparkDetailContext {
+  spark: SparkRecord
+  previousSpark: SparkRecord | null
+  nextSpark: SparkRecord | null
+  relatedSparks: SparkRecord[]
+  engagement: SparkEngagementSummary
+}
+
+export interface SparkEngagementSummary {
+  viewCount: number
+  applauseCount: number
+  saveCount: number
+  viewerHasSaved: boolean
+  viewerCanSave: boolean
+}
+
 function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
   const meta = parseSparkMeta(row.spark_meta)
   const format = row.spark_format ?? 'single_cut'
@@ -47,6 +64,7 @@ function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
     tone: meta.tone,
     externalUrl: meta.externalUrl,
     coverImageUrl: row.cover_image_url?.trim() || null,
+    panels: meta.panels,
     isAdultOnly: row.is_adult_only,
     status: row.status,
     createdAt: row.created_at,
@@ -54,14 +72,17 @@ function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
   }
 }
 
-async function getViewerAdultVerified() {
+const getViewerSession = cache(async () => {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return false
+    return {
+      userId: null,
+      isAdultVerified: false,
+    }
   }
 
   const { data: profile } = await supabase
@@ -70,15 +91,18 @@ async function getViewerAdultVerified() {
     .eq('id', user.id)
     .single()
 
-  return profile?.is_adult_verified ?? false
-}
+  return {
+    userId: user.id,
+    isAdultVerified: profile?.is_adult_verified ?? false,
+  }
+})
 
 function getPublicStatuses(): SparkStatus[] {
   return ['publishing', 'completed']
 }
 
 export async function getPublicSparkList() {
-  const isAdultVerified = await getViewerAdultVerified()
+  const { isAdultVerified } = await getViewerSession()
   const admin = createAdminClient()
   let query = admin
     .from('channels')
@@ -117,7 +141,7 @@ export async function getPublicSparkList() {
 }
 
 export async function getPublicSparkById(id: string) {
-  const isAdultVerified = await getViewerAdultVerified()
+  const { isAdultVerified } = await getViewerSession()
   const admin = createAdminClient()
   let query = admin
     .from('channels')
@@ -157,6 +181,117 @@ export async function getPublicSparkById(id: string) {
   }
 
   return mapSparkRow(data as SparkChannelQueryRow)
+}
+
+export async function getSparkEngagementSummary(channelId: string): Promise<SparkEngagementSummary> {
+  const admin = createAdminClient()
+  const { userId } = await getViewerSession()
+
+  const [viewsResult, applauseResult, savesResult, viewerSaveResult] = await Promise.all([
+    admin
+      .from('spark_views')
+      .select('*', { count: 'exact', head: true })
+      .eq('channel_id', channelId),
+    admin
+      .from('spark_reactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('channel_id', channelId)
+      .eq('reaction_type', 'applause'),
+    admin
+      .from('spark_saves')
+      .select('*', { count: 'exact', head: true })
+      .eq('channel_id', channelId),
+    userId
+      ? admin
+          .from('spark_saves')
+          .select('id', { head: true, count: 'exact' })
+          .eq('channel_id', channelId)
+          .eq('user_id', userId)
+      : Promise.resolve({ count: 0, error: null }),
+  ])
+
+  if (viewsResult.error) {
+    throw new Error(`Failed to load spark views: ${viewsResult.error.message}`)
+  }
+
+  if (applauseResult.error) {
+    throw new Error(`Failed to load spark applause: ${applauseResult.error.message}`)
+  }
+
+  if (savesResult.error) {
+    throw new Error(`Failed to load spark saves: ${savesResult.error.message}`)
+  }
+
+  if (viewerSaveResult.error) {
+    throw new Error(`Failed to load spark save state: ${viewerSaveResult.error.message}`)
+  }
+
+  return {
+    viewCount: viewsResult.count ?? 0,
+    applauseCount: applauseResult.count ?? 0,
+    saveCount: savesResult.count ?? 0,
+    viewerHasSaved: (viewerSaveResult.count ?? 0) > 0,
+    viewerCanSave: Boolean(userId),
+  }
+}
+
+function getSparkSimilarityScore(base: SparkRecord, candidate: SparkRecord) {
+  let score = 0
+
+  if (base.topic === candidate.topic) {
+    score += 6
+  }
+
+  if (base.format === candidate.format) {
+    score += 2
+  }
+
+  const sharedTags = candidate.tags.filter((tag) => base.tags.includes(tag)).length
+  score += sharedTags * 3
+
+  const baseDate = new Date(base.updatedAt).getTime()
+  const candidateDate = new Date(candidate.updatedAt).getTime()
+  const ageGapHours = Math.abs(baseDate - candidateDate) / (1000 * 60 * 60)
+
+  if (ageGapHours <= 72) {
+    score += 1
+  }
+
+  return score
+}
+
+export async function getPublicSparkDetailContext(id: string): Promise<SparkDetailContext | null> {
+  const sparks = await getPublicSparkList()
+  const currentIndex = sparks.findIndex((spark) => spark.id === id)
+
+  if (currentIndex === -1) {
+    return null
+  }
+
+  const spark = sparks[currentIndex]
+  const previousSpark = currentIndex > 0 ? sparks[currentIndex - 1] : null
+  const nextSpark = currentIndex < sparks.length - 1 ? sparks[currentIndex + 1] : null
+
+  const relatedSparks = sparks
+    .filter((candidate) => candidate.id !== spark.id)
+    .map((candidate) => ({
+      candidate,
+      score: getSparkSimilarityScore(spark, candidate),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3)
+    .map((entry) => entry.candidate)
+
+  const engagement = await getSparkEngagementSummary(spark.id)
+
+  return {
+    spark,
+    previousSpark,
+    nextSpark,
+    relatedSparks,
+    engagement,
+  }
 }
 
 export async function getCreatorSparkList() {

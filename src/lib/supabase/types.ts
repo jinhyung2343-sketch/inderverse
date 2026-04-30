@@ -326,6 +326,126 @@ export type Database = {
           },
         ]
       }
+      spark_reactions: {
+        Row: {
+          anon_id: string | null
+          channel_id: string
+          id: number
+          reacted_at: string
+          reaction_type: string
+          user_id: string | null
+        }
+        Insert: {
+          anon_id?: string | null
+          channel_id: string
+          id?: number
+          reacted_at?: string
+          reaction_type?: string
+          user_id?: string | null
+        }
+        Update: {
+          anon_id?: string | null
+          channel_id?: string
+          id?: number
+          reacted_at?: string
+          reaction_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spark_reactions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spark_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spark_saves: {
+        Row: {
+          channel_id: string
+          id: number
+          saved_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          id?: number
+          saved_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          id?: number
+          saved_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spark_saves_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spark_saves_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spark_views: {
+        Row: {
+          anon_id: string | null
+          channel_id: string
+          id: number
+          ip_hash: string | null
+          user_id: string | null
+          viewed_at: string
+        }
+        Insert: {
+          anon_id?: string | null
+          channel_id: string
+          id?: number
+          ip_hash?: string | null
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Update: {
+          anon_id?: string | null
+          channel_id?: string
+          id?: number
+          ip_hash?: string | null
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spark_views_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spark_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       episodes: {
         Row: {
           channel_id: string

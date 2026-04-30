@@ -11,7 +11,8 @@ export async function proxy(request: NextRequest) {
 
   const isAuthPage = pathname === '/join-prompt' || pathname.startsWith('/auth/')
   const isMemberPage = pathname.startsWith('/main/library') || pathname.startsWith('/main/store')
-  const isCreatorPage = pathname.startsWith('/main/studio')
+  const isStudioHome = pathname === '/main/studio'
+  const isCreatorPage = pathname.startsWith('/main/studio/')
   const isAdminPage = pathname.startsWith('/admin')
   const isLoggedIn = Boolean(userId)
   const isCreator = profile?.role === 'creator' || profile?.role === 'admin'
@@ -21,7 +22,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/main', request.url))
   }
 
-  if ((isMemberPage || isCreatorPage || isAdminPage) && !isLoggedIn) {
+  if ((isMemberPage || isStudioHome || isCreatorPage || isAdminPage) && !isLoggedIn) {
     const redirectUrl = new URL('/join-prompt', request.url)
     redirectUrl.searchParams.set('next', `${pathname}${search}`)
     return NextResponse.redirect(redirectUrl)

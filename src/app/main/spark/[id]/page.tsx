@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getPublicSparkById } from '@/lib/server/spark'
+import { SparkCard } from '@/components/spark/SparkCard'
+import { SparkEngagementPanel } from '@/components/spark/SparkEngagementPanel'
+import { getPublicSparkDetailContext } from '@/lib/server/spark'
 import { getSparkAccentClassName, getSparkFormatLabel } from '@/lib/spark'
 
 function formatDate(value: string) {
@@ -19,11 +21,13 @@ export default async function SparkDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const spark = await getPublicSparkById(id)
+  const context = await getPublicSparkDetailContext(id)
 
-  if (!spark) {
+  if (!context) {
     notFound()
   }
+
+  const { spark, previousSpark, nextSpark, relatedSparks, engagement } = context
 
   const accentClassName = getSparkAccentClassName(spark)
 
@@ -54,7 +58,32 @@ export default async function SparkDetailPage({
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <article className="overflow-hidden rounded-[32px] border border-white/10 bg-white/5 backdrop-blur-xl">
-            {spark.coverImageUrl ? (
+            {spark.panels.length > 0 ? (
+              <div
+                className={`grid gap-3 p-4 md:p-6 ${
+                  spark.format === 'four_cut' ? 'md:grid-cols-2' : 'grid-cols-1'
+                }`}
+              >
+                {spark.panels.map((panel, index) => (
+                  <figure
+                    key={`${spark.id}-panel-${index}`}
+                    className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={panel.imageUrl}
+                      alt={`${spark.title} ${index + 1}번 컷`}
+                      className={`w-full object-cover ${spark.format === 'four_cut' ? 'h-64' : 'h-[420px]'}`}
+                    />
+                    {panel.caption ? (
+                      <figcaption className="border-t border-white/10 px-4 py-3 text-sm leading-6 text-zinc-300">
+                        {panel.caption}
+                      </figcaption>
+                    ) : null}
+                  </figure>
+                ))}
+              </div>
+            ) : spark.coverImageUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={spark.coverImageUrl} alt={spark.title} className="h-[360px] w-full object-cover" />
             ) : (
@@ -76,10 +105,23 @@ export default async function SparkDetailPage({
           </article>
 
           <aside className="space-y-6">
+            <SparkEngagementPanel
+              sparkId={spark.id}
+              sparkTitle={spark.title}
+              initialState={{
+                viewCount: engagement.viewCount,
+                applauseCount: engagement.applauseCount,
+                saved: engagement.viewerHasSaved,
+                saveCount: engagement.saveCount,
+                canSave: engagement.viewerCanSave,
+              }}
+            />
+
             <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark Notes</p>
               <div className="mt-4 grid gap-3 text-sm text-zinc-300">
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">컷 수: {spark.panelCount}컷</div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">등록된 패널: {spark.panels.length}개</div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">톤: {spark.tone ?? '미지정'}</div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                   성인 구분: {spark.isAdultOnly ? '성인 인증 필요' : '전체 공개'}
@@ -113,6 +155,60 @@ export default async function SparkDetailPage({
               </a>
             ) : null}
           </aside>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          {previousSpark ? (
+            <Link
+              href={`/main/spark/${previousSpark.id}`}
+              className="rounded-[32px] border border-white/10 bg-white/5 p-6 transition hover:bg-white/10"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Previous Spark</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">{previousSpark.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{previousSpark.caption}</p>
+            </Link>
+          ) : (
+            <div className="rounded-[32px] border border-dashed border-white/10 bg-black/20 p-6 text-sm leading-6 text-zinc-500">
+              이 스파크보다 앞선 공개 작품이 아직 없습니다.
+            </div>
+          )}
+
+          {nextSpark ? (
+            <Link
+              href={`/main/spark/${nextSpark.id}`}
+              className="rounded-[32px] border border-white/10 bg-white/5 p-6 transition hover:bg-white/10"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Next Spark</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">{nextSpark.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{nextSpark.caption}</p>
+            </Link>
+          ) : (
+            <div className="rounded-[32px] border border-dashed border-white/10 bg-black/20 p-6 text-sm leading-6 text-zinc-500">
+              이 스파크보다 뒤의 공개 작품이 아직 없습니다.
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="flex flex-col gap-3 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Related Sparks</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">이 스파크와 결이 맞는 다른 작품</h2>
+            </div>
+            <p className="text-sm text-zinc-400">같은 주제, 같은 태그, 비슷한 포맷을 기준으로 묶었습니다.</p>
+          </div>
+
+          {relatedSparks.length > 0 ? (
+            <div className="mt-6 grid gap-5 xl:grid-cols-3">
+              {relatedSparks.map((relatedSpark) => (
+                <SparkCard key={relatedSpark.id} spark={relatedSpark} />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-500">
+              아직 연관 추천을 만들 만큼 공개된 스파크가 충분하지 않습니다.
+            </div>
+          )}
         </section>
       </div>
     </main>

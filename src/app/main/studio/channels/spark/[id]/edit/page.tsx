@@ -44,6 +44,7 @@ export default async function EditSparkPage({
           heading="스파크 수정"
           description="카드 카피, 주제, 공개 상태를 다듬으면서 스파크를 실제 서비스 흐름 안으로 옮기는 단계입니다."
           submitLabel="변경 저장"
+          channelId={spark.id}
         />
       </div>
     </main>

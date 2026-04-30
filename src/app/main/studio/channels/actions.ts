@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { SparkDraftInput, SparkFormat, SparkStatus } from '@/lib/spark'
+import type { SparkDraftInput, SparkFormat, SparkPanel, SparkStatus } from '@/lib/spark'
 import { buildSparkMeta, getSparkPanelCount, sanitizeSparkTags } from '@/lib/spark'
 import type { Database } from '@/lib/supabase/types'
 
@@ -21,6 +21,61 @@ function readOptionalText(formData: FormData, key: string) {
 
 function readBoolean(formData: FormData, key: string) {
   return formData.get(key) === 'on'
+}
+
+function parsePanels(value: string, format: SparkFormat, status: SparkStatus) {
+  if (!value) {
+    if (status === 'draft') {
+      return []
+    }
+
+    throw new Error('공개 스파크에는 패널 이미지가 필요합니다.')
+  }
+
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new Error('패널 데이터 형식이 올바르지 않습니다.')
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('패널 데이터 형식이 올바르지 않습니다.')
+  }
+
+  const sanitizedPanels = parsed
+    .map((panel) => {
+      if (!panel || typeof panel !== 'object') {
+        return null
+      }
+
+      const imageUrl = typeof panel.imageUrl === 'string' ? panel.imageUrl.trim() : ''
+      const caption = typeof panel.caption === 'string' ? panel.caption.trim() : ''
+
+      if (!imageUrl && !caption) {
+        return null
+      }
+
+      return {
+        imageUrl,
+        caption,
+      }
+    })
+    .filter((panel): panel is SparkPanel => panel !== null)
+
+  const requiredPanelCount = getSparkPanelCount(format)
+  const activePanels = sanitizedPanels.slice(0, requiredPanelCount)
+
+  if (status !== 'draft' && activePanels.length < requiredPanelCount) {
+    throw new Error(`현재 포맷에는 최소 ${requiredPanelCount}개의 패널 이미지가 필요합니다.`)
+  }
+
+  if (status !== 'draft' && activePanels.some((panel) => !panel.imageUrl)) {
+    throw new Error('공개 스파크의 각 패널에는 이미지가 필요합니다.')
+  }
+
+  return activePanels
 }
 
 function isSparkFormat(value: string): value is SparkFormat {
@@ -64,6 +119,7 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
   const punchline = readText(formData, 'punchline')
   const formatValue = readText(formData, 'format')
   const statusValue = readText(formData, 'status')
+  const panelsJson = readText(formData, 'panelsJson')
 
   if (!title || !description || !caption || !topic || !punchline) {
     throw new Error('필수 항목이 비어 있습니다.')
@@ -76,6 +132,8 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
   if (!isSparkStatus(statusValue)) {
     throw new Error('유효하지 않은 공개 상태입니다.')
   }
+
+  const panels = parsePanels(panelsJson, formatValue, statusValue)
 
   return {
     title,
@@ -90,6 +148,7 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
     tags: sanitizeSparkTags(readText(formData, 'tags')),
     tone: readOptionalText(formData, 'tone'),
     externalUrl: readOptionalText(formData, 'externalUrl'),
+    panels,
   }
 }
 

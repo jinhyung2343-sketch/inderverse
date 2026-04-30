@@ -53,14 +53,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
     }
 
-    const { url, filePath } = await generateSignedUrl({
+    const { url, filePath, publicUrl } = await generateSignedUrl({
       channelId,
       episodeId,
       sortOrder,
       contentType: contentType as AllowedContentType,
     })
 
-    return NextResponse.json({ url, filePath }, { status: 200 })
+    return NextResponse.json({ url, filePath, publicUrl }, { status: 200 })
   } catch (error) {
     console.error('Error generating signed URL:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

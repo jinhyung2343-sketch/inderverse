@@ -3,12 +3,18 @@ import type { Database, Json } from '@/lib/supabase/types'
 export type SparkFormat = Database['public']['Enums']['spark_format']
 export type SparkStatus = Database['public']['Enums']['channel_status']
 
+export interface SparkPanel {
+  imageUrl: string
+  caption: string
+}
+
 export interface SparkMeta {
   topic: string
   tags: string[]
   punchline: string
   tone: string | null
   externalUrl: string | null
+  panels: SparkPanel[]
 }
 
 export interface SparkRecord {
@@ -26,6 +32,7 @@ export interface SparkRecord {
   tone: string | null
   externalUrl: string | null
   coverImageUrl: string | null
+  panels: SparkPanel[]
   isAdultOnly: boolean
   status: SparkStatus
   createdAt: string
@@ -45,6 +52,7 @@ export interface SparkDraftInput {
   tags: string[]
   tone: string | null
   externalUrl: string | null
+  panels: SparkPanel[]
 }
 
 function asObject(value: Json): Record<string, Json | undefined> | null {
@@ -70,6 +78,34 @@ function asStringArray(value: Json | undefined) {
     .filter(Boolean)
 }
 
+function parseSparkPanels(value: Json | undefined) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .map((entry) => {
+      const objectValue = asObject(entry)
+
+      if (!objectValue) {
+        return null
+      }
+
+      const imageUrl = asString(objectValue.imageUrl)
+      const caption = asString(objectValue.caption)
+
+      if (!imageUrl && !caption) {
+        return null
+      }
+
+      return {
+        imageUrl,
+        caption,
+      }
+    })
+    .filter((entry): entry is SparkPanel => entry !== null)
+}
+
 export function sanitizeSparkTags(value: string) {
   return Array.from(
     new Set(
@@ -92,6 +128,7 @@ export function parseSparkMeta(value: Json): SparkMeta {
       punchline: '',
       tone: null,
       externalUrl: null,
+      panels: [],
     }
   }
 
@@ -100,6 +137,7 @@ export function parseSparkMeta(value: Json): SparkMeta {
   const punchline = asString(objectValue.punchline)
   const tone = asString(objectValue.tone)
   const externalUrl = asString(objectValue.externalUrl)
+  const panels = parseSparkPanels(objectValue.panels)
 
   return {
     topic,
@@ -107,6 +145,7 @@ export function parseSparkMeta(value: Json): SparkMeta {
     punchline,
     tone: tone || null,
     externalUrl: externalUrl || null,
+    panels,
   }
 }
 
@@ -117,6 +156,10 @@ export function buildSparkMeta(input: SparkDraftInput): Json {
     punchline: input.punchline.trim(),
     tone: input.tone?.trim() || null,
     externalUrl: input.externalUrl?.trim() || null,
+    panels: input.panels.map((panel) => ({
+      imageUrl: panel.imageUrl.trim(),
+      caption: panel.caption.trim(),
+    })),
   }
 }
 
