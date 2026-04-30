@@ -85,6 +85,7 @@ export default async function StudioPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">전환 후 바로 열리는 것</p>
               <div className="mt-4 grid gap-3 text-sm text-zinc-300">
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">스파크 생성 및 수정</div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">웹툰 채널 및 회차 편집</div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">채널 공개 상태 관리</div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">정산 및 안전장치 구조 확인</div>
               </div>
@@ -93,20 +94,33 @@ export default async function StudioPage() {
         ) : (
           <>
             <section className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Webtoon Launchpad</p>
+                  <h2 className="mt-2 text-2xl font-bold text-white">웹툰 채널과 회차 만들기</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">
+                    이제 스튜디오에서 웹툰 채널 생성, 회차 추가, 이미지 업로드까지 직접 제어할 수 있습니다.
+                  </p>
+                  <Link
+                    href="/main/studio/channels/webtoon/new"
+                    className="mt-4 inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+                  >
+                    새 웹툰 만들기
+                  </Link>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
                   <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark Launchpad</p>
                   <h2 className="mt-2 text-2xl font-bold text-white">스파크 발행 흐름으로 바로 이동</h2>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     스파크는 지금 가장 먼저 실제 발행 흐름이 닫혀 있는 포맷입니다. 커버 업로드와 공개 상태 전환까지 이어서 확인할 수 있습니다.
                   </p>
+                  <Link
+                    href="/main/studio/channels/spark/new"
+                    className="mt-4 inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+                  >
+                    새 스파크 만들기
+                  </Link>
                 </div>
-                <Link
-                  href="/main/studio/channels/spark/new"
-                  className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-                >
-                  새 스파크 만들기
-                </Link>
               </div>
             </section>
 

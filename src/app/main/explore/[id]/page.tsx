@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
-import { artworks, getArtworkById } from '@/lib/mock/explore-data'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
+import { artworks } from '@/lib/mock/explore-data'
+import { getPublicArtworkById, getPublicArtworkList, getRelatedArtworks } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
 
 const sectionLinks = [
@@ -16,20 +17,19 @@ const sectionLinks = [
 
 export default async function ArtworkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const artwork = getArtworkById(id)
+  const artwork = await getPublicArtworkById(id)
 
   if (!artwork) {
     notFound()
   }
 
-  const relatedArtworks = artworks
-    .filter((item) => item.id !== artwork.id && (item.category === artwork.category || item.tags.some((tag) => artwork.tags.includes(tag))))
-    .slice(0, 4)
+  const feed = await getPublicArtworkList()
+  const relatedArtworks = await getRelatedArtworks(artwork, 4)
   const backendCoverage = getArtworkBackendCoverage(artwork)
   const savedArtworkIds = await getSavedArtworkIds()
   const isSaved = savedArtworkIds.includes(artwork.id)
 
-  const fallbackRelated = artworks.filter((item) => item.id !== artwork.id).slice(0, 4)
+  const fallbackRelated = (feed.length > 0 ? feed : artworks).filter((item) => item.id !== artwork.id).slice(0, 4)
   const recommended = relatedArtworks.length > 0 ? relatedArtworks : fallbackRelated
 
   return (

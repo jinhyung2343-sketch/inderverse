@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getPublicArtworkById } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
-import { getArtworkById } from '@/lib/mock/explore-data'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid artwork id' }, { status: 400 })
     }
 
-    const artwork = getArtworkById(artworkId)
+    const artwork = await getPublicArtworkById(artworkId)
 
     if (!artwork) {
       return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })

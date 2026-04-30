@@ -1,0 +1,201 @@
+import { categories } from '@/lib/mock/explore-data'
+import type { CreatorWebtoonRecord } from '@/lib/webtoon'
+import { getSerializationDayLabel, getWebtoonStatusLabel } from '@/lib/webtoon'
+import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
+
+const weekdayOptions = [0, 1, 2, 3, 4, 5, 6] as const
+const statusOptions = ['draft', 'publishing', 'completed'] as const
+const categoryOptions = categories.filter((category) => category !== '전체')
+
+export function WebtoonEditorForm({
+  action,
+  initialValue,
+  heading,
+  description,
+  submitLabel,
+  channelId,
+}: {
+  action: (formData: FormData) => void | Promise<void>
+  initialValue?: CreatorWebtoonRecord
+  heading: string
+  description: string
+  submitLabel: string
+  channelId?: string
+}) {
+  return (
+    <form action={action} className="grid gap-6">
+      <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
+        <div className="space-y-3">
+          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Webtoon Editor</p>
+          <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">{heading}</h1>
+          <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">{description}</p>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.15fr_1.85fr]">
+        <div className="space-y-6">
+          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-bold text-white">기본 정보</h2>
+            <div className="mt-5 grid gap-4">
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>작품 제목</span>
+                <input
+                  name="title"
+                  required
+                  defaultValue={initialValue?.title ?? ''}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                  placeholder="웹툰 제목"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>작품 설명</span>
+                <textarea
+                  name="description"
+                  required
+                  defaultValue={initialValue?.description ?? ''}
+                  rows={7}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                  placeholder="작품의 세계관, 분위기, 독자에게 먼저 보여주고 싶은 맥락을 적어주세요."
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>커버 이미지</span>
+                <WebtoonCoverField channelId={channelId} initialValue={initialValue?.coverImageUrl ?? ''} />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-bold text-white">공개 설정</h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>카테고리</span>
+                <select
+                  name="category"
+                  defaultValue={initialValue?.category ?? '드라마'}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                >
+                  {categoryOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>상태</span>
+                <select
+                  name="status"
+                  defaultValue={initialValue?.status ?? 'draft'}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {getWebtoonStatusLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
+              <span>탐색 태그</span>
+              <input
+                name="tags"
+                defaultValue={
+                  initialValue?.tags.filter((tag) => tag !== initialValue.category).join(', ') ?? ''
+                }
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                placeholder="도시환상, 군상극, 청춘"
+              />
+            </label>
+
+            <div className="mt-4 grid gap-3 text-sm text-zinc-300">
+              <p className="text-white">연재 요일</p>
+              <div className="flex flex-wrap gap-2">
+                {weekdayOptions.map((day) => {
+                  const checked = initialValue?.serializationDays.includes(day) ?? false
+
+                  return (
+                    <label
+                      key={day}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2"
+                    >
+                      <input
+                        type="checkbox"
+                        name="serializationDays"
+                        value={String(day)}
+                        defaultChecked={checked}
+                        className="h-4 w-4 rounded border-white/20 bg-black/30"
+                      />
+                      <span>{getSerializationDayLabel(day)}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
+              <span>기다리면 무료 간격 (시간)</span>
+              <input
+                type="number"
+                min={0}
+                max={168}
+                name="waitFreeHours"
+                defaultValue={initialValue?.waitFreeHours ?? 24}
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+              />
+            </label>
+
+            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
+              <input
+                type="checkbox"
+                name="isAdultOnly"
+                defaultChecked={initialValue?.isAdultOnly ?? false}
+                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
+              />
+              <span>성인 인증이 필요한 웹툰 채널로 설정합니다.</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-bold text-white">현재 공개 운용 기준</h2>
+            <div className="mt-5 grid gap-3 text-sm text-zinc-300">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <span className="font-semibold text-white">초안</span>
+                <p className="mt-1 text-zinc-400">탐색 화면에 노출되지 않고, 작가 스튜디오에서만 정리하는 준비 단계입니다.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <span className="font-semibold text-white">공개 중</span>
+                <p className="mt-1 text-zinc-400">`/main/explore`와 공개 상세 페이지에 채널이 노출됩니다.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <span className="font-semibold text-white">완결</span>
+                <p className="mt-1 text-zinc-400">정주행 가능한 완결작으로 보이며, 탐색 필터에서 완결 영역으로 분류됩니다.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
+            {channelId
+              ? '채널 저장 후 아래 회차 섹션에서 실제 공개용 에피소드를 추가할 수 있습니다. 커버 이미지는 GCS에 올라가고, 메타데이터는 Supabase에 남습니다.'
+              : '새 웹툰 채널은 먼저 저장한 뒤, 다음 화면에서 회차 생성과 이미지 업로드까지 이어서 진행하면 됩니다.'}
+          </div>
+
+          <button
+            type="submit"
+            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+          >
+            {submitLabel}
+          </button>
+        </div>
+      </section>
+    </form>
+  )
+}
+

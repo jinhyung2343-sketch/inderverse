@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
-import { artworks } from '@/lib/mock/explore-data'
+import { getPublicArtworkById } from '@/lib/server/explore'
 
 export async function getSavedArtworkIds() {
   const supabase = await createClient()
@@ -28,9 +28,10 @@ export async function getSavedArtworkIds() {
 
 export async function getSavedArtworks() {
   const savedArtworkIds = await getSavedArtworkIds()
-  const artworkById = new Map(artworks.map((artwork) => [artwork.id, artwork]))
 
-  return savedArtworkIds
-    .map((artworkId) => artworkById.get(artworkId))
-    .filter((artwork): artwork is (typeof artworks)[number] => Boolean(artwork))
+  const artworks = await Promise.all(
+    savedArtworkIds.map((artworkId) => getPublicArtworkById(artworkId))
+  )
+
+  return artworks.filter((artwork): artwork is NonNullable<typeof artwork> => artwork !== null)
 }

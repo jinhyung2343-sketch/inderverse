@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import type { ArtworkEpisode } from '@/lib/mock/explore-data'
@@ -86,11 +87,37 @@ export function EpisodeAccessPanel({
             구매 완료
           </div>
         ) : null}
-        <div className="space-y-6 text-[15px] leading-8 text-zinc-200 md:text-lg md:leading-9">
-          {episode.body.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
-        </div>
+        {episode.imageUrls && episode.imageUrls.length > 0 ? (
+          <div className="grid gap-4">
+            {episode.body.length > 0 ? (
+              <div className="space-y-4 text-sm leading-7 text-zinc-300 md:text-base">
+                {episode.body.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            ) : null}
+            {episode.imageUrls.map((imageUrl, index) => (
+              <div
+                key={`${imageUrl}-${index + 1}`}
+                className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
+              >
+                <Image
+                  src={imageUrl}
+                  alt={`${episode.title} 이미지 ${index + 1}`}
+                  width={1200}
+                  height={1800}
+                  className="h-auto w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-6 text-[15px] leading-8 text-zinc-200 md:text-lg md:leading-9">
+            {episode.body.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        )}
       </article>
     )
   }

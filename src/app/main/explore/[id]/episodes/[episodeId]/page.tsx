@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EpisodeAccessPanel } from '@/components/episodes/EpisodeAccessPanel'
-import { getArtworkById, getEpisodeById } from '@/lib/mock/explore-data'
+import { getEpisodeById } from '@/lib/mock/explore-data'
+import { getPublicArtworkById } from '@/lib/server/explore'
 
 export default async function EpisodeReaderPage({
   params,
@@ -9,7 +10,7 @@ export default async function EpisodeReaderPage({
   params: Promise<{ id: string; episodeId: string }>
 }) {
   const { id, episodeId } = await params
-  const artwork = getArtworkById(id)
+  const artwork = await getPublicArtworkById(id)
 
   if (!artwork) {
     notFound()

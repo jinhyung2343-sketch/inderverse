@@ -13,6 +13,7 @@ export interface ArtworkEpisode {
   waitFreeHours?: number
   preview: string
   body: string[]
+  imageUrls?: string[]
 }
 
 export interface ExploreArtwork {
