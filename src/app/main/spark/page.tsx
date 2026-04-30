@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { BRAND } from '@/lib/brand'
 import { SparkFeed } from '@/components/spark/SparkFeed'
+import { getPublicSparkList } from '@/lib/server/spark'
 
-export default function SparkPage() {
+export default async function SparkPage() {
+  const sparkWorks = await getPublicSparkList()
+
   return (
     <main className="min-h-[100dvh] overflow-hidden bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -23,7 +26,7 @@ export default function SparkPage() {
           </div>
         </header>
 
-        <SparkFeed />
+        <SparkFeed sparkWorks={sparkWorks} />
 
         <Link href="/main" className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 md:hidden">
           허브로 돌아가기

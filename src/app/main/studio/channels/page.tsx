@@ -1,10 +1,16 @@
+import Link from 'next/link'
+import { getCreatorSparkList } from '@/lib/server/spark'
+import { getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
+
 const channelModel = [
-  'profiles -> channels -> episodes -> episode_images 구조로 작품 데이터를 구성합니다.',
+  'profiles -> channels -> episodes -> episode_images 구조를 유지하면서 work_type으로 웹툰과 스파크를 같은 뼈대 안에서 구분합니다.',
   'warning 카테고리 태그와 is_adult_only 플래그를 함께 사용해 민감도와 접근 제한을 분리합니다.',
-  '기다리면 무료, 유료, 무료 공개를 에피소드 단위로 조합할 수 있습니다.',
+  '스파크는 채널 단위 메타데이터로 먼저 공개하고, 이후 필요하면 에피소드/패널 확장으로 이어갈 수 있습니다.',
 ]
 
-export default function StudioChannelsPage() {
+export default async function StudioChannelsPage() {
+  const sparkChannels = await getCreatorSparkList()
+
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -19,6 +25,55 @@ export default function StudioChannelsPage() {
               <li key={item}>{item}</li>
             ))}
           </ul>
+        </section>
+
+        <section className="rounded-3xl border border-sky-400/20 bg-sky-500/5 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark Studio</p>
+              <h2 className="mt-2 text-2xl font-bold text-white">스파크 채널 관리</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                단독 컷과 4컷 만평을 실제 데이터로 만들고 수정할 수 있는 최소 편집 흐름입니다.
+              </p>
+            </div>
+            <Link
+              href="/main/studio/channels/spark/new"
+              className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+            >
+              새 스파크 만들기
+            </Link>
+          </div>
+
+          {sparkChannels.length > 0 ? (
+            <div className="mt-6 grid gap-3">
+              {sparkChannels.map((spark) => (
+                <Link
+                  key={spark.id}
+                  href={`/main/studio/channels/spark/${spark.id}/edit`}
+                  className="rounded-3xl border border-white/10 bg-black/20 p-5 transition hover:bg-white/10"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">{spark.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">{spark.caption}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                        {getSparkFormatLabel(spark.format)}
+                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                        {getSparkStatusLabel(spark.status)}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-400">
+              아직 만든 스파크가 없습니다. 첫 스파크를 만들면 여기에서 공개 상태와 카피를 계속 다듬을 수 있습니다.
+            </div>
+          )}
         </section>
       </div>
     </main>
