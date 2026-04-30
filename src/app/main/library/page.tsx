@@ -1,9 +1,15 @@
+import { SavedSparkShelf } from '@/components/library/SavedSparkShelf'
 import { LibraryShelf } from '@/components/library/LibraryShelf'
+import { getSavedSparkList } from '@/lib/server/spark'
+import { getSavedArtworks } from '@/lib/server/library'
 
-export default function LibraryPage() {
+export default async function LibraryPage() {
+  const savedSparks = await getSavedSparkList()
+  const savedArtworks = await getSavedArtworks()
+
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <header className="space-y-3">
           <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Library</p>
           <h1 className="text-4xl font-black tracking-tight">내 라이브러리</h1>
@@ -12,7 +18,23 @@ export default function LibraryPage() {
           </p>
         </header>
 
-        <LibraryShelf />
+        <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="grid gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Saved Sparks</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">저장한 스파크</h2>
+            </div>
+            <SavedSparkShelf sparks={savedSparks} />
+          </div>
+
+          <div className="grid gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Saved Artworks</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">담아둔 작품</h2>
+            </div>
+            <LibraryShelf artworks={savedArtworks} />
+          </div>
+        </section>
       </div>
     </main>
   )

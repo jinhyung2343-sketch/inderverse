@@ -69,6 +69,35 @@ export type Database = {
           },
         ]
       }
+      artwork_saves: {
+        Row: {
+          artwork_id: string
+          id: number
+          saved_at: string
+          user_id: string
+        }
+        Insert: {
+          artwork_id: string
+          id?: number
+          saved_at?: string
+          user_id: string
+        }
+        Update: {
+          artwork_id?: string
+          id?: number
+          saved_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artwork_saves_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_tags: {
         Row: {
           channel_id: string

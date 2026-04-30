@@ -384,3 +384,69 @@ export async function getCreatorSparkById(id: string) {
     creator: null,
   })
 }
+
+export async function getSavedSparkList() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return []
+  }
+
+  const { data: saves, error: savesError } = await supabase
+    .from('spark_saves')
+    .select('channel_id, saved_at')
+    .eq('user_id', user.id)
+    .order('saved_at', { ascending: false })
+
+  if (savesError) {
+    throw new Error(`Failed to load saved spark ids: ${savesError.message}`)
+  }
+
+  const channelIds = (saves ?? []).map((save) => save.channel_id)
+
+  if (channelIds.length === 0) {
+    return []
+  }
+
+  const { data: channels, error: channelsError } = await supabase
+    .from('channels')
+    .select(
+      `
+        id,
+        title,
+        description,
+        cover_image_url,
+        is_adult_only,
+        status,
+        spark_caption,
+        spark_format,
+        spark_panel_count,
+        spark_meta,
+        created_at,
+        updated_at
+      `
+    )
+    .in('id', channelIds)
+    .eq('work_type', 'spark')
+
+  if (channelsError) {
+    throw new Error(`Failed to load saved sparks: ${channelsError.message}`)
+  }
+
+  const sparkById = new Map(
+    ((channels ?? []) as Omit<SparkChannelQueryRow, 'creator'>[]).map((row) => [
+      row.id,
+      mapSparkRow({
+        ...row,
+        creator: null,
+      }),
+    ])
+  )
+
+  return channelIds
+    .map((channelId) => sparkById.get(channelId))
+    .filter((spark): spark is SparkRecord => Boolean(spark))
+}

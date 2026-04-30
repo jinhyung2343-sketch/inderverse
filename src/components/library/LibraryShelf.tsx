@@ -1,46 +1,14 @@
-'use client'
-
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
-import { artworks } from '@/lib/mock/explore-data'
-import { useAuthStore } from '@/stores/auth'
-import { getScopedStorageKey, getUserScope } from '@/lib/mock/user-scope-client'
+import type { ExploreArtwork } from '@/lib/mock/explore-data'
 
-const STORAGE_KEY = 'inderverse-library'
-
-function readLibrary(scope: string): string[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(getScopedStorageKey(STORAGE_KEY, scope))
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-export function LibraryShelf() {
-  const [savedIds, setSavedIds] = useState<string[]>([])
-  const { user, checkSession } = useAuthStore()
-  const scope = getUserScope(user?.id)
-
-  useEffect(() => {
-    checkSession()
-  }, [checkSession])
-
-  useEffect(() => {
-    const sync = () => setSavedIds(readLibrary(scope))
-    sync()
-    window.addEventListener('inderverse-library-updated', sync)
-    return () => window.removeEventListener('inderverse-library-updated', sync)
-  }, [scope])
-
-  const savedArtworks = artworks.filter((artwork) => savedIds.includes(artwork.id))
+export function LibraryShelf({ artworks }: { artworks: ExploreArtwork[] }) {
+  const savedArtworks = artworks
 
   if (savedArtworks.length === 0) {
     return (
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm leading-6 text-zinc-300">
-        아직 담아둔 작품이 없습니다. 작품 상세에서 `라이브러리에 담기`를 누르면 이곳에 쌓입니다.
+        아직 담아둔 작품이 없습니다. 작품 상세에서 `라이브러리에 담기`를 누르면 서버 라이브러리에 쌓입니다.
       </section>
     )
   }

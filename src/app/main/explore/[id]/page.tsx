@@ -5,6 +5,7 @@ import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
 import { artworks, getArtworkById } from '@/lib/mock/explore-data'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
+import { getSavedArtworkIds } from '@/lib/server/library'
 
 const sectionLinks = [
   { id: 'overview', label: '작품 소개' },
@@ -25,6 +26,8 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
     .filter((item) => item.id !== artwork.id && (item.category === artwork.category || item.tags.some((tag) => artwork.tags.includes(tag))))
     .slice(0, 4)
   const backendCoverage = getArtworkBackendCoverage(artwork)
+  const savedArtworkIds = await getSavedArtworkIds()
+  const isSaved = savedArtworkIds.includes(artwork.id)
 
   const fallbackRelated = artworks.filter((item) => item.id !== artwork.id).slice(0, 4)
   const recommended = relatedArtworks.length > 0 ? relatedArtworks : fallbackRelated
@@ -79,7 +82,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                 <Link href={`/main/explore/${artwork.id}/episodes/${artwork.episodes[0].id}`} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200">
                   첫 화 보기
                 </Link>
-                <LibraryToggleButton artworkId={artwork.id} artworkTitle={artwork.title} />
+                <LibraryToggleButton artworkId={artwork.id} artworkTitle={artwork.title} initialSaved={isSaved} />
                 <a href="#overview" className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10">
                   작품 정보 보기
                 </a>
