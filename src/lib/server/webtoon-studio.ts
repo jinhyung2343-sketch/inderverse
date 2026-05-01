@@ -7,11 +7,13 @@ import type { Database } from '@/lib/supabase/types'
 
 type ChannelRow = Pick<
   Database['public']['Tables']['channels']['Row'],
+  | 'comment_policy_note'
   | 'id'
   | 'title'
   | 'description'
   | 'cover_image_url'
   | 'is_adult_only'
+  | 'is_comment_enabled'
   | 'status'
   | 'wait_free_hours'
   | 'serialization_days'
@@ -46,6 +48,11 @@ type TagRow = Pick<
   'id' | 'name' | 'category'
 >
 
+type RevenueSettingsRow = Pick<
+  Database['public']['Tables']['revenue_settings']['Row'],
+  'channel_id' | 'creator_share_pct' | 'min_payout_amount' | 'payout_method'
+>
+
 const DEFAULT_CATEGORY = '드라마'
 
 async function getCreatorChannelRows() {
@@ -61,7 +68,7 @@ async function getCreatorChannelRows() {
   const { data, error } = await supabase
     .from('channels')
     .select(
-      'id, title, description, cover_image_url, is_adult_only, status, wait_free_hours, serialization_days, updated_at'
+      'id, title, description, cover_image_url, is_adult_only, is_comment_enabled, comment_policy_note, status, wait_free_hours, serialization_days, updated_at'
     )
     .eq('creator_id', user.id)
     .eq('work_type', 'webtoon')
@@ -83,10 +90,11 @@ async function getSupportingRows(channelIds: string[]) {
       images: [] as EpisodeImageRow[],
       channelTags: [] as ChannelTagRow[],
       tags: [] as TagRow[],
+      revenueSettings: [] as RevenueSettingsRow[],
     }
   }
 
-  const [episodesResult, tagsResult, channelTagsResult] = await Promise.all([
+  const [episodesResult, tagsResult, channelTagsResult, revenueSettingsResult] = await Promise.all([
     supabase
       .from('episodes')
       .select('id, channel_id, episode_number, title, pricing_type, coin_price, is_adult_only, status, published_at')
@@ -94,6 +102,10 @@ async function getSupportingRows(channelIds: string[]) {
       .order('episode_number', { ascending: true }),
     supabase.from('tags').select('id, name, category'),
     supabase.from('channel_tags').select('channel_id, tag_id').in('channel_id', channelIds),
+    supabase
+      .from('revenue_settings')
+      .select('channel_id, creator_share_pct, min_payout_amount, payout_method')
+      .in('channel_id', channelIds),
   ])
 
   if (episodesResult.error) {
@@ -106,6 +118,10 @@ async function getSupportingRows(channelIds: string[]) {
 
   if (channelTagsResult.error) {
     throw new Error(`Failed to load channel tags: ${channelTagsResult.error.message}`)
+  }
+
+  if (revenueSettingsResult.error) {
+    throw new Error(`Failed to load revenue settings: ${revenueSettingsResult.error.message}`)
   }
 
   const episodeIds = (episodesResult.data ?? []).map((episode) => episode.id)
@@ -126,6 +142,7 @@ async function getSupportingRows(channelIds: string[]) {
     images: (imagesResult.data ?? []) as EpisodeImageRow[],
     channelTags: (channelTagsResult.data ?? []) as ChannelTagRow[],
     tags: (tagsResult.data ?? []) as TagRow[],
+    revenueSettings: (revenueSettingsResult.data ?? []) as RevenueSettingsRow[],
   }
 }
 
@@ -196,11 +213,12 @@ function mapEpisodes(
 export async function getCreatorWebtoonList(): Promise<CreatorWebtoonListItem[]> {
   const channels = await getCreatorChannelRows()
   const channelIds = channels.map((channel) => channel.id)
-  const { episodes, channelTags, tags } = await getSupportingRows(channelIds)
+  const { episodes, channelTags, tags, revenueSettings } = await getSupportingRows(channelIds)
   const tagsByChannelId = buildTagMap(channelTags, tags)
 
   return channels.map((channel) => {
     const channelTags = tagsByChannelId.get(channel.id) ?? []
+    const revenue = revenueSettings.find((entry) => entry.channel_id === channel.id)
 
     return {
       id: channel.id,
@@ -211,6 +229,11 @@ export async function getCreatorWebtoonList(): Promise<CreatorWebtoonListItem[]>
       tags: channelTags.map((tag) => tag.name),
       episodeCount: episodes.filter((episode) => episode.channel_id === channel.id).length,
       updatedAt: channel.updated_at,
+      revenueSettings: {
+        creatorSharePct: revenue?.creator_share_pct ?? 70,
+        minPayoutAmount: revenue?.min_payout_amount ?? 10000,
+        payoutMethod: revenue?.payout_method ?? null,
+      },
     }
   })
 }
@@ -223,9 +246,10 @@ export async function getCreatorWebtoonById(id: string): Promise<CreatorWebtoonR
     return null
   }
 
-  const { episodes, images, channelTags, tags } = await getSupportingRows([id])
+  const { episodes, images, channelTags, tags, revenueSettings } = await getSupportingRows([id])
   const tagsByChannelId = buildTagMap(channelTags, tags)
   const channelTagsForChannel = tagsByChannelId.get(id) ?? []
+  const revenue = revenueSettings.find((entry) => entry.channel_id === id)
 
   return {
     id: channel.id,
@@ -233,6 +257,8 @@ export async function getCreatorWebtoonById(id: string): Promise<CreatorWebtoonR
     description: channel.description?.trim() || '',
     coverImageUrl: channel.cover_image_url,
     isAdultOnly: channel.is_adult_only,
+    isCommentEnabled: channel.is_comment_enabled,
+    commentPolicyNote: channel.comment_policy_note?.trim() || null,
     status: channel.status,
     waitFreeHours: channel.wait_free_hours,
     serializationDays: parseSerializationDays(channel.serialization_days),
@@ -241,5 +267,10 @@ export async function getCreatorWebtoonById(id: string): Promise<CreatorWebtoonR
     creatorName: '작가',
     updatedAt: channel.updated_at,
     episodes: mapEpisodes(id, episodes, images),
+    revenueSettings: {
+      creatorSharePct: revenue?.creator_share_pct ?? 70,
+      minPayoutAmount: revenue?.min_payout_amount ?? 10000,
+      payoutMethod: revenue?.payout_method ?? null,
+    },
   }
 }

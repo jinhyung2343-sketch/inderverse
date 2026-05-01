@@ -123,6 +123,12 @@ function isEpisodeStatus(value: string): value is WebtoonEpisodeStatus {
   return value === 'draft' || value === 'published' || value === 'hidden'
 }
 
+function isPayoutMethod(
+  value: string
+): value is Database['public']['Enums']['payout_method'] {
+  return value === 'bank_transfer' || value === 'paypal'
+}
+
 async function requireCreatorAccess() {
   const supabase = await createClient()
   const {
@@ -357,6 +363,9 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   const category = readText(formData, 'category')
   const statusValue = readText(formData, 'status')
   const waitFreeHours = readInteger(formData, 'waitFreeHours', 24)
+  const creatorSharePct = readInteger(formData, 'creatorSharePct', 70)
+  const minPayoutAmount = readInteger(formData, 'minPayoutAmount', 10000)
+  const payoutMethodValue = readText(formData, 'payoutMethod')
 
   if (!title || !description || !category) {
     throw new Error('필수 항목이 비어 있습니다.')
@@ -370,16 +379,37 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     throw new Error('기다리면 무료 시간은 0시간에서 168시간 사이여야 합니다.')
   }
 
+  if (creatorSharePct < 70 || creatorSharePct > 80) {
+    throw new Error('작가 배분율은 70%에서 80% 사이여야 합니다.')
+  }
+
+  if (minPayoutAmount < 1000) {
+    throw new Error('최소 정산 금액은 1000원 이상이어야 합니다.')
+  }
+
+  if (payoutMethodValue && !isPayoutMethod(payoutMethodValue)) {
+    throw new Error('유효하지 않은 정산 방식입니다.')
+  }
+
+  const payoutMethod = isPayoutMethod(payoutMethodValue) ? payoutMethodValue : null
+
   return {
     title,
     description,
     coverImageUrl: readOptionalText(formData, 'coverImageUrl'),
     isAdultOnly: readBoolean(formData, 'isAdultOnly'),
+    isCommentEnabled: readBoolean(formData, 'isCommentEnabled'),
+    commentPolicyNote: readOptionalText(formData, 'commentPolicyNote'),
     status: statusValue,
     waitFreeHours,
     serializationDays: readSerializationDays(formData),
     category,
     tags: sanitizeWebtoonTags(readText(formData, 'tags')),
+    revenueSettings: {
+      creatorSharePct,
+      minPayoutAmount,
+      payoutMethod,
+    },
   }
 }
 
@@ -390,6 +420,8 @@ function buildWebtoonChannelPayload(input: WebtoonDraftInput, creatorId: string)
     description: input.description,
     cover_image_url: input.coverImageUrl,
     is_adult_only: input.isAdultOnly,
+    is_comment_enabled: input.isCommentEnabled,
+    comment_policy_note: input.commentPolicyNote,
     status: input.status,
     work_type: 'webtoon' as const,
     serialization_days: input.serializationDays,
@@ -503,7 +535,15 @@ export async function createWebtoonChannel(formData: FormData) {
 
   const { error: revenueError } = await supabase
     .from('revenue_settings')
-    .upsert({ channel_id: data.id }, { onConflict: 'channel_id' })
+    .upsert(
+      {
+        channel_id: data.id,
+        creator_share_pct: input.revenueSettings.creatorSharePct,
+        min_payout_amount: input.revenueSettings.minPayoutAmount,
+        payout_method: input.revenueSettings.payoutMethod,
+      },
+      { onConflict: 'channel_id' }
+    )
 
   if (revenueError) {
     throw new Error(revenueError.message)
@@ -537,6 +577,22 @@ export async function updateWebtoonChannel(formData: FormData) {
 
   if (error) {
     throw new Error(error.message)
+  }
+
+  const { error: revenueError } = await supabase
+    .from('revenue_settings')
+    .upsert(
+      {
+        channel_id: channelId,
+        creator_share_pct: input.revenueSettings.creatorSharePct,
+        min_payout_amount: input.revenueSettings.minPayoutAmount,
+        payout_method: input.revenueSettings.payoutMethod,
+      },
+      { onConflict: 'channel_id' }
+    )
+
+  if (revenueError) {
+    throw new Error(revenueError.message)
   }
 
   await syncChannelTags(channelId, input.category, input.tags)

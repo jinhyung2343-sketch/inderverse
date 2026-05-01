@@ -9,11 +9,13 @@ import type { Database } from '@/lib/supabase/types'
 
 type ChannelRow = Pick<
   Database['public']['Tables']['channels']['Row'],
+  | 'comment_policy_note'
   | 'id'
   | 'title'
   | 'description'
   | 'cover_image_url'
   | 'is_adult_only'
+  | 'is_comment_enabled'
   | 'status'
   | 'wait_free_hours'
   | 'created_at'
@@ -212,14 +214,17 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
     coverImageUrl,
     status: mapArtworkStatus(bundle.channel.status),
     isAdultOnly: bundle.channel.is_adult_only,
-    isCommentEnabled: fallback?.isCommentEnabled ?? true,
+    isCommentEnabled: bundle.channel.is_comment_enabled,
     category: deriveCategory(bundle.tags, fallback),
     filterTags: deriveFilterTags(bundle.channel, publishedEpisodes, fallback),
     tags: tags.length > 0 ? tags : fallback?.tags ?? [],
     blurb: summary,
     summary,
     intro,
-    commentPreview: fallback?.commentPreview ?? buildGenericCommentPreview(title),
+    commentPreview:
+      bundle.channel.comment_policy_note?.trim() ||
+      fallback?.commentPreview ||
+      buildGenericCommentPreview(title),
     episodes:
       publishedEpisodes.length > 0
         ? publishedEpisodes.map((episode) => {
@@ -262,6 +267,8 @@ const getPublicArtworkBundles = cache(async () => {
         description,
         cover_image_url,
         is_adult_only,
+        is_comment_enabled,
+        comment_policy_note,
         status,
         wait_free_hours,
         created_at,

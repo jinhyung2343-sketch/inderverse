@@ -130,12 +130,14 @@ export type Database = {
       }
       channels: {
         Row: {
+          comment_policy_note: string | null
           cover_image_url: string | null
           created_at: string
           creator_id: string
           description: string | null
           id: string
           is_adult_only: boolean
+          is_comment_enabled: boolean
           spark_caption: string | null
           spark_format: Database["public"]["Enums"]["spark_format"] | null
           spark_meta: Json
@@ -148,12 +150,14 @@ export type Database = {
           work_type: Database["public"]["Enums"]["work_type"]
         }
         Insert: {
+          comment_policy_note?: string | null
           cover_image_url?: string | null
           created_at?: string
           creator_id: string
           description?: string | null
           id?: string
           is_adult_only?: boolean
+          is_comment_enabled?: boolean
           spark_caption?: string | null
           spark_format?: Database["public"]["Enums"]["spark_format"] | null
           spark_meta?: Json
@@ -166,12 +170,14 @@ export type Database = {
           work_type?: Database["public"]["Enums"]["work_type"]
         }
         Update: {
+          comment_policy_note?: string | null
           cover_image_url?: string | null
           created_at?: string
           creator_id?: string
           description?: string | null
           id?: string
           is_adult_only?: boolean
+          is_comment_enabled?: boolean
           spark_caption?: string | null
           spark_format?: Database["public"]["Enums"]["spark_format"] | null
           spark_meta?: Json

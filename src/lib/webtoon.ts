@@ -27,6 +27,8 @@ export interface CreatorWebtoonRecord {
   description: string
   coverImageUrl: string | null
   isAdultOnly: boolean
+  isCommentEnabled: boolean
+  commentPolicyNote: string | null
   status: WebtoonStatus
   waitFreeHours: number
   serializationDays: number[]
@@ -35,6 +37,11 @@ export interface CreatorWebtoonRecord {
   creatorName: string
   updatedAt: string
   episodes: CreatorWebtoonEpisodeRecord[]
+  revenueSettings: {
+    creatorSharePct: number
+    minPayoutAmount: number
+    payoutMethod: Database['public']['Enums']['payout_method'] | null
+  }
 }
 
 export interface CreatorWebtoonListItem {
@@ -46,6 +53,11 @@ export interface CreatorWebtoonListItem {
   tags: string[]
   episodeCount: number
   updatedAt: string
+  revenueSettings: {
+    creatorSharePct: number
+    minPayoutAmount: number
+    payoutMethod: Database['public']['Enums']['payout_method'] | null
+  }
 }
 
 export interface WebtoonDraftInput {
@@ -53,11 +65,18 @@ export interface WebtoonDraftInput {
   description: string
   coverImageUrl: string | null
   isAdultOnly: boolean
+  isCommentEnabled: boolean
+  commentPolicyNote: string | null
   status: WebtoonStatus
   waitFreeHours: number
   serializationDays: number[]
   category: string
   tags: string[]
+  revenueSettings: {
+    creatorSharePct: number
+    minPayoutAmount: number
+    payoutMethod: Database['public']['Enums']['payout_method'] | null
+  }
 }
 
 export interface WebtoonEpisodeDraftInput {
@@ -145,3 +164,15 @@ export function getSerializationDayLabel(day: number) {
   return WEEKDAY_LABELS[day] ?? `${day}`
 }
 
+export function getPayoutMethodLabel(
+  method: Database['public']['Enums']['payout_method']
+) {
+  switch (method) {
+    case 'bank_transfer':
+      return '계좌 이체'
+    case 'paypal':
+      return 'PayPal'
+    default:
+      return method
+  }
+}

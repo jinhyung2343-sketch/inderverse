@@ -1,11 +1,17 @@
+import { BRAND } from '@/lib/brand'
 import { categories } from '@/lib/mock/explore-data'
 import type { CreatorWebtoonRecord } from '@/lib/webtoon'
-import { getSerializationDayLabel, getWebtoonStatusLabel } from '@/lib/webtoon'
+import {
+  getPayoutMethodLabel,
+  getSerializationDayLabel,
+  getWebtoonStatusLabel,
+} from '@/lib/webtoon'
 import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
 
 const weekdayOptions = [0, 1, 2, 3, 4, 5, 6] as const
 const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
+const payoutMethodOptions = ['bank_transfer', 'paypal'] as const
 
 export function WebtoonEditorForm({
   action,
@@ -160,6 +166,30 @@ export function WebtoonEditorForm({
               <span>성인 인증이 필요한 웹툰 채널로 설정합니다.</span>
             </label>
           </div>
+
+          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-bold text-white">커뮤니티 정책</h2>
+            <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
+              <input
+                type="checkbox"
+                name="isCommentEnabled"
+                defaultChecked={initialValue?.isCommentEnabled ?? true}
+                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
+              />
+              <span>이 작품의 댓글을 공개 상태로 운영합니다.</span>
+            </label>
+
+            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
+              <span>댓글 안내 문구</span>
+              <textarea
+                name="commentPolicyNote"
+                defaultValue={initialValue?.commentPolicyNote ?? ''}
+                rows={4}
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                placeholder="감상 위주의 댓글만 허용합니다, 스포일러는 자제해 주세요 같은 운영 문구"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -181,6 +211,55 @@ export function WebtoonEditorForm({
             </div>
           </div>
 
+          <div className="rounded-[32px] border border-emerald-400/20 bg-emerald-500/5 p-6">
+            <h2 className="text-xl font-bold text-white">정산 설정</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              채널별 수익 배분율과 최소 정산 기준을 작가가 직접 관리합니다. 은행 정보 암호화 입력은 다음 단계에서 붙이는 편이 안전합니다.
+            </p>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>작가 배분율 (%)</span>
+                <input
+                  type="number"
+                  min={BRAND.defaultCreatorSharePct}
+                  max={BRAND.maxCreatorSharePct}
+                  name="creatorSharePct"
+                  defaultValue={initialValue?.revenueSettings.creatorSharePct ?? BRAND.defaultCreatorSharePct}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>최소 정산 금액 (원)</span>
+                <input
+                  type="number"
+                  min={1000}
+                  step={1000}
+                  name="minPayoutAmount"
+                  defaultValue={initialValue?.revenueSettings.minPayoutAmount ?? 10000}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
+              <span>정산 방식</span>
+              <select
+                name="payoutMethod"
+                defaultValue={initialValue?.revenueSettings.payoutMethod ?? ''}
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+              >
+                <option value="">아직 미정</option>
+                {payoutMethodOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {getPayoutMethodLabel(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
             {channelId
               ? '채널 저장 후 아래 회차 섹션에서 실제 공개용 에피소드를 추가할 수 있습니다. 커버 이미지는 GCS에 올라가고, 메타데이터는 Supabase에 남습니다.'
@@ -198,4 +277,3 @@ export function WebtoonEditorForm({
     </form>
   )
 }
-
