@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EpisodeAccessPanel } from '@/components/episodes/EpisodeAccessPanel'
-import { getEpisodeById } from '@/lib/mock/explore-data'
+import { getEpisodeById } from '@/lib/explore'
 import { getPublicArtworkById } from '@/lib/server/explore'
 
 export default async function EpisodeReaderPage({

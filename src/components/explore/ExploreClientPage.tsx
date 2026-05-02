@@ -9,7 +9,7 @@ import {
   categoryTags,
   quickFilters,
   type ExploreArtwork,
-} from '@/lib/mock/explore-data'
+} from '@/lib/explore'
 
 export function ExploreClientPage({
   initialArtworks,

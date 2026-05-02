@@ -4,7 +4,6 @@ import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
-import { artworks } from '@/lib/mock/explore-data'
 import { getPublicArtworkById, getPublicArtworkList, getRelatedArtworks } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
 
@@ -28,8 +27,9 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
   const backendCoverage = getArtworkBackendCoverage(artwork)
   const savedArtworkIds = await getSavedArtworkIds()
   const isSaved = savedArtworkIds.includes(artwork.id)
+  const firstEpisode = artwork.episodes[0] ?? null
 
-  const fallbackRelated = (feed.length > 0 ? feed : artworks).filter((item) => item.id !== artwork.id).slice(0, 4)
+  const fallbackRelated = feed.filter((item) => item.id !== artwork.id).slice(0, 4)
   const recommended = relatedArtworks.length > 0 ? relatedArtworks : fallbackRelated
 
   return (
@@ -59,29 +59,37 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                     #{tag}
                   </span>
                 ))}
-                <span
-                  className={`rounded-full px-3 py-1.5 text-xs ${
-                    backendCoverage.isFullyLinked
-                      ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100'
+                {backendCoverage.totalCount > 0 ? (
+                  <span
+                    className={`rounded-full px-3 py-1.5 text-xs ${
+                      backendCoverage.isFullyLinked
+                        ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100'
+                        : backendCoverage.hasAnyLink
+                          ? 'border border-sky-400/20 bg-sky-500/10 text-sky-100'
+                          : 'border border-white/10 bg-black/20 text-zinc-400'
+                    }`}
+                  >
+                    {backendCoverage.isFullyLinked
+                      ? '서버 연동 완료'
                       : backendCoverage.hasAnyLink
-                        ? 'border border-sky-400/20 bg-sky-500/10 text-sky-100'
-                        : 'border border-white/10 bg-black/20 text-zinc-400'
-                  }`}
-                >
-                  {backendCoverage.isFullyLinked
-                    ? '서버 연동 완료'
-                    : backendCoverage.hasAnyLink
-                      ? `부분 연동 ${backendCoverage.linkedCount}/${backendCoverage.totalCount}`
-                      : '프로토타입 연동'}
-                </span>
+                        ? `부분 연동 ${backendCoverage.linkedCount}/${backendCoverage.totalCount}`
+                        : '연결 대기'}
+                  </span>
+                ) : null}
               </div>
 
               <p className="max-w-3xl text-sm leading-7 text-zinc-300 md:text-base">{artwork.summary}</p>
 
               <div className="flex flex-wrap gap-3">
-                <Link href={`/main/explore/${artwork.id}/episodes/${artwork.episodes[0].id}`} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200">
-                  첫 화 보기
-                </Link>
+                {firstEpisode ? (
+                  <Link href={`/main/explore/${artwork.id}/episodes/${firstEpisode.id}`} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200">
+                    첫 화 보기
+                  </Link>
+                ) : (
+                  <span className="rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm text-zinc-500">
+                    회차 준비 중
+                  </span>
+                )}
                 <LibraryToggleButton artworkId={artwork.id} artworkTitle={artwork.title} initialSaved={isSaved} />
                 <a href="#overview" className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10">
                   작품 정보 보기
@@ -113,9 +121,11 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">작가: {artwork.authorName}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">상태: {artwork.status === 'completed' ? '완결' : '연재중'}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">댓글: {artwork.isCommentEnabled ? '활성화' : '비활성화'}</div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                연동 상태: {backendCoverage.hasAnyLink ? `${backendCoverage.linkedCount}/${backendCoverage.totalCount}화 서버 준비` : '아직 목업 단계'}
-              </div>
+              {backendCoverage.totalCount > 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  연동 상태: {backendCoverage.hasAnyLink ? `${backendCoverage.linkedCount}/${backendCoverage.totalCount}화 서버 준비` : '연결 대기'}
+                </div>
+              ) : null}
             </div>
           </aside>
 
@@ -160,21 +170,27 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                 <h2 className="mt-2 text-2xl font-bold tracking-tight">추천작</h2>
               </div>
 
-              <div className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
-                {recommended.map((item) => (
-                  <ArtworkCard
-                    key={item.id}
-                    title={item.title}
-                    authorName={item.authorName}
-                    coverImageUrl={item.coverImageUrl}
-                    status={item.status}
-                    isAdultOnly={item.isAdultOnly}
-                    isCommentEnabled={item.isCommentEnabled}
-                    tags={item.tags}
-                    href={`/main/explore/${item.id}`}
-                  />
-                ))}
-              </div>
+              {recommended.length > 0 ? (
+                <div className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
+                  {recommended.map((item) => (
+                    <ArtworkCard
+                      key={item.id}
+                      title={item.title}
+                      authorName={item.authorName}
+                      coverImageUrl={item.coverImageUrl}
+                      status={item.status}
+                      isAdultOnly={item.isAdultOnly}
+                      isCommentEnabled={item.isCommentEnabled}
+                      tags={item.tags}
+                      href={`/main/explore/${item.id}`}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-400">
+                  아직 함께 보여줄 추천작이 충분하지 않습니다. 더 많은 공개 채널이 쌓이면 이 영역이 자연스럽게 채워집니다.
+                </div>
+              )}
             </section>
           </div>
         </section>

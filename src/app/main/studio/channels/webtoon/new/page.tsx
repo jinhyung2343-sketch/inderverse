@@ -15,7 +15,7 @@ export default function NewWebtoonPage() {
             href="/main/studio/channels"
             className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
           >
-            채널 목록으로
+            채널 메뉴로
           </Link>
         </header>
 
@@ -29,4 +29,3 @@ export default function NewWebtoonPage() {
     </main>
   )
 }
-

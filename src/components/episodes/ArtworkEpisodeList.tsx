@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import type { ArtworkEpisode } from '@/lib/mock/explore-data'
+import type { ArtworkEpisode } from '@/lib/explore'
 import { useAuthStore } from '@/stores/auth'
 import {
   getEffectiveEpisodeAccess,

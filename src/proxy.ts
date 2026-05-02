@@ -12,6 +12,7 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = pathname === '/join-prompt' || pathname.startsWith('/auth/')
   const isMemberPage = pathname.startsWith('/main/library') || pathname.startsWith('/main/store')
   const isStudioHome = pathname === '/main/studio'
+  const isCreatorAgreementPage = pathname === '/main/studio/creator-agreement'
   const isCreatorPage = pathname.startsWith('/main/studio/')
   const isAdminPage = pathname.startsWith('/admin')
   const isLoggedIn = Boolean(userId)
@@ -28,7 +29,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (isCreatorPage && !isCreator) {
+  if (isCreatorPage && !isCreator && !isCreatorAgreementPage) {
     return NextResponse.redirect(new URL('/main?denied=creator', request.url))
   }
 

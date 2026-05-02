@@ -1,6 +1,6 @@
 'use client'
 
-import type { ArtworkEpisode, EpisodeAccessState } from '@/lib/mock/explore-data'
+import type { ArtworkEpisode, EpisodeAccessState } from '@/lib/explore'
 import { getScopedStorageKey } from '@/lib/mock/user-scope-client'
 
 const PURCHASED_KEY = 'inderverse-purchased-episodes'

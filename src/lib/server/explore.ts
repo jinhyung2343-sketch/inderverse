@@ -2,7 +2,11 @@ import 'server-only'
 
 import { cache } from 'react'
 import { artworkBackendMap } from '@/lib/mock/explore-backend-map'
-import { artworks as mockArtworks, categories, type ExploreArtwork } from '@/lib/mock/explore-data'
+import {
+  categories,
+  getEpisodePublicId,
+  type ExploreArtwork,
+} from '@/lib/explore'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
@@ -66,8 +70,7 @@ const PUBLIC_CHANNEL_STATUSES: Database['public']['Enums']['channel_status'][] =
 ]
 
 const KNOWN_CATEGORIES = categories.filter((category) => category !== '전체')
-const mockArtworkById = new Map(mockArtworks.map((artwork) => [artwork.id, artwork]))
-const mockArtworkIdByChannelId = new Map(
+const publicArtworkIdByChannelId = new Map(
   Object.entries(artworkBackendMap)
     .filter(([, value]) => typeof value.backendChannelId === 'string' && value.backendChannelId.length > 0)
     .map(([artworkId, value]) => [value.backendChannelId as string, artworkId])
@@ -130,18 +133,14 @@ function mapEpisodeAccessState(episode: EpisodeRow) {
   }
 }
 
-function deriveCategory(tags: TagRow[], fallback?: ExploreArtwork) {
+function deriveCategory(tags: TagRow[]) {
   const genreTags = tags.filter((tag) => tag.category === 'genre').map((tag) => tag.name)
   const matched = KNOWN_CATEGORIES.find((category) => genreTags.includes(category))
 
-  return matched ?? fallback?.category ?? '드라마'
+  return matched ?? '드라마'
 }
 
-function deriveFilterTags(
-  channel: ChannelRow,
-  episodes: EpisodeRow[],
-  fallback?: ExploreArtwork
-) {
+function deriveFilterTags(channel: ChannelRow, episodes: EpisodeRow[]) {
   const tags = new Set<string>()
 
   tags.add('추천')
@@ -158,10 +157,6 @@ function deriveFilterTags(
 
   if (episodes.filter((episode) => episode.status === 'published').length >= 3) {
     tags.add('인기')
-  }
-
-  if (fallback) {
-    fallback.filterTags.forEach((tag) => tags.add(tag))
   }
 
   return Array.from(tags)
@@ -190,68 +185,55 @@ function buildGenericCommentPreview(title: string) {
 }
 
 function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
-  const mockArtworkId = mockArtworkIdByChannelId.get(bundle.channel.id)
-  const fallback = mockArtworkId ? mockArtworkById.get(mockArtworkId) : undefined
-
+  const publicArtworkId = publicArtworkIdByChannelId.get(bundle.channel.id) ?? bundle.channel.id
   const tags = bundle.tags.map((tag) => tag.name)
-  const publishedEpisodes = bundle.episodes
-  const coverImageUrl =
-    bundle.channel.cover_image_url?.trim() || fallback?.coverImageUrl || ''
-  const title = bundle.channel.title.trim() || fallback?.title || '제목 미정'
+  const title = bundle.channel.title.trim() || '제목 미정'
+  const orderedEpisodes = [...bundle.episodes]
+    .sort((left, right) => left.episode_number - right.episode_number)
   const summary =
     bundle.channel.description?.trim() ||
-    fallback?.summary ||
     '아직 작품 소개가 입력되지 않은 채널입니다.'
   const intro =
     bundle.channel.description?.trim() ||
-    fallback?.intro ||
     '작품 소개는 준비 중이며, 현재는 실제 채널 메타데이터를 기준으로 상세 구조를 점검할 수 있습니다.'
 
   return {
-    id: fallback?.id ?? bundle.channel.id,
+    id: publicArtworkId,
     title,
-    authorName: bundle.channel.creator?.display_name?.trim() || fallback?.authorName || '작가',
-    coverImageUrl,
+    authorName: bundle.channel.creator?.display_name?.trim() || '작가',
+    coverImageUrl: bundle.channel.cover_image_url?.trim() || '',
     status: mapArtworkStatus(bundle.channel.status),
     isAdultOnly: bundle.channel.is_adult_only,
     isCommentEnabled: bundle.channel.is_comment_enabled,
-    category: deriveCategory(bundle.tags, fallback),
-    filterTags: deriveFilterTags(bundle.channel, publishedEpisodes, fallback),
-    tags: tags.length > 0 ? tags : fallback?.tags ?? [],
+    category: deriveCategory(bundle.tags),
+    filterTags: deriveFilterTags(bundle.channel, orderedEpisodes),
+    tags,
     blurb: summary,
     summary,
     intro,
     commentPreview:
       bundle.channel.comment_policy_note?.trim() ||
-      fallback?.commentPreview ||
       buildGenericCommentPreview(title),
-    episodes:
-      publishedEpisodes.length > 0
-        ? publishedEpisodes.map((episode) => {
-            const fallbackEpisode = fallback?.episodes[episode.episode_number - 1]
-            const imageUrls = bundle.episodeImagesByEpisodeId.get(episode.id) ?? []
-            const access = mapEpisodeAccessState(episode)
+    episodes: orderedEpisodes.map((episode) => {
+      const imageUrls = bundle.episodeImagesByEpisodeId.get(episode.id) ?? []
+      const access = mapEpisodeAccessState(episode)
 
-            return {
-              id: fallbackEpisode?.id ?? episode.id,
-              backendEpisodeId: episode.id,
-              backendChannelId: bundle.channel.id,
-              title: episode.title,
-              accessState: access.accessState,
-              accessLabel: access.accessLabel,
-              waitFreeHours:
-                access.accessState === 'wait_free'
-                  ? bundle.channel.wait_free_hours || fallbackEpisode?.waitFreeHours
-                  : undefined,
-              preview:
-                fallbackEpisode?.preview ?? buildGenericEpisodePreview(title, episode.title),
-              body:
-                fallbackEpisode?.body ??
-                buildGenericEpisodeBody(title, episode.title, imageUrls.length > 0),
-              imageUrls,
-            }
-          })
-        : (fallback?.episodes ?? []),
+      return {
+        id: getEpisodePublicId(episode.episode_number),
+        backendEpisodeId: episode.id,
+        backendChannelId: bundle.channel.id,
+        title: episode.title,
+        accessState: access.accessState,
+        accessLabel: access.accessLabel,
+        waitFreeHours:
+          access.accessState === 'wait_free'
+            ? bundle.channel.wait_free_hours
+            : undefined,
+        preview: buildGenericEpisodePreview(title, episode.title),
+        body: buildGenericEpisodeBody(title, episode.title, imageUrls.length > 0),
+        imageUrls,
+      }
+    }),
   }
 }
 
@@ -400,32 +382,15 @@ const getPublicArtworkBundles = cache(async () => {
 
 export async function getPublicArtworkList() {
   const bundles = await getPublicArtworkBundles()
-
-  if (bundles.length === 0) {
-    return mockArtworks
-  }
-
   return bundles.map(mapBackendArtwork)
 }
 
 export async function getPublicArtworkById(id: string) {
-  const fallback = mockArtworkById.get(id)
   const bundles = await getPublicArtworkBundles()
-
-  if (fallback) {
-    const backendChannelId = artworkBackendMap[id]?.backendChannelId
-    const bundle = backendChannelId
-      ? bundles.find((entry) => entry.channel.id === backendChannelId)
-      : undefined
-
-    if (!bundle) {
-      return fallback
-    }
-
-    return mapBackendArtwork(bundle)
-  }
-
-  const bundle = bundles.find((entry) => entry.channel.id === id)
+  const bundle = bundles.find((entry) => {
+    const publicArtworkId = publicArtworkIdByChannelId.get(entry.channel.id) ?? entry.channel.id
+    return entry.channel.id === id || publicArtworkId === id
+  })
 
   if (!bundle) {
     return null

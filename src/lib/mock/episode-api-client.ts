@@ -1,6 +1,6 @@
 'use client'
 
-import type { ArtworkEpisode } from '@/lib/mock/explore-data'
+import type { ArtworkEpisode } from '@/lib/explore'
 import {
   getEpisodeReference,
 } from '@/lib/mock/episode-backend-link'

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
-import type { ExploreArtwork } from '@/lib/mock/explore-data'
+import type { ExploreArtwork } from '@/lib/explore'
 
 export function LibraryShelf({ artworks }: { artworks: ExploreArtwork[] }) {
   const savedArtworks = artworks

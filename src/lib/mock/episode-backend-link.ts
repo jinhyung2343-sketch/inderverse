@@ -1,4 +1,4 @@
-import type { ArtworkEpisode, ExploreArtwork } from '@/lib/mock/explore-data'
+import type { ArtworkEpisode, ExploreArtwork } from '@/lib/explore'
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -42,11 +42,12 @@ export function hasServerEpisodeLink(episode: ArtworkEpisode) {
 
 export function getArtworkBackendCoverage(artwork: ExploreArtwork) {
   const linkedCount = artwork.episodes.filter(hasServerEpisodeLink).length
+  const totalCount = artwork.episodes.length
 
   return {
     linkedCount,
-    totalCount: artwork.episodes.length,
+    totalCount,
     hasAnyLink: linkedCount > 0,
-    isFullyLinked: linkedCount === artwork.episodes.length,
+    isFullyLinked: totalCount > 0 && linkedCount === totalCount,
   }
 }

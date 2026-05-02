@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 const safetyNotes = [
   '성인 작품은 태그와 작품 플래그를 함께 사용해 노출과 접근을 분리 제어합니다.',
   'PASS/휴대폰 인증은 age_verifications 테이블에 이력으로 남기고 profiles.is_adult_verified를 갱신합니다.',
@@ -8,9 +10,18 @@ export default function StudioSafetyPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <header className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Safety</p>
-          <h1 className="text-4xl font-black tracking-tight">성인 인증과 안전장치</h1>
+        <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-3">
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Safety</p>
+            <h1 className="text-4xl font-black tracking-tight">성인 인증과 안전장치</h1>
+          </div>
+
+          <Link
+            href="/main"
+            className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+          >
+            허브로 돌아가기
+          </Link>
         </header>
 
         <section className="rounded-3xl border border-rose-400/20 bg-rose-500/5 p-6">

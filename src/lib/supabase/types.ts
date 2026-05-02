@@ -199,6 +199,44 @@ export type Database = {
           },
         ]
       }
+      creator_agreement_consents: {
+        Row: {
+          agreed_at: string
+          agreement_version: string
+          created_at: string
+          id: string
+          is_agreed: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agreed_at?: string
+          agreement_version: string
+          created_at?: string
+          id?: string
+          is_agreed?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agreed_at?: string
+          agreement_version?: string
+          created_at?: string
+          id?: string
+          is_agreed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_agreement_consents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coin_transactions: {
         Row: {
           amount: number
