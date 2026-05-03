@@ -2,7 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { Database } from './types'
 
-type AccessProfile = Pick<Database['public']['Tables']['profiles']['Row'], 'role' | 'is_adult_verified'> | null
+type AccessProfile = Pick<
+  Database['public']['Tables']['profiles']['Row'],
+  'role' | 'is_adult_verified' | 'guardian_consent_status'
+> | null
 
 export type SessionContext = {
   response: NextResponse
@@ -47,7 +50,7 @@ export async function updateSession(request: NextRequest): Promise<SessionContex
   if (user) {
     const { data } = await supabase
       .from('profiles')
-      .select('role, is_adult_verified')
+      .select('role, is_adult_verified, guardian_consent_status')
       .eq('id', user.id)
       .maybeSingle()
 

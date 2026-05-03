@@ -237,6 +237,130 @@ export type Database = {
           },
         ]
       }
+      minor_guardian_consents: {
+        Row: {
+          consent_version: string
+          created_at: string
+          guardian_email: string
+          guardian_name: string
+          guardian_relationship: string
+          id: string
+          notes: string | null
+          requested_at: string
+          reviewed_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consent_version: string
+          created_at?: string
+          guardian_email: string
+          guardian_name: string
+          guardian_relationship: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          reviewed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consent_version?: string
+          created_at?: string
+          guardian_email?: string
+          guardian_name?: string
+          guardian_relationship?: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          reviewed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "minor_guardian_consents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_terms_consents: {
+        Row: {
+          age_confirmed: boolean
+          agreed_at: string
+          community_policy_agreed: boolean
+          community_policy_version: string
+          created_at: string
+          email_notification_agreed: boolean
+          id: string
+          marketing_agreed: boolean
+          payment_policy_agreed: boolean
+          payment_policy_version: string
+          privacy_agreed: boolean
+          privacy_version: string
+          push_notification_agreed: boolean
+          recommendation_data_agreed: boolean
+          required_terms_agreed: boolean
+          terms_version: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age_confirmed?: boolean
+          agreed_at?: string
+          community_policy_agreed?: boolean
+          community_policy_version: string
+          created_at?: string
+          email_notification_agreed?: boolean
+          id?: string
+          marketing_agreed?: boolean
+          payment_policy_agreed?: boolean
+          payment_policy_version: string
+          privacy_agreed?: boolean
+          privacy_version: string
+          push_notification_agreed?: boolean
+          recommendation_data_agreed?: boolean
+          required_terms_agreed?: boolean
+          terms_version: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age_confirmed?: boolean
+          agreed_at?: string
+          community_policy_agreed?: boolean
+          community_policy_version?: string
+          created_at?: string
+          email_notification_agreed?: boolean
+          id?: string
+          marketing_agreed?: boolean
+          payment_policy_agreed?: boolean
+          payment_policy_version?: string
+          privacy_agreed?: boolean
+          privacy_version?: string
+          push_notification_agreed?: boolean
+          recommendation_data_agreed?: boolean
+          required_terms_agreed?: boolean
+          terms_version?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_terms_consents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coin_transactions: {
         Row: {
           amount: number
@@ -571,9 +695,12 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age_band: string
           avatar_url: string | null
           created_at: string
           display_name: string
+          guardian_consent_requested_at: string | null
+          guardian_consent_status: string
           id: string
           is_adult_verified: boolean
           phone_verified_at: string | null
@@ -581,9 +708,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          age_band?: string
           avatar_url?: string | null
           created_at?: string
           display_name?: string
+          guardian_consent_requested_at?: string | null
+          guardian_consent_status?: string
           id: string
           is_adult_verified?: boolean
           phone_verified_at?: string | null
@@ -591,9 +721,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          age_band?: string
           avatar_url?: string | null
           created_at?: string
           display_name?: string
+          guardian_consent_requested_at?: string | null
+          guardian_consent_status?: string
           id?: string
           is_adult_verified?: boolean
           phone_verified_at?: string | null

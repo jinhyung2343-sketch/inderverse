@@ -11,10 +11,10 @@ CREATE TABLE revenue_settings (
   bank_info_encrypted TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  CONSTRAINT chk_creator_share CHECK (creator_share_pct >= 70.00 AND creator_share_pct <= 80.00)
+  CONSTRAINT chk_creator_share CHECK (creator_share_pct = 70.00)
 );
 
 ALTER TABLE revenue_settings ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE revenue_settings IS '안전한 작가 수익 설정 및 계좌정보. bank_info_encrypted는 app단이나 Vault를 통하여 암/복호화';
-COMMENT ON COLUMN revenue_settings.creator_share_pct IS '수익 70~80% 제한';
+COMMENT ON COLUMN revenue_settings.creator_share_pct IS '플랫폼 일반 정산 기준 작가 몫 70% 고정';

@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { BRAND } from '@/lib/brand'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
 import { createClient } from '@/lib/supabase/server'
 import type { SparkDraftInput, SparkFormat, SparkPanel, SparkStatus } from '@/lib/spark'
 import { buildSparkMeta, getSparkPanelCount, sanitizeSparkTags } from '@/lib/spark'
@@ -363,9 +365,12 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   const category = readText(formData, 'category')
   const statusValue = readText(formData, 'status')
   const waitFreeHours = readInteger(formData, 'waitFreeHours', 24)
-  const creatorSharePct = readInteger(formData, 'creatorSharePct', 70)
+  const creatorSharePct = readInteger(formData, 'creatorSharePct', BRAND.creatorSharePct)
   const minPayoutAmount = readInteger(formData, 'minPayoutAmount', 10000)
   const payoutMethodValue = readText(formData, 'payoutMethod')
+  const bankName = readText(formData, 'bankName')
+  const accountHolder = readText(formData, 'accountHolder')
+  const accountNumber = readText(formData, 'accountNumber')
 
   if (!title || !description || !category) {
     throw new Error('필수 항목이 비어 있습니다.')
@@ -379,8 +384,8 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     throw new Error('기다리면 무료 시간은 0시간에서 168시간 사이여야 합니다.')
   }
 
-  if (creatorSharePct < 70 || creatorSharePct > 80) {
-    throw new Error('작가 배분율은 70%에서 80% 사이여야 합니다.')
+  if (creatorSharePct !== BRAND.creatorSharePct) {
+    throw new Error(`작가 정산 비율은 ${BRAND.creatorSharePct}%로 고정되어 있습니다.`)
   }
 
   if (minPayoutAmount < 1000) {
@@ -392,6 +397,12 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   }
 
   const payoutMethod = isPayoutMethod(payoutMethodValue) ? payoutMethodValue : null
+  const bankInfo = {
+    bankName,
+    accountHolder,
+    accountNumber,
+  }
+  const bankInfoEncrypted = hasAnyBankInfo(bankInfo) ? encryptBankInfo(bankInfo) : null
 
   return {
     title,
@@ -409,6 +420,12 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
       creatorSharePct,
       minPayoutAmount,
       payoutMethod,
+      bankInfo: {
+        bankName,
+        accountHolder,
+        accountNumber,
+      },
+      bankInfoEncrypted,
     },
   }
 }
@@ -541,6 +558,7 @@ export async function createWebtoonChannel(formData: FormData) {
         creator_share_pct: input.revenueSettings.creatorSharePct,
         min_payout_amount: input.revenueSettings.minPayoutAmount,
         payout_method: input.revenueSettings.payoutMethod,
+        bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
       },
       { onConflict: 'channel_id' }
     )
@@ -587,6 +605,7 @@ export async function updateWebtoonChannel(formData: FormData) {
         creator_share_pct: input.revenueSettings.creatorSharePct,
         min_payout_amount: input.revenueSettings.minPayoutAmount,
         payout_method: input.revenueSettings.payoutMethod,
+        bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
       },
       { onConflict: 'channel_id' }
     )

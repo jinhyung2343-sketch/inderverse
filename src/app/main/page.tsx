@@ -65,7 +65,7 @@ const MENUS = [
 
 export default function MainHubPage() {
   const router = useRouter();
-  const { isLoading, checkSession, isLoggedIn, userNickname } = useAuthStore();
+  const { isLoading, checkSession, isLoggedIn, userNickname, guardianConsentStatus } = useAuthStore();
   
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
@@ -142,6 +142,22 @@ export default function MainHubPage() {
         ${isTransitioning ? 'opacity-0 scale-[3]' : 'opacity-100 scale-100'}
       `}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-4xl mt-20">
+          {guardianConsentStatus === 'pending' ? (
+            <div className="md:col-span-2 rounded-3xl border border-sky-400/20 bg-sky-500/10 p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-sky-100/70">Guardian Consent Pending</p>
+              <h2 className="mt-3 text-2xl font-bold text-white">보호자 동의 확인이 진행 중입니다</h2>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-sky-50/80">
+                확인이 끝나기 전까지는 충전하기와 작가 스튜디오 기능이 잠시 제한됩니다. 현재 상태는 보호자 동의 확인 안내 화면에서 다시 볼 수 있습니다.
+              </p>
+              <button
+                onClick={() => handleMenuClick('guardian-consent', '/main/guardian-consent')}
+                className="mt-5 inline-flex rounded-full border border-white/10 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+              >
+                보호자 동의 상태 보기
+              </button>
+            </div>
+          ) : null}
+
           
           {MENUS.map((menu, idx) => {
             const isSelected = isTransitioning === menu.id;

@@ -8,7 +8,7 @@ const studioSections = [
   {
     href: '/main/studio/settlements',
     title: '정산 구조',
-    description: '채널별 수익 배분율, 정산 스냅샷, 지급 기준 금액을 운영 가능한 형태로 관리합니다.',
+    description: '고정 70:30 정산 기준, 정산 스냅샷, 지급 기준 금액을 운영 가능한 형태로 관리합니다.',
   },
   {
     href: '/main/studio/safety',

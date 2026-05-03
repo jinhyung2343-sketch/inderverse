@@ -41,6 +41,13 @@ export interface CreatorWebtoonRecord {
     creatorSharePct: number
     minPayoutAmount: number
     payoutMethod: Database['public']['Enums']['payout_method'] | null
+    bankInfo: {
+      bankName: string
+      accountHolder: string
+      accountNumber: string
+      maskedSummary: string | null
+      hasStoredInfo: boolean
+    }
   }
 }
 
@@ -57,6 +64,8 @@ export interface CreatorWebtoonListItem {
     creatorSharePct: number
     minPayoutAmount: number
     payoutMethod: Database['public']['Enums']['payout_method'] | null
+    maskedBankSummary: string | null
+    hasStoredBankInfo: boolean
   }
 }
 
@@ -76,6 +85,12 @@ export interface WebtoonDraftInput {
     creatorSharePct: number
     minPayoutAmount: number
     payoutMethod: Database['public']['Enums']['payout_method'] | null
+    bankInfo: {
+      bankName: string
+      accountHolder: string
+      accountNumber: string
+    }
+    bankInfoEncrypted: string | null
   }
 }
 

@@ -11,6 +11,7 @@ export async function proxy(request: NextRequest) {
 
   const isAuthPage = pathname === '/join-prompt' || pathname.startsWith('/auth/')
   const isMemberPage = pathname.startsWith('/main/library') || pathname.startsWith('/main/store')
+  const isGuardianConsentPage = pathname === '/main/guardian-consent'
   const isStudioHome = pathname === '/main/studio'
   const isCreatorAgreementPage = pathname === '/main/studio/creator-agreement'
   const isCreatorPage = pathname.startsWith('/main/studio/')
@@ -18,6 +19,7 @@ export async function proxy(request: NextRequest) {
   const isLoggedIn = Boolean(userId)
   const isCreator = profile?.role === 'creator' || profile?.role === 'admin'
   const isAdmin = profile?.role === 'admin'
+  const isGuardianPending = profile?.guardian_consent_status === 'pending'
 
   if (isAuthPage && isLoggedIn) {
     return NextResponse.redirect(new URL('/main', request.url))
@@ -27,6 +29,14 @@ export async function proxy(request: NextRequest) {
     const redirectUrl = new URL('/join-prompt', request.url)
     redirectUrl.searchParams.set('next', `${pathname}${search}`)
     return NextResponse.redirect(redirectUrl)
+  }
+
+  if (
+    isGuardianPending &&
+    !isGuardianConsentPage &&
+    (pathname.startsWith('/main/store') || pathname.startsWith('/main/studio'))
+  ) {
+    return NextResponse.redirect(new URL('/main/guardian-consent', request.url))
   }
 
   if (isCreatorPage && !isCreator && !isCreatorAgreementPage) {

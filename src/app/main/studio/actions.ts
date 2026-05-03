@@ -2,7 +2,10 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { CREATOR_AGREEMENT_VERSION } from '@/lib/creator-agreement'
+import {
+  CREATOR_AGREEMENT_VERSION,
+  requiredCreatorAgreementConsentItems,
+} from '@/lib/creator-agreement'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
 
@@ -56,12 +59,14 @@ export async function acceptCreatorAgreement(
   _prevState: CreatorAgreementActionState,
   formData: FormData
 ): Promise<CreatorAgreementActionState> {
-  const agreed = formData.get('creatorAgreementAccepted') === 'on'
+  const agreed = requiredCreatorAgreementConsentItems.every(
+    (item) => formData.get(item.fieldName) === 'on'
+  )
   const agreedAt = new Date().toISOString()
 
   if (!agreed) {
     return {
-      error: '필수 동의 항목에 동의해야 작가 등록을 진행할 수 있습니다.',
+      error: '필수 동의 항목에 모두 동의해야 작가 등록을 진행할 수 있습니다.',
     }
   }
 

@@ -1,12 +1,29 @@
 export const CREATOR_AGREEMENT_VERSION = 'creator_agreement_v1.0'
 
 export const CREATOR_AGREEMENT_TITLE = '작가 등록 및 작품 게시 기본 동의서'
+export const CREATOR_AGREEMENT_SUMMARY =
+  '작가 등록 전, 창작 권리와 운영 책임, 정산 원칙을 한 번에 확인할 수 있도록 작가용 동의서 전문을 준비했습니다.'
 
 export interface CreatorAgreementSection {
   id: string
   title: string
   paragraphs?: string[]
   items?: string[]
+}
+
+export interface CreatorAgreementDocument {
+  id: string
+  title: string
+  version: string
+  summary: string
+  sections: CreatorAgreementSection[]
+}
+
+export interface CreatorAgreementConsentItem {
+  key: string
+  fieldName: string
+  label: string
+  documentId: string
 }
 
 export const creatorAgreementSections: CreatorAgreementSection[] = [
@@ -69,8 +86,7 @@ export const creatorAgreementSections: CreatorAgreementSection[] = [
       '회사는 정산 내역을 작가가 확인할 수 있는 방식으로 제공한다.',
       '정산 주기, 최소 지급 기준액, 지급 방식, 세금 공제 방식, 환불 처리 방식 등 구체적인 사항은 별도의 정산 정책에 따른다.',
       '작가는 정산을 위해 필요한 실명, 계좌정보, 사업자 정보, 세금 관련 정보를 정확히 제공해야 한다.',
-      '별도의 제작지원, 독점연재, 외부 유통, 2차 사업 계약이 체결된 경우에는 해당 별도 계약의 수익배분 조건을 우선 적용할 수 있다.',
-      '단, 별도 계약이 없는 일반 플랫폼 연재 작품의 기본 수익배분은 작가 70%, 회사 30%로 한다.',
+      '제작지원, 외부 유통, 2차 사업 등 별도 계약이 필요한 사안은 별도 계약으로 정하되, 플랫폼 내 일반 정산 수익 분배 기준은 작가 70%, 회사 30%로 유지한다.',
     ],
   },
   {
@@ -217,5 +233,80 @@ export const creatorAgreementSections: CreatorAgreementSection[] = [
       '본 동의서는 작가가 작가 등록 절차에서 동의한 날부터 효력이 발생한다.',
       '본 동의서에 명시되지 않은 사항은 관련 법령, 플랫폼 이용약관, 작가 서비스 운영정책, 정산 정책에 따른다.',
     ],
+  },
+]
+
+function pickCreatorAgreementSections(sectionIds: string[]) {
+  const idSet = new Set(sectionIds)
+  return creatorAgreementSections.filter((section) => idSet.has(section.id))
+}
+
+export const creatorAgreementDocument = {
+  id: 'creator_agreement',
+  title: CREATOR_AGREEMENT_TITLE,
+  version: CREATOR_AGREEMENT_VERSION,
+  summary: CREATOR_AGREEMENT_SUMMARY,
+  sections: creatorAgreementSections,
+} as const satisfies CreatorAgreementDocument
+
+export const creatorAgreementDocuments: Record<string, CreatorAgreementDocument> = {
+  creator_registration_policy: {
+    id: 'creator_registration_policy',
+    title: '작가 등록 및 작품 게시 기본 원칙',
+    version: CREATOR_AGREEMENT_VERSION,
+    summary:
+      '작가 등록 자격, 작품 게시 권한, 기본 운영 책임을 먼저 확인할 수 있도록 핵심 조항만 묶었습니다.',
+    sections: pickCreatorAgreementSections(['purpose', 'principles', 'registration', 'posting-rights']),
+  },
+  creator_copyright_policy: {
+    id: 'creator_copyright_policy',
+    title: '저작권 및 외부 사업 협의 원칙',
+    version: CREATOR_AGREEMENT_VERSION,
+    summary:
+      '저작권 귀속, 공동 창작 권리 정리, 2차 사업 및 외부 사업 협의 원칙을 분리해 확인할 수 있습니다.',
+    sections: pickCreatorAgreementSections(['copyright', 'secondary', 'support', 'promotion']),
+  },
+  creator_settlement_policy: {
+    id: 'creator_settlement_policy',
+    title: '정산 기준 및 정보 제공 책임',
+    version: CREATOR_AGREEMENT_VERSION,
+    summary:
+      '플랫폼 일반 정산 70:30 기준, 정산 정보 제공, 개인정보 및 세금 처리 책임을 함께 정리했습니다.',
+    sections: pickCreatorAgreementSections(['settlement', 'privacy', 'termination', 'dispute']),
+  },
+  creator_operations_policy: {
+    id: 'creator_operations_policy',
+    title: '운영정책, 콘텐츠 기준 및 제재 원칙',
+    version: CREATOR_AGREEMENT_VERSION,
+    summary:
+      '연재 운영, 콘텐츠 정책, AI 활용, 채널 운영, 제재 기준 등 실무 운영에 가까운 조항을 모았습니다.',
+    sections: pickCreatorAgreementSections(['format', 'abuse', 'editing', 'policy', 'ai', 'channel', 'changes', 'supplementary']),
+  },
+}
+
+export const requiredCreatorAgreementConsentItems: CreatorAgreementConsentItem[] = [
+  {
+    key: 'registration',
+    fieldName: 'creatorRegistrationAgreed',
+    label: '[필수] 작가 등록 자격, 작품 게시 권한, 기본 운영 책임에 동의합니다.',
+    documentId: 'creator_registration_policy',
+  },
+  {
+    key: 'copyright',
+    fieldName: 'creatorCopyrightAgreed',
+    label: '[필수] 저작권 귀속, 권리 보유, 외부 사업 별도 협의 원칙에 동의합니다.',
+    documentId: 'creator_copyright_policy',
+  },
+  {
+    key: 'settlement',
+    fieldName: 'creatorSettlementAgreed',
+    label: '[필수] 정산 기준, 계좌정보 제공, 세금 처리 책임에 동의합니다.',
+    documentId: 'creator_settlement_policy',
+  },
+  {
+    key: 'operations',
+    fieldName: 'creatorOperationsAgreed',
+    label: '[필수] 콘텐츠 정책, 운영정책, 제재 기준 및 채널 운영 원칙에 동의합니다.',
+    documentId: 'creator_operations_policy',
   },
 ]

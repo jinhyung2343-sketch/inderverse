@@ -1,5 +1,5 @@
 import { BRAND } from '@/lib/brand'
-import { categories } from '@/lib/mock/explore-data'
+import { categories } from '@/lib/explore'
 import type { CreatorWebtoonRecord } from '@/lib/webtoon'
 import {
   getPayoutMethodLabel,
@@ -214,20 +214,16 @@ export function WebtoonEditorForm({
           <div className="rounded-[32px] border border-emerald-400/20 bg-emerald-500/5 p-6">
             <h2 className="text-xl font-bold text-white">정산 설정</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              채널별 수익 배분율과 최소 정산 기준을 작가가 직접 관리합니다. 은행 정보 암호화 입력은 다음 단계에서 붙이는 편이 안전합니다.
+              인더버스의 일반 정산 분배는 작가 {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%로 고정됩니다. 계좌정보는 서버에서 암호화해 저장하고, 화면에서는 기본적으로 마스킹된 상태로 다룹니다.
             </p>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <label className="grid gap-2 text-sm text-zinc-300">
-                <span>작가 배분율 (%)</span>
-                <input
-                  type="number"
-                  min={BRAND.defaultCreatorSharePct}
-                  max={BRAND.maxCreatorSharePct}
-                  name="creatorSharePct"
-                  defaultValue={initialValue?.revenueSettings.creatorSharePct ?? BRAND.defaultCreatorSharePct}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                />
+                <span>정산 분배</span>
+                <input type="hidden" name="creatorSharePct" value={String(BRAND.creatorSharePct)} />
+                <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white">
+                  작가 {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%
+                </div>
               </label>
 
               <label className="grid gap-2 text-sm text-zinc-300">
@@ -258,6 +254,44 @@ export function WebtoonEditorForm({
                 ))}
               </select>
             </label>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>은행명</span>
+                <input
+                  name="bankName"
+                  defaultValue={initialValue?.revenueSettings.bankInfo.bankName ?? ''}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                  placeholder="국민은행"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>예금주</span>
+                <input
+                  name="accountHolder"
+                  defaultValue={initialValue?.revenueSettings.bankInfo.accountHolder ?? ''}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                  placeholder="홍길동"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
+              <span>계좌번호</span>
+              <input
+                name="accountNumber"
+                defaultValue={initialValue?.revenueSettings.bankInfo.accountNumber ?? ''}
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                placeholder="12345678901234"
+              />
+            </label>
+
+            {initialValue?.revenueSettings.bankInfo.maskedSummary ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
+                현재 저장된 계좌 요약: <span className="text-white">{initialValue.revenueSettings.bankInfo.maskedSummary}</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
