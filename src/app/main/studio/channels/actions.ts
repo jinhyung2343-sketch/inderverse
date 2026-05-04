@@ -827,45 +827,28 @@ export async function updateWebtoonEpisode(formData: FormData) {
       ? existingEpisode.published_at ?? new Date().toISOString()
       : null
 
-  const { error: updateError } = await supabase
-    .from('episodes')
-    .update({
-      episode_number: input.episodeNumber,
-      title: input.title,
-      pricing_type: input.pricingType,
-      coin_price: input.coinPrice,
-      is_adult_only: input.isAdultOnly,
-      status: input.status,
-      published_at: publishedAt,
-    })
-    .eq('id', episodeId)
-    .eq('channel_id', channelId)
-
-  if (updateError) {
-    throw new Error(updateError.message)
-  }
-
-  const { error: deleteImagesError } = await supabase
-    .from('episode_images')
-    .delete()
-    .eq('episode_id', episodeId)
-
-  if (deleteImagesError) {
-    throw new Error(deleteImagesError.message)
-  }
-
-  if (input.images.length > 0) {
-    const { error: insertImagesError } = await supabase.from('episode_images').insert(
-      input.images.map((image) => ({
-        episode_id: episodeId,
+  const { error: updateEpisodeError } = await supabase.rpc(
+    'update_webtoon_episode_with_images',
+    {
+      p_user_id: userId,
+      p_channel_id: channelId,
+      p_episode_id: episodeId,
+      p_episode_number: input.episodeNumber,
+      p_title: input.title,
+      p_pricing_type: input.pricingType,
+      p_coin_price: input.coinPrice,
+      p_is_adult_only: input.isAdultOnly,
+      p_status: input.status,
+      p_published_at: publishedAt,
+      p_images: input.images.map((image) => ({
         image_url: image.imageUrl,
         sort_order: image.sortOrder,
-      }))
-    )
-
-    if (insertImagesError) {
-      throw new Error(insertImagesError.message)
+      })),
     }
+  )
+
+  if (updateEpisodeError) {
+    throw new Error(updateEpisodeError.message)
   }
 
   revalidatePath('/main/explore')

@@ -996,6 +996,22 @@ export type Database = {
         }
         Returns: Json
       }
+      update_webtoon_episode_with_images: {
+        Args: {
+          p_channel_id: string
+          p_coin_price: number
+          p_episode_id: string
+          p_episode_number: number
+          p_images?: Json
+          p_is_adult_only: boolean
+          p_pricing_type: Database["public"]["Enums"]["episode_pricing"]
+          p_published_at: string | null
+          p_status: Database["public"]["Enums"]["episode_status"]
+          p_title: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       age_verify_provider: "pass" | "phone" | "manual"

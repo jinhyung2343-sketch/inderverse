@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:unit": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

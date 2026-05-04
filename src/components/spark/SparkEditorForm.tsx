@@ -15,6 +15,7 @@ export function SparkEditorForm({
   description,
   submitLabel,
   channelId,
+  showContentRatingFieldset = true,
 }: {
   action: (formData: FormData) => void | Promise<void>
   initialValue?: SparkRecord
@@ -22,9 +23,22 @@ export function SparkEditorForm({
   description: string
   submitLabel: string
   channelId?: string
+  showContentRatingFieldset?: boolean
 }) {
   return (
     <form action={action} className="grid gap-6">
+      {!showContentRatingFieldset ? (
+        <>
+          <input type="hidden" name="ageRating" value="all" />
+          <input
+            type="hidden"
+            name="ratingChecklistJson"
+            value='{"sexualContent":"none","violence":"none","language":"none"}'
+          />
+          <input type="hidden" name="adultContentNoticeAccepted" value="" />
+        </>
+      ) : null}
+
       <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <div className="space-y-3">
           <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Spark Editor</p>
@@ -130,11 +144,18 @@ export function SparkEditorForm({
 
           </div>
 
-          <ContentRatingFieldset
-            initialAgeRating={initialValue?.ageRating ?? 'all'}
-            initialChecklist={initialValue?.ratingChecklist}
-            sectionTitle="스파크 등급 분류"
-          />
+          {showContentRatingFieldset ? (
+            <ContentRatingFieldset
+              initialAgeRating={initialValue?.ageRating ?? 'all'}
+              initialChecklist={initialValue?.ratingChecklist}
+              sectionTitle="스파크 등급 분류"
+            />
+          ) : (
+            <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
+              등급 분류는 저장 직후 이어지는 전용 단계에서 설정합니다. 지금은 작품 기본 정보와 카드 구성을 먼저
+              저장합니다.
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">

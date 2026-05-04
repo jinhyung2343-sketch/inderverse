@@ -21,6 +21,7 @@ export function WebtoonEditorForm({
   description,
   submitLabel,
   channelId,
+  showContentRatingFieldset = true,
 }: {
   action: (formData: FormData) => void | Promise<void>
   initialValue?: CreatorWebtoonRecord
@@ -28,9 +29,22 @@ export function WebtoonEditorForm({
   description: string
   submitLabel: string
   channelId?: string
+  showContentRatingFieldset?: boolean
 }) {
   return (
     <form action={action} className="grid gap-6">
+      {!showContentRatingFieldset ? (
+        <>
+          <input type="hidden" name="ageRating" value="all" />
+          <input
+            type="hidden"
+            name="ratingChecklistJson"
+            value='{"sexualContent":"none","violence":"none","language":"none"}'
+          />
+          <input type="hidden" name="adultContentNoticeAccepted" value="" />
+        </>
+      ) : null}
+
       <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <div className="space-y-3">
           <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Webtoon Editor</p>
@@ -158,10 +172,17 @@ export function WebtoonEditorForm({
             </label>
           </div>
 
-          <ContentRatingFieldset
-            initialAgeRating={initialValue?.ageRating ?? 'all'}
-            initialChecklist={initialValue?.ratingChecklist}
-          />
+          {showContentRatingFieldset ? (
+            <ContentRatingFieldset
+              initialAgeRating={initialValue?.ageRating ?? 'all'}
+              initialChecklist={initialValue?.ratingChecklist}
+            />
+          ) : (
+            <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
+              작품 등급은 저장 직후 이어지는 전용 단계에서 확정합니다. 지금은 기본 메타데이터와 연재 운용 기준을
+              먼저 저장합니다.
+            </div>
+          )}
 
           <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">커뮤니티 정책</h2>

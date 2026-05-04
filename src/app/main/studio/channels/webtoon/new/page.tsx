@@ -24,6 +24,7 @@ export default function NewWebtoonPage() {
           heading="새 웹툰 채널 만들기"
           description="작품의 기본 정보와 공개 운용 기준을 먼저 저장합니다. 이후 회차와 이미지 업로드를 이어서 붙이면 실제 탐색 노출 구조까지 연결됩니다."
           submitLabel="웹툰 채널 저장"
+          showContentRatingFieldset={false}
         />
       </div>
     </main>
