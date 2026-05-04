@@ -1,4 +1,6 @@
 import type { Database, Json } from '@/lib/supabase/types'
+import { getAgeRatingLabel as getSharedAgeRatingLabel } from '@/lib/content-rating'
+import type { ChannelAgeRating, RatingChecklist } from '@/lib/content-rating'
 
 export type SparkFormat = Database['public']['Enums']['spark_format']
 export type SparkStatus = Database['public']['Enums']['channel_status']
@@ -27,6 +29,8 @@ export interface SparkRecord {
   caption: string
   summary: string
   description: string
+  ageRating: ChannelAgeRating
+  ratingChecklist: RatingChecklist
   punchline: string
   tags: string[]
   tone: string | null
@@ -43,6 +47,8 @@ export interface SparkDraftInput {
   title: string
   description: string
   coverImageUrl: string | null
+  ageRating: ChannelAgeRating
+  ratingChecklist: RatingChecklist
   isAdultOnly: boolean
   status: SparkStatus
   format: SparkFormat
@@ -184,6 +190,10 @@ export function getSparkStatusLabel(status: SparkStatus) {
     default:
       return status
   }
+}
+
+export function getAgeRatingLabel(rating: ChannelAgeRating) {
+  return getSharedAgeRatingLabel(rating)
 }
 
 export function getSparkAccentClassName(record: Pick<SparkRecord, 'topic' | 'format' | 'tags' | 'isAdultOnly'>) {

@@ -3,6 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { BRAND } from '@/lib/brand'
+import {
+  buildRatingChecklistJson,
+  getAgeRatingLabel,
+  getSuggestedAgeRating,
+  isAgeRatingAtLeast,
+  isChannelAgeRating,
+  sanitizeRatingChecklist,
+} from '@/lib/content-rating'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
 import { createClient } from '@/lib/supabase/server'
@@ -129,6 +137,45 @@ function isPayoutMethod(
   value: string
 ): value is Database['public']['Enums']['payout_method'] {
   return value === 'bank_transfer' || value === 'paypal'
+}
+
+function parseChannelContentRating(formData: FormData) {
+  const ageRatingValue = readText(formData, 'ageRating') || 'all'
+  const ratingChecklistJson = readText(formData, 'ratingChecklistJson')
+  const adultContentNoticeAccepted = readText(formData, 'adultContentNoticeAccepted') === 'on'
+
+  if (!isChannelAgeRating(ageRatingValue)) {
+    throw new Error('유효하지 않은 연령 등급입니다.')
+  }
+
+  let parsedChecklist: unknown = {}
+
+  if (ratingChecklistJson) {
+    try {
+      parsedChecklist = JSON.parse(ratingChecklistJson)
+    } catch {
+      throw new Error('등급 체크리스트 형식이 올바르지 않습니다.')
+    }
+  }
+
+  const ratingChecklist = sanitizeRatingChecklist(parsedChecklist)
+  const suggestedAgeRating = getSuggestedAgeRating(ratingChecklist)
+
+  if (!isAgeRatingAtLeast(ageRatingValue, suggestedAgeRating)) {
+    throw new Error(
+      `현재 체크리스트 기준으로는 최소 ${getAgeRatingLabel(suggestedAgeRating)} 등급이 필요합니다.`
+    )
+  }
+
+  if (ageRatingValue === '19' && !adultContentNoticeAccepted) {
+    throw new Error('19세 이상 작품 안내와 법적 책임 고지를 먼저 확인해 주세요.')
+  }
+
+  return {
+    ageRating: ageRatingValue,
+    ratingChecklist,
+    isAdultOnly: ageRatingValue === '19',
+  }
 }
 
 async function requireCreatorAccess() {
@@ -323,12 +370,15 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
   }
 
   const panels = parsePanels(panelsJson, formatValue, statusValue)
+  const contentRating = parseChannelContentRating(formData)
 
   return {
     title,
     description,
     coverImageUrl: readOptionalText(formData, 'coverImageUrl'),
-    isAdultOnly: readBoolean(formData, 'isAdultOnly'),
+    ageRating: contentRating.ageRating,
+    ratingChecklist: contentRating.ratingChecklist,
+    isAdultOnly: contentRating.isAdultOnly,
     status: statusValue,
     format: formatValue,
     caption,
@@ -347,6 +397,8 @@ function buildSparkChannelPayload(input: SparkDraftInput, creatorId: string) {
     title: input.title,
     description: input.description,
     cover_image_url: input.coverImageUrl,
+    age_rating: input.ageRating,
+    rating_checklist: buildRatingChecklistJson(input.ratingChecklist),
     is_adult_only: input.isAdultOnly,
     status: input.status,
     work_type: 'spark' as const,
@@ -403,12 +455,15 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     accountNumber,
   }
   const bankInfoEncrypted = hasAnyBankInfo(bankInfo) ? encryptBankInfo(bankInfo) : null
+  const contentRating = parseChannelContentRating(formData)
 
   return {
     title,
     description,
     coverImageUrl: readOptionalText(formData, 'coverImageUrl'),
-    isAdultOnly: readBoolean(formData, 'isAdultOnly'),
+    ageRating: contentRating.ageRating,
+    ratingChecklist: contentRating.ratingChecklist,
+    isAdultOnly: contentRating.isAdultOnly,
     isCommentEnabled: readBoolean(formData, 'isCommentEnabled'),
     commentPolicyNote: readOptionalText(formData, 'commentPolicyNote'),
     status: statusValue,
@@ -436,6 +491,8 @@ function buildWebtoonChannelPayload(input: WebtoonDraftInput, creatorId: string)
     title: input.title,
     description: input.description,
     cover_image_url: input.coverImageUrl,
+    age_rating: input.ageRating,
+    rating_checklist: buildRatingChecklistJson(input.ratingChecklist),
     is_adult_only: input.isAdultOnly,
     is_comment_enabled: input.isCommentEnabled,
     comment_policy_note: input.commentPolicyNote,
@@ -504,7 +561,7 @@ export async function createSparkChannel(formData: FormData) {
 
   revalidatePath('/main/spark')
   revalidatePath('/main/studio/channels')
-  redirect(`/main/studio/channels/spark/${data.id}/edit`)
+  redirect(`/main/studio/channels/spark/${data.id}/rating`)
 }
 
 export async function updateSparkChannel(formData: FormData) {
@@ -572,7 +629,53 @@ export async function createWebtoonChannel(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/channels')
-  redirect(`/main/studio/channels/webtoon/${data.id}/edit`)
+  redirect(`/main/studio/channels/webtoon/${data.id}/rating`)
+}
+
+export async function updateChannelContentRating(formData: FormData) {
+  const { supabase, userId } = await requireCreatorAccess()
+  const channelId = readText(formData, 'channelId')
+  const workType = readText(formData, 'workType')
+  const nextPath = readText(formData, 'nextPath')
+  const contentRating = parseChannelContentRating(formData)
+
+  if (!channelId) {
+    throw new Error('등급을 저장할 작품을 찾지 못했습니다.')
+  }
+
+  if (workType !== 'webtoon' && workType !== 'spark') {
+    throw new Error('유효하지 않은 작품 유형입니다.')
+  }
+
+  const { error } = await supabase
+    .from('channels')
+    .update({
+      age_rating: contentRating.ageRating,
+      rating_checklist: buildRatingChecklistJson(contentRating.ratingChecklist),
+      is_adult_only: contentRating.isAdultOnly,
+    })
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', workType)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  revalidatePath('/main/explore')
+  revalidatePath('/main/spark')
+  revalidatePath('/main/studio')
+  revalidatePath('/main/studio/channels')
+  revalidatePath(`/main/studio/channels/${workType}/${channelId}/edit`)
+  revalidatePath(`/main/studio/channels/${workType}/${channelId}/rating`)
+
+  if (workType === 'spark') {
+    revalidatePath(`/main/spark/${channelId}`)
+  } else {
+    revalidatePath(`/main/explore/${channelId}`)
+  }
+
+  redirect(nextPath || `/main/studio/channels/${workType}/${channelId}/edit`)
 }
 
 export async function updateWebtoonChannel(formData: FormData) {

@@ -109,6 +109,7 @@ export function SignUpPageClient({
   const [guardianFields, setGuardianFields] = useState<MinorGuardianConsentFields>({
     guardianName: '',
     guardianEmail: '',
+    guardianPhone: '',
     guardianRelationship: '',
   })
   const [viewerDocument, setViewerDocument] = useState<PolicyDocument | null>(null)
@@ -122,6 +123,14 @@ export function SignUpPageClient({
   const allConsentsChecked = [...requiredSignUpConsentItems, ...optionalSignUpConsentItems].every(
     (item) => consents[item.key]
   )
+  const guardianFieldsCompleted =
+    guardianFields.guardianName.trim().length > 0 &&
+    guardianFields.guardianEmail.trim().length > 0 &&
+    guardianFields.guardianPhone.trim().length > 0 &&
+    guardianFields.guardianRelationship.trim().length > 0
+  const requiresGuardianDetails = ageConsentMode === 'guardian'
+  const submitDisabled =
+    isSubmitting || !allRequiredAgreed || (requiresGuardianDetails && !guardianFieldsCompleted)
   const requiredConsentItemsExcludingAge = requiredSignUpConsentItems.filter(
     (item) => item.key !== 'ageConfirmed'
   )
@@ -184,15 +193,11 @@ export function SignUpPageClient({
       return
     }
 
-    if (ageConsentMode === 'guardian') {
-      if (
-        !guardianFields.guardianName.trim() ||
-        !guardianFields.guardianEmail.trim() ||
-        !guardianFields.guardianRelationship.trim()
-      ) {
-        setErrorMessage('만 14세 미만 가입은 보호자 이름, 이메일, 관계를 모두 입력해야 진행할 수 있습니다.')
+    if (requiresGuardianDetails && !guardianFieldsCompleted) {
+        setErrorMessage(
+          '만 14세 미만 가입은 보호자 이름, 이메일, 연락처, 관계를 모두 입력해야 진행할 수 있습니다.'
+        )
         return
-      }
     }
 
     setIsSubmitting(true)
@@ -409,7 +414,8 @@ export function SignUpPageClient({
                       <div className="grid gap-4 rounded-2xl border border-sky-400/20 bg-sky-500/5 p-4">
                         <p className="text-xs leading-5 text-sky-100/80">
                           만 14세 미만 가입은 보호자 동의 요청 정보를 남긴 뒤 확인 대기 상태로 생성됩니다.
-                          확인 전에는 결제와 작가 등록 기능이 제한됩니다.
+                          확인 전에는 결제와 작가 등록 기능이 제한되며, 추후 휴대폰 본인인증 연동이 이
+                          연락처를 기준으로 이어질 수 있습니다.
                         </p>
 
                         <label className="block space-y-2">
@@ -432,6 +438,18 @@ export function SignUpPageClient({
                             className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                             placeholder="guardian@example.com"
                             autoComplete="email"
+                          />
+                        </label>
+
+                        <label className="block space-y-2">
+                          <span className="text-sm text-zinc-300">보호자 연락처</span>
+                          <input
+                            type="tel"
+                            value={guardianFields.guardianPhone}
+                            onChange={(event) => updateGuardianField('guardianPhone', event.target.value)}
+                            className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                            placeholder="010-1234-5678"
+                            autoComplete="tel"
                           />
                         </label>
 
@@ -475,6 +493,12 @@ export function SignUpPageClient({
                 </p>
               ) : null}
 
+              {allRequiredAgreed && requiresGuardianDetails && !guardianFieldsCompleted ? (
+                <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  만 14세 미만 가입은 보호자 이름, 이메일, 연락처, 관계를 모두 입력해야 회원가입을 진행할 수 있습니다.
+                </p>
+              ) : null}
+
               {errorMessage ? (
                 <p className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
                   {errorMessage}
@@ -483,7 +507,7 @@ export function SignUpPageClient({
 
               <button
                 type="submit"
-                disabled={isSubmitting || !allRequiredAgreed}
+                disabled={submitDisabled}
                 className="w-full rounded-2xl bg-white px-4 py-4 font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? '가입 중...' : '회원가입 완료'}

@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cache } from 'react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { parseRatingChecklist } from '@/lib/content-rating'
 import { createClient } from '@/lib/supabase/server'
 import type { SparkRecord, SparkStatus } from '@/lib/spark'
 import { getSparkPanelCount, parseSparkMeta } from '@/lib/spark'
@@ -17,7 +18,9 @@ interface SparkChannelQueryRow
     | 'title'
     | 'description'
     | 'cover_image_url'
+    | 'age_rating'
     | 'is_adult_only'
+    | 'rating_checklist'
     | 'status'
     | 'spark_caption'
     | 'spark_format'
@@ -59,6 +62,8 @@ function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
     caption: row.spark_caption?.trim() || '짧고 선명한 시선으로 지금의 장면을 붙잡습니다.',
     summary: row.description?.trim() || '아직 상세 소개가 입력되지 않은 스파크입니다.',
     description: row.description?.trim() || '아직 상세 소개가 입력되지 않은 스파크입니다.',
+    ageRating: row.age_rating as SparkRecord['ageRating'],
+    ratingChecklist: parseRatingChecklist(row.rating_checklist),
     punchline: meta.punchline || '지금 이 장면을 한 번 더 보게 만드는 문장을 준비 중입니다.',
     tags: meta.tags,
     tone: meta.tone,
@@ -112,7 +117,9 @@ export async function getPublicSparkList() {
         title,
         description,
         cover_image_url,
+        age_rating,
         is_adult_only,
+        rating_checklist,
         status,
         spark_caption,
         spark_format,
@@ -151,7 +158,9 @@ export async function getPublicSparkById(id: string) {
         title,
         description,
         cover_image_url,
+        age_rating,
         is_adult_only,
+        rating_checklist,
         status,
         spark_caption,
         spark_format,
@@ -312,7 +321,9 @@ export async function getCreatorSparkList() {
         title,
         description,
         cover_image_url,
+        age_rating,
         is_adult_only,
+        rating_checklist,
         status,
         spark_caption,
         spark_format,
@@ -356,7 +367,9 @@ export async function getCreatorSparkById(id: string) {
         title,
         description,
         cover_image_url,
+        age_rating,
         is_adult_only,
+        rating_checklist,
         status,
         spark_caption,
         spark_format,
@@ -419,7 +432,9 @@ export async function getSavedSparkList() {
         title,
         description,
         cover_image_url,
+        age_rating,
         is_adult_only,
+        rating_checklist,
         status,
         spark_caption,
         spark_format,

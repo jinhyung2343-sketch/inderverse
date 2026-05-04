@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { BRAND } from '@/lib/brand'
+import { parseRatingChecklist } from '@/lib/content-rating'
 import { decryptBankInfo, getMaskedBankSummary } from '@/lib/security/bank-info'
 import { createClient } from '@/lib/supabase/server'
 import type { CreatorWebtoonListItem, CreatorWebtoonRecord } from '@/lib/webtoon'
@@ -9,6 +10,7 @@ import type { Database } from '@/lib/supabase/types'
 
 type ChannelRow = Pick<
   Database['public']['Tables']['channels']['Row'],
+  | 'age_rating'
   | 'comment_policy_note'
   | 'id'
   | 'title'
@@ -16,6 +18,7 @@ type ChannelRow = Pick<
   | 'cover_image_url'
   | 'is_adult_only'
   | 'is_comment_enabled'
+  | 'rating_checklist'
   | 'status'
   | 'wait_free_hours'
   | 'serialization_days'
@@ -70,7 +73,7 @@ async function getCreatorChannelRows() {
   const { data, error } = await supabase
     .from('channels')
     .select(
-      'id, title, description, cover_image_url, is_adult_only, is_comment_enabled, comment_policy_note, status, wait_free_hours, serialization_days, updated_at'
+      'id, title, description, cover_image_url, age_rating, rating_checklist, is_adult_only, is_comment_enabled, comment_policy_note, status, wait_free_hours, serialization_days, updated_at'
     )
     .eq('creator_id', user.id)
     .eq('work_type', 'webtoon')
@@ -227,6 +230,7 @@ export async function getCreatorWebtoonList(): Promise<CreatorWebtoonListItem[]>
       id: channel.id,
       title: channel.title,
       coverImageUrl: channel.cover_image_url,
+      ageRating: channel.age_rating as CreatorWebtoonListItem['ageRating'],
       status: channel.status,
       category: getCategory(channelTags),
       tags: channelTags.map((tag) => tag.name),
@@ -262,6 +266,8 @@ export async function getCreatorWebtoonById(id: string): Promise<CreatorWebtoonR
     title: channel.title,
     description: channel.description?.trim() || '',
     coverImageUrl: channel.cover_image_url,
+    ageRating: channel.age_rating as CreatorWebtoonRecord['ageRating'],
+    ratingChecklist: parseRatingChecklist(channel.rating_checklist),
     isAdultOnly: channel.is_adult_only,
     isCommentEnabled: channel.is_comment_enabled,
     commentPolicyNote: channel.comment_policy_note?.trim() || null,

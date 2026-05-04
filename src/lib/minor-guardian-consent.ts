@@ -9,6 +9,7 @@ export type GuardianConsentStatus = 'not_required' | 'pending' | 'verified' | 'r
 export interface MinorGuardianConsentFields {
   guardianName: string
   guardianEmail: string
+  guardianPhone: string
   guardianRelationship: string
 }
 
@@ -38,8 +39,11 @@ export function buildMinorGuardianConsentRecord(
     consent_version: GUARDIAN_CONSENT_VERSION,
     guardian_name: fields.guardianName.trim(),
     guardian_email: fields.guardianEmail.trim().toLowerCase(),
+    guardian_phone: fields.guardianPhone.trim(),
     guardian_relationship: fields.guardianRelationship.trim(),
     status: 'pending',
+    verification_channel: 'phone',
+    verification_note: '향후 PASS/통신사 본인인증 연동 예정',
     requested_at: requestedAt,
     updated_at: requestedAt,
   }

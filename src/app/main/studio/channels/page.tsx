@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { getCreatorSparkList } from '@/lib/server/spark'
 import { getCreatorWebtoonList } from '@/lib/server/webtoon-studio'
-import { getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
-import { getWebtoonStatusLabel } from '@/lib/webtoon'
+import { getAgeRatingLabel as getSparkAgeRatingLabel, getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
+import { getAgeRatingLabel as getWebtoonAgeRatingLabel, getWebtoonStatusLabel } from '@/lib/webtoon'
 
 const channelModel = [
   'profiles -> channels -> episodes -> episode_images 구조를 유지하면서 work_type으로 웹툰과 스파크를 같은 뼈대 안에서 구분합니다.',
@@ -78,6 +78,9 @@ export default async function StudioChannelsPage() {
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
                         {getWebtoonStatusLabel(channel.status)}
                       </span>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                        {getWebtoonAgeRatingLabel(channel.ageRating)}
+                      </span>
                       {channel.tags.slice(0, 3).map((tag) => (
                         <span key={`${channel.id}-${tag}`} className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
                           #{tag}
@@ -128,6 +131,9 @@ export default async function StudioChannelsPage() {
                     <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
                         {getSparkFormatLabel(spark.format)}
+                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                        {getSparkAgeRatingLabel(spark.ageRating)}
                       </span>
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
                         {getSparkStatusLabel(spark.status)}

@@ -1,4 +1,6 @@
 import type { Json, Database } from '@/lib/supabase/types'
+import { getAgeRatingLabel as getSharedAgeRatingLabel } from '@/lib/content-rating'
+import type { ChannelAgeRating, RatingChecklist } from '@/lib/content-rating'
 
 export type WebtoonStatus = Database['public']['Enums']['channel_status']
 export type WebtoonEpisodePricing = Database['public']['Enums']['episode_pricing']
@@ -26,6 +28,8 @@ export interface CreatorWebtoonRecord {
   title: string
   description: string
   coverImageUrl: string | null
+  ageRating: ChannelAgeRating
+  ratingChecklist: RatingChecklist
   isAdultOnly: boolean
   isCommentEnabled: boolean
   commentPolicyNote: string | null
@@ -55,6 +59,7 @@ export interface CreatorWebtoonListItem {
   id: string
   title: string
   coverImageUrl: string | null
+  ageRating: ChannelAgeRating
   status: WebtoonStatus
   category: string
   tags: string[]
@@ -73,6 +78,8 @@ export interface WebtoonDraftInput {
   title: string
   description: string
   coverImageUrl: string | null
+  ageRating: ChannelAgeRating
+  ratingChecklist: RatingChecklist
   isAdultOnly: boolean
   isCommentEnabled: boolean
   commentPolicyNote: string | null
@@ -147,6 +154,10 @@ export function getWebtoonStatusLabel(status: WebtoonStatus) {
     default:
       return status
   }
+}
+
+export function getAgeRatingLabel(rating: ChannelAgeRating) {
+  return getSharedAgeRatingLabel(rating)
 }
 
 export function getEpisodePricingLabel(pricingType: WebtoonEpisodePricing) {

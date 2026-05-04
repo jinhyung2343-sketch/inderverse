@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import type { SparkRecord } from '@/lib/spark'
 import { getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
 import { SparkCoverField } from '@/components/spark/SparkCoverField'
@@ -127,16 +128,13 @@ export function SparkEditorForm({
               </div>
             </div>
 
-            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-              <input
-                type="checkbox"
-                name="isAdultOnly"
-                defaultChecked={initialValue?.isAdultOnly ?? false}
-                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
-              />
-              <span>성인 인증이 필요한 스파크로 설정합니다.</span>
-            </label>
           </div>
+
+          <ContentRatingFieldset
+            initialAgeRating={initialValue?.ageRating ?? 'all'}
+            initialChecklist={initialValue?.ratingChecklist}
+            sectionTitle="스파크 등급 분류"
+          />
         </div>
 
         <div className="space-y-6">

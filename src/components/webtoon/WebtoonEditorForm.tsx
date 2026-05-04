@@ -1,4 +1,5 @@
 import { BRAND } from '@/lib/brand'
+import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import { categories } from '@/lib/explore'
 import type { CreatorWebtoonRecord } from '@/lib/webtoon'
 import {
@@ -155,17 +156,12 @@ export function WebtoonEditorForm({
                 className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
               />
             </label>
-
-            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-              <input
-                type="checkbox"
-                name="isAdultOnly"
-                defaultChecked={initialValue?.isAdultOnly ?? false}
-                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
-              />
-              <span>성인 인증이 필요한 웹툰 채널로 설정합니다.</span>
-            </label>
           </div>
+
+          <ContentRatingFieldset
+            initialAgeRating={initialValue?.ageRating ?? 'all'}
+            initialChecklist={initialValue?.ratingChecklist}
+          />
 
           <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">커뮤니티 정책</h2>

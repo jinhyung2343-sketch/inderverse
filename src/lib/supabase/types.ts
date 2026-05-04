@@ -130,6 +130,7 @@ export type Database = {
       }
       channels: {
         Row: {
+          age_rating: string
           comment_policy_note: string | null
           cover_image_url: string | null
           created_at: string
@@ -144,12 +145,14 @@ export type Database = {
           spark_panel_count: number | null
           serialization_days: Json
           status: Database["public"]["Enums"]["channel_status"]
+          rating_checklist: Json
           title: string
           updated_at: string
           wait_free_hours: number
           work_type: Database["public"]["Enums"]["work_type"]
         }
         Insert: {
+          age_rating?: string
           comment_policy_note?: string | null
           cover_image_url?: string | null
           created_at?: string
@@ -164,12 +167,14 @@ export type Database = {
           spark_panel_count?: number | null
           serialization_days?: Json
           status?: Database["public"]["Enums"]["channel_status"]
+          rating_checklist?: Json
           title: string
           updated_at?: string
           wait_free_hours?: number
           work_type?: Database["public"]["Enums"]["work_type"]
         }
         Update: {
+          age_rating?: string
           comment_policy_note?: string | null
           cover_image_url?: string | null
           created_at?: string
@@ -184,6 +189,7 @@ export type Database = {
           spark_panel_count?: number | null
           serialization_days?: Json
           status?: Database["public"]["Enums"]["channel_status"]
+          rating_checklist?: Json
           title?: string
           updated_at?: string
           wait_free_hours?: number
@@ -243,12 +249,15 @@ export type Database = {
           created_at: string
           guardian_email: string
           guardian_name: string
+          guardian_phone: string
           guardian_relationship: string
           id: string
           notes: string | null
           requested_at: string
           reviewed_at: string | null
           status: string
+          verification_channel: string
+          verification_note: string | null
           updated_at: string
           user_id: string
         }
@@ -257,12 +266,15 @@ export type Database = {
           created_at?: string
           guardian_email: string
           guardian_name: string
+          guardian_phone?: string
           guardian_relationship: string
           id?: string
           notes?: string | null
           requested_at?: string
           reviewed_at?: string | null
           status?: string
+          verification_channel?: string
+          verification_note?: string | null
           updated_at?: string
           user_id: string
         }
@@ -271,12 +283,15 @@ export type Database = {
           created_at?: string
           guardian_email?: string
           guardian_name?: string
+          guardian_phone?: string
           guardian_relationship?: string
           id?: string
           notes?: string | null
           requested_at?: string
           reviewed_at?: string | null
           status?: string
+          verification_channel?: string
+          verification_note?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1132,9 +1147,11 @@ export const Constants = {
       episode_pricing: ["free", "paid", "wait_free"],
       episode_status: ["draft", "published", "hidden"],
       payout_method: ["bank_transfer", "paypal"],
+      spark_format: ["single_cut", "four_cut"],
       settlement_status: ["pending", "processing", "completed", "failed"],
       tag_category: ["genre", "mood", "warning"],
       user_role: ["reader", "creator", "admin"],
+      work_type: ["webtoon", "spark"],
     },
   },
 } as const

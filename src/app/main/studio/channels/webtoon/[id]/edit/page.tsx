@@ -3,7 +3,12 @@ import { notFound } from 'next/navigation'
 import { updateWebtoonChannel } from '@/app/main/studio/channels/actions'
 import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
-import { getEpisodePricingLabel, getEpisodeStatusLabel, getWebtoonStatusLabel } from '@/lib/webtoon'
+import {
+  getAgeRatingLabel,
+  getEpisodePricingLabel,
+  getEpisodeStatusLabel,
+  getWebtoonStatusLabel,
+} from '@/lib/webtoon'
 
 export default async function EditWebtoonPage({
   params,
@@ -30,13 +35,22 @@ export default async function EditWebtoonPage({
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon</p>
             <p className="text-sm text-zinc-400">현재 상태: {getWebtoonStatusLabel(webtoon.status)}</p>
+            <p className="text-sm text-zinc-500">현재 등급: {getAgeRatingLabel(webtoon.ageRating)}</p>
           </div>
-          <Link
-            href="/main/studio/channels"
-            className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            채널 메뉴로
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/main/studio/channels/webtoon/${webtoon.id}/rating`}
+              className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+            >
+              등급 설정
+            </Link>
+            <Link
+              href="/main/studio/channels"
+              className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+            >
+              채널 메뉴로
+            </Link>
+          </div>
         </header>
 
         <WebtoonEditorForm

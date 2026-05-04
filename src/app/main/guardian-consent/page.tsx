@@ -20,7 +20,9 @@ export default async function GuardianConsentPage() {
       .maybeSingle(),
     supabase
       .from('minor_guardian_consents')
-      .select('guardian_name, guardian_email, guardian_relationship, requested_at, status')
+      .select(
+        'guardian_name, guardian_email, guardian_phone, guardian_relationship, requested_at, status, verification_channel'
+      )
       .eq('user_id', user.id)
       .maybeSingle(),
   ])
@@ -50,7 +52,9 @@ export default async function GuardianConsentPage() {
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p>보호자 이름: {guardianConsent?.guardian_name ?? '미입력'}</p>
               <p>보호자 이메일: {guardianConsent?.guardian_email ?? '미입력'}</p>
+              <p>보호자 연락처: {guardianConsent?.guardian_phone ?? '미입력'}</p>
               <p>관계: {guardianConsent?.guardian_relationship ?? '미입력'}</p>
+              <p>예정 확인 채널: {guardianConsent?.verification_channel === 'phone' ? '휴대폰 확인' : '이메일 확인'}</p>
               <p>
                 접수 시각:{' '}
                 {guardianConsent?.requested_at ??
@@ -66,6 +70,7 @@ export default async function GuardianConsentPage() {
             <p>가능한 일: 메인 허브, 작품 탐색, 스파크 둘러보기, 기본 계정 유지</p>
             <p>잠시 제한되는 일: 코인 충전 및 결제, 작가 등록 및 스튜디오 진입</p>
             <p>다음 단계: 운영 측에서 보호자 동의 확인 절차를 검토한 뒤 상태를 갱신합니다.</p>
+            <p>향후 완성본에서는 PASS 또는 통신사 본인인증 흐름이 이 연락처를 기준으로 연결될 수 있습니다.</p>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
