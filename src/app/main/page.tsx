@@ -65,10 +65,18 @@ const MENUS = [
 
 export default function MainHubPage() {
   const router = useRouter();
-  const { isLoading, checkSession, isLoggedIn, userNickname, guardianConsentStatus } = useAuthStore();
+  const {
+    isLoading,
+    checkSession,
+    isLoggedIn,
+    userNickname,
+    guardianConsentStatus,
+    signOut,
+  } = useAuthStore();
   
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // 컴포넌트 마운트 시 세션 체크
   useEffect(() => {
@@ -89,6 +97,22 @@ export default function MainHubPage() {
     }, 700); // 부드러운 전환을 위한 대기시간
   };
 
+  const handleSignOut = async () => {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+
+    try {
+      await signOut();
+      router.push('/');
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
   const activeAmbient = MENUS.find(m => m.id === hoveredMenu)?.ambientColor || 'bg-white';
   const displayNickname = isLoggedIn ? userNickname : 'Guest';
 
@@ -106,11 +130,11 @@ export default function MainHubPage() {
       </div>
 
       {/* Header */}
-      <header className="absolute top-0 left-0 w-full p-6 md:p-10 z-30 flex items-center justify-between">
+      <header className="absolute top-0 left-0 w-full p-6 md:p-10 z-30 flex items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           {/* 뒤로가기 버튼 */}
-          <Link 
-            href="/join-prompt" 
+          <Link
+            href="/"
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors backdrop-blur-md"
             aria-label="뒤로 가기"
           >
@@ -135,6 +159,17 @@ export default function MainHubPage() {
             </div>
           </div>
         </div>
+
+        {isLoggedIn ? (
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm text-zinc-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSigningOut ? '로그아웃 중...' : '로그아웃'}
+          </button>
+        ) : null}
       </header>
 
       {/* Main Content (Cards Grid) */}
