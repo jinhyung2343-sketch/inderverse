@@ -25,7 +25,6 @@ interface AuthState {
   userNickname: string;
   checkSession: () => Promise<void>;
   signOut: () => Promise<void>;
-  mockSignUp: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -115,10 +114,5 @@ export const useAuthStore = create<AuthState>((set) => ({
       isLoggedIn: false,
       userNickname: 'Guest',
     })
-  },
-
-  // 프로토타입 가입용 모의 액션
-  mockSignUp: () => {
-    set({ isLoggedIn: true, isAdultVerified: false, guardianConsentStatus: null, userNickname: '유저님' })
   }
 }))

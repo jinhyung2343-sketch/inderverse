@@ -77,16 +77,32 @@ export default function MainHubPage() {
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
 
   // 컴포넌트 마운트 시 세션 체크
   useEffect(() => {
     checkSession();
   }, [checkSession]);
 
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setToast(null);
+    }, 2400);
+
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   const handleMenuClick = (menuId: string, path: string) => {
     // 권한 가드 로직: 작품 탐색이 아니고 로그인 안된 경우 차단
     if (menuId !== 'explore' && menuId !== 'spark' && !isLoggedIn) {
-      alert('몰입을 위해 로그인이 필요한 서비스입니다.');
+      setToast({
+        id: Date.now(),
+        message: '몰입을 위해 로그인이 필요한 서비스입니다.',
+      });
       return;
     }
 
@@ -171,6 +187,17 @@ export default function MainHubPage() {
           </button>
         ) : null}
       </header>
+
+      {toast ? (
+        <div
+          key={toast.id}
+          className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-3xl border border-white/10 bg-[#050505]/85 px-5 py-4 text-center text-sm font-medium text-white shadow-2xl shadow-black/40 backdrop-blur animate-in fade-in slide-in-from-top-3 duration-200"
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
 
       {/* Main Content (Cards Grid) */}
       <div className={`z-20 flex-1 flex flex-col items-center justify-center px-6 transition-all duration-700 ease-in-out
