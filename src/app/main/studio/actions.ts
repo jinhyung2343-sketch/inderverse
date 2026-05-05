@@ -1,26 +1,77 @@
 'use server'
 
+import type { User } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import {
   CREATOR_AGREEMENT_VERSION,
   requiredCreatorAgreementConsentItems,
 } from '@/lib/creator-agreement'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
 
 type UserRole = Database['public']['Enums']['user_role']
-
-export interface CreatorAgreementActionState {
+type ProfileRow = Database['public']['Tables']['profiles']['Row']
+type CreatorAgreementActionState = {
   error: string | null
 }
 
-export const initialCreatorAgreementState: CreatorAgreementActionState = {
-  error: null,
+function readUserMetadataText(user: User, key: string) {
+  const value = user.user_metadata?.[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+async function ensureProfileForStudioAccess(user: User): Promise<Pick<ProfileRow, 'id' | 'role'>> {
+  const admin = createAdminClient()
+  const { data: existingProfile, error: profileError } = await admin
+    .from('profiles')
+    .select('id, role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) {
+    throw new Error(`Failed to load profile for studio access: ${profileError.message}`)
+  }
+
+  if (existingProfile) {
+    return existingProfile
+  }
+
+  const displayName = readUserMetadataText(user, 'display_name') || user.email?.split('@')[0] || '유저'
+  const ageBand = readUserMetadataText(user, 'user_age_band') || '14_or_over'
+  const guardianConsentStatus =
+    readUserMetadataText(user, 'user_guardian_consent_status') || 'not_required'
+  const requestedAt = readUserMetadataText(user, 'user_guardian_consent_requested_at') || null
+
+  const { data: createdProfile, error: createProfileError } = await admin
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        display_name: displayName,
+        role: 'reader',
+        age_band: ageBand,
+        guardian_consent_status: guardianConsentStatus,
+        guardian_consent_requested_at: requestedAt,
+      },
+      { onConflict: 'id' }
+    )
+    .select('id, role')
+    .single()
+
+  if (createProfileError || !createdProfile) {
+    throw new Error(
+      `Failed to create missing profile for studio access: ${createProfileError?.message ?? 'unknown error'}`
+    )
+  }
+
+  return createdProfile
 }
 
 export async function becomeCreator() {
   const supabase = await createClient()
+  const admin = createAdminClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -29,19 +80,14 @@ export async function becomeCreator() {
     redirect('/join-prompt?next=/main/studio')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const currentRole = profile?.role as UserRole | undefined
+  const profile = await ensureProfileForStudioAccess(user)
+  const currentRole = profile.role as UserRole | undefined
 
   if (currentRole === 'creator' || currentRole === 'admin') {
     redirect('/main/studio/channels')
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('profiles')
     .update({ role: 'creator' })
     .eq('id', user.id)
@@ -71,6 +117,7 @@ export async function acceptCreatorAgreement(
   }
 
   const supabase = await createClient()
+  const admin = createAdminClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -79,19 +126,24 @@ export async function acceptCreatorAgreement(
     redirect('/join-prompt?next=/main/studio/creator-agreement')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  let profile: Pick<ProfileRow, 'id' | 'role'>
 
-  const currentRole = profile?.role as UserRole | undefined
+  try {
+    profile = await ensureProfileForStudioAccess(user)
+  } catch (error) {
+    console.error(error)
+    return {
+      error: '작가 등록에 필요한 계정 정보를 확인하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+    }
+  }
+
+  const currentRole = profile.role as UserRole | undefined
 
   if (currentRole === 'creator' || currentRole === 'admin') {
     redirect('/main/studio/channels')
   }
 
-  const { error: consentError } = await supabase
+  const { error: consentError } = await admin
     .from('creator_agreement_consents')
     .upsert(
       {
@@ -105,17 +157,19 @@ export async function acceptCreatorAgreement(
     )
 
   if (consentError) {
+    console.error(consentError)
     return {
       error: '동의 기록을 저장하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     }
   }
 
-  const { error: roleError } = await supabase
+  const { error: roleError } = await admin
     .from('profiles')
     .update({ role: 'creator' })
     .eq('id', user.id)
 
   if (roleError) {
+    console.error(roleError)
     return {
       error: '작가 권한 전환 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     }
@@ -123,6 +177,7 @@ export async function acceptCreatorAgreement(
 
   revalidatePath('/main')
   revalidatePath('/main/studio')
+  revalidatePath('/main/studio/creator-agreement')
   revalidatePath('/main/studio/channels')
   redirect('/main/studio/channels')
 }

@@ -8,10 +8,11 @@ import {
   creatorAgreementDocuments,
   requiredCreatorAgreementConsentItems,
 } from '@/lib/creator-agreement'
-import {
-  acceptCreatorAgreement,
-  initialCreatorAgreementState,
-} from '@/app/main/studio/actions'
+import { acceptCreatorAgreement } from '@/app/main/studio/actions'
+
+const initialCreatorAgreementState = {
+  error: null,
+}
 
 function getInitialConsentValues() {
   return requiredCreatorAgreementConsentItems.reduce<Record<string, boolean>>((acc, item) => {
