@@ -11,6 +11,12 @@ import {
   isChannelAgeRating,
   sanitizeRatingChecklist,
 } from '@/lib/content-rating'
+import {
+  uploadChannelCoverFile,
+  uploadEpisodeImageFile,
+  uploadSparkCoverFile,
+  uploadSparkPanelFile,
+} from '@/lib/gcs/upload'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
 import { createClient } from '@/lib/supabase/server'
@@ -38,6 +44,16 @@ function readOptionalText(formData: FormData, key: string) {
   return value.length > 0 ? value : null
 }
 
+function readOptionalAssetUrl(formData: FormData, key: string) {
+  const value = readOptionalText(formData, key)
+
+  if (!value || value.startsWith('blob:')) {
+    return null
+  }
+
+  return value
+}
+
 function readBoolean(formData: FormData, key: string) {
   return formData.get(key) === 'on'
 }
@@ -58,9 +74,30 @@ function readInteger(formData: FormData, key: string, fallback = 0) {
   return parsed
 }
 
-function parsePanels(value: string, format: SparkFormat, status: SparkStatus) {
+function readOptionalImageFile(formData: FormData, key: string) {
+  const value = formData.get(key)
+
+  if (!(value instanceof File) || value.size === 0) {
+    return null
+  }
+
+  return value
+}
+
+function readImageFiles(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .filter((value): value is File => value instanceof File && value.size > 0)
+}
+
+function parsePanels(
+  value: string,
+  format: SparkFormat,
+  status: SparkStatus,
+  pendingUploadCount = 0
+) {
   if (!value) {
-    if (status === 'draft') {
+    if (status === 'draft' || pendingUploadCount > 0) {
       return []
     }
 
@@ -80,15 +117,17 @@ function parsePanels(value: string, format: SparkFormat, status: SparkStatus) {
   }
 
   const sanitizedPanels = parsed
-    .map((panel) => {
+    .map((panel, index) => {
       if (!panel || typeof panel !== 'object') {
         return null
       }
 
-      const imageUrl = typeof panel.imageUrl === 'string' ? panel.imageUrl.trim() : ''
+      const rawImageUrl = typeof panel.imageUrl === 'string' ? panel.imageUrl.trim() : ''
+      const imageUrl = rawImageUrl.startsWith('blob:') ? '' : rawImageUrl
       const caption = typeof panel.caption === 'string' ? panel.caption.trim() : ''
+      const hasPendingImage = rawImageUrl.startsWith('blob:') || index < pendingUploadCount
 
-      if (!imageUrl && !caption) {
+      if (!imageUrl && !caption && !hasPendingImage) {
         return null
       }
 
@@ -102,11 +141,16 @@ function parsePanels(value: string, format: SparkFormat, status: SparkStatus) {
   const requiredPanelCount = getSparkPanelCount(format)
   const activePanels = sanitizedPanels.slice(0, requiredPanelCount)
 
-  if (status !== 'draft' && activePanels.length < requiredPanelCount) {
+  const availableImageCount = activePanels.filter((panel) => panel.imageUrl).length + pendingUploadCount
+
+  if (status !== 'draft' && availableImageCount < requiredPanelCount) {
     throw new Error(`현재 포맷에는 최소 ${requiredPanelCount}개의 패널 이미지가 필요합니다.`)
   }
 
-  if (status !== 'draft' && activePanels.some((panel) => !panel.imageUrl)) {
+  if (
+    status !== 'draft' &&
+    activePanels.some((panel, index) => !panel.imageUrl && index >= pendingUploadCount)
+  ) {
     throw new Error('공개 스파크의 각 패널에는 이미지가 필요합니다.')
   }
 
@@ -212,9 +256,9 @@ function readSerializationDays(formData: FormData) {
   return Array.from(new Set(values)).sort((left, right) => left - right)
 }
 
-function parseEpisodeImages(value: string, status: WebtoonEpisodeStatus) {
+function parseEpisodeImages(value: string, status: WebtoonEpisodeStatus, pendingUploadCount = 0) {
   if (!value) {
-    if (status === 'published') {
+    if (status === 'published' && pendingUploadCount === 0) {
       throw new Error('공개 회차에는 최소 1장의 이미지가 필요합니다.')
     }
 
@@ -239,7 +283,8 @@ function parseEpisodeImages(value: string, status: WebtoonEpisodeStatus) {
         return null
       }
 
-      const imageUrl = typeof entry.imageUrl === 'string' ? entry.imageUrl.trim() : ''
+      const rawImageUrl = typeof entry.imageUrl === 'string' ? entry.imageUrl.trim() : ''
+      const imageUrl = rawImageUrl.startsWith('blob:') ? '' : rawImageUrl
       const sortOrder =
         typeof entry.sortOrder === 'number' && Number.isInteger(entry.sortOrder)
           ? entry.sortOrder
@@ -261,7 +306,7 @@ function parseEpisodeImages(value: string, status: WebtoonEpisodeStatus) {
       sortOrder: index,
     }))
 
-  if (status === 'published' && images.length === 0) {
+  if (status === 'published' && images.length + pendingUploadCount === 0) {
     throw new Error('공개 회차에는 최소 1장의 이미지가 필요합니다.')
   }
 
@@ -356,6 +401,7 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
   const formatValue = readText(formData, 'format')
   const statusValue = readText(formData, 'status')
   const panelsJson = readText(formData, 'panelsJson')
+  const pendingPanelFiles = readImageFiles(formData, 'pendingSparkPanelFiles')
 
   if (!title || !description || !caption || !topic || !punchline) {
     throw new Error('필수 항목이 비어 있습니다.')
@@ -369,13 +415,13 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
     throw new Error('유효하지 않은 공개 상태입니다.')
   }
 
-  const panels = parsePanels(panelsJson, formatValue, statusValue)
+  const panels = parsePanels(panelsJson, formatValue, statusValue, pendingPanelFiles.length)
   const contentRating = parseChannelContentRating(formData)
 
   return {
     title,
     description,
-    coverImageUrl: readOptionalText(formData, 'coverImageUrl'),
+    coverImageUrl: readOptionalAssetUrl(formData, 'coverImageUrl'),
     ageRating: contentRating.ageRating,
     ratingChecklist: contentRating.ratingChecklist,
     isAdultOnly: contentRating.isAdultOnly,
@@ -460,7 +506,7 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   return {
     title,
     description,
-    coverImageUrl: readOptionalText(formData, 'coverImageUrl'),
+    coverImageUrl: readOptionalAssetUrl(formData, 'coverImageUrl'),
     ageRating: contentRating.ageRating,
     ratingChecklist: contentRating.ratingChecklist,
     isAdultOnly: contentRating.isAdultOnly,
@@ -509,6 +555,7 @@ function parseWebtoonEpisodeDraft(formData: FormData): WebtoonEpisodeDraftInput 
   const pricingTypeValue = readText(formData, 'pricingType')
   const statusValue = readText(formData, 'status')
   const imagesJson = readText(formData, 'imagesJson')
+  const pendingEpisodeImageFiles = readImageFiles(formData, 'pendingEpisodeImageFiles')
 
   if (!title || episodeNumber <= 0) {
     throw new Error('회차 제목과 번호를 확인해 주세요.')
@@ -532,7 +579,7 @@ function parseWebtoonEpisodeDraft(formData: FormData): WebtoonEpisodeDraftInput 
     coinPrice,
     isAdultOnly: readBoolean(formData, 'isAdultOnly'),
     status: statusValue,
-    images: parseEpisodeImages(imagesJson, statusValue),
+    images: parseEpisodeImages(imagesJson, statusValue, pendingEpisodeImageFiles.length),
   }
 }
 
@@ -540,6 +587,8 @@ export async function createSparkChannel(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
   const input = parseSparkDraft(formData)
   const payload = buildSparkChannelPayload(input, userId)
+  const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
+  const pendingPanelFiles = readImageFiles(formData, 'pendingSparkPanelFiles')
 
   const { data, error } = await supabase
     .from('channels')
@@ -557,6 +606,49 @@ export async function createSparkChannel(formData: FormData) {
 
   if (revenueError) {
     throw new Error(revenueError.message)
+  }
+
+  const patch: Database['public']['Tables']['channels']['Update'] = {}
+
+  if (pendingCoverImageFile) {
+    patch.cover_image_url = await uploadSparkCoverFile({
+      channelId: data.id,
+      file: pendingCoverImageFile,
+    })
+  }
+
+  if (pendingPanelFiles.length > 0) {
+    const uploadedPanelUrls = await Promise.all(
+      pendingPanelFiles.slice(0, getSparkPanelCount(input.format)).map((file, index) =>
+        uploadSparkPanelFile({
+          channelId: data.id,
+          panelIndex: index,
+          file,
+        })
+      )
+    )
+
+    patch.spark_meta = buildSparkMeta({
+      ...input,
+      coverImageUrl: patch.cover_image_url ?? input.coverImageUrl,
+      panels: input.panels.map((panel, index) => ({
+        ...panel,
+        imageUrl: uploadedPanelUrls[index] ?? panel.imageUrl,
+      })),
+    })
+  }
+
+  if (Object.keys(patch).length > 0) {
+    const { error: patchError } = await supabase
+      .from('channels')
+      .update(patch)
+      .eq('id', data.id)
+      .eq('creator_id', userId)
+      .eq('work_type', 'spark')
+
+    if (patchError) {
+      throw new Error(patchError.message)
+    }
   }
 
   revalidatePath('/main/spark')
@@ -596,6 +688,7 @@ export async function createWebtoonChannel(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
   const input = parseWebtoonDraft(formData)
   const payload = buildWebtoonChannelPayload(input, userId)
+  const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
 
   const { data, error } = await supabase
     .from('channels')
@@ -625,6 +718,24 @@ export async function createWebtoonChannel(formData: FormData) {
   }
 
   await syncChannelTags(data.id, input.category, input.tags)
+
+  if (pendingCoverImageFile) {
+    const uploadedCoverUrl = await uploadChannelCoverFile({
+      channelId: data.id,
+      file: pendingCoverImageFile,
+    })
+
+    const { error: coverError } = await supabase
+      .from('channels')
+      .update({ cover_image_url: uploadedCoverUrl })
+      .eq('id', data.id)
+      .eq('creator_id', userId)
+      .eq('work_type', 'webtoon')
+
+    if (coverError) {
+      throw new Error(coverError.message)
+    }
+  }
 
   revalidatePath('/main/explore')
   revalidatePath('/main/studio')
@@ -728,6 +839,7 @@ export async function updateWebtoonChannel(formData: FormData) {
 export async function createWebtoonEpisode(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
   const channelId = readText(formData, 'channelId')
+  const pendingEpisodeImageFiles = readImageFiles(formData, 'pendingEpisodeImageFiles')
 
   if (!channelId) {
     throw new Error('회차를 추가할 채널을 찾지 못했습니다.')
@@ -779,6 +891,29 @@ export async function createWebtoonEpisode(formData: FormData) {
 
     if (imagesError) {
       throw new Error(imagesError.message)
+    }
+  }
+
+  if (pendingEpisodeImageFiles.length > 0) {
+    const uploadedImages = await Promise.all(
+      pendingEpisodeImageFiles.map((file, index) =>
+        uploadEpisodeImageFile({
+          channelId,
+          episodeId: episode.id,
+          sortOrder: index,
+          file,
+        }).then((imageUrl) => ({
+          episode_id: episode.id,
+          image_url: imageUrl,
+          sort_order: input.images.length + index,
+        }))
+      )
+    )
+
+    const { error: uploadedImagesError } = await supabase.from('episode_images').insert(uploadedImages)
+
+    if (uploadedImagesError) {
+      throw new Error(uploadedImagesError.message)
     }
   }
 

@@ -81,10 +81,10 @@ export function WebtoonEditorForm({
                 />
               </label>
 
-              <label className="grid gap-2 text-sm text-zinc-300">
+              <div className="grid gap-2 text-sm text-zinc-300">
                 <span>커버 이미지</span>
                 <WebtoonCoverField channelId={channelId} initialValue={initialValue?.coverImageUrl ?? ''} />
-              </label>
+              </div>
             </div>
           </div>
 

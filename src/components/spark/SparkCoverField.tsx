@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 
 export function SparkCoverField({
   channelId,
@@ -10,12 +11,12 @@ export function SparkCoverField({
   initialValue?: string | null
 }) {
   const [value, setValue] = useState(initialValue ?? '')
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const previewUrl = localPreviewUrl || value
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-
+  async function uploadFile(file: File) {
     if (!file || !channelId) {
       return
     }
@@ -64,58 +65,73 @@ export function SparkCoverField({
       setMessage(errorMessage)
     } finally {
       setIsUploading(false)
-      event.target.value = ''
     }
+  }
+
+  async function handleFilesSelected(files: File[]) {
+    const [file] = files
+
+    if (!file) {
+      return
+    }
+
+    if (!channelId) {
+      setLocalPreviewUrl(URL.createObjectURL(file))
+      setMessage('선택한 커버 이미지를 먼저 미리보고 있습니다. 스파크를 저장하면 업로드가 함께 진행됩니다.')
+      return
+    }
+
+    await uploadFile(file)
   }
 
   return (
     <div className="grid gap-4">
-      <label className="grid gap-2 text-sm text-zinc-300">
-        <span>커버 이미지 URL</span>
-        <input
-          name="coverImageUrl"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-          placeholder="https://..."
-        />
-      </label>
+      <input type="hidden" name="coverImageUrl" value={value} readOnly />
 
-      <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-white">GCS 커버 업로드</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
-              {channelId
-                ? '파일을 올리면 공개 URL이 자동으로 입력됩니다. 저장 버튼까지 눌러야 최종 반영됩니다.'
-                : '새 스파크를 먼저 저장하면 여기에서 바로 커버 이미지를 올릴 수 있습니다.'}
-            </p>
-          </div>
-          <label
-            className={`inline-flex w-fit rounded-full px-4 py-2 text-sm transition ${
-              channelId
-                ? 'cursor-pointer border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
-                : 'cursor-not-allowed border border-white/10 bg-black/30 text-zinc-600'
-            }`}
-          >
-            {isUploading ? '업로드 중...' : '이미지 선택'}
+      <ImageUploadDropzone
+        title="커버 이미지 올리기"
+        description={
+          channelId
+            ? '파일을 올리면 공개 URL이 자동으로 입력됩니다. 저장 버튼까지 눌러야 최종 반영됩니다.'
+            : '새 스파크 단계에서도 먼저 커버를 골라 미리볼 수 있습니다. 저장 시 실제 업로드가 이어집니다.'
+        }
+        disabled={false}
+        isUploading={isUploading}
+        buttonLabel="커버 이미지 고르기"
+        inputName={channelId ? undefined : 'coverImageFile'}
+        preserveSelection={!channelId}
+        onFilesSelected={handleFilesSelected}
+      />
+
+      <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">
+        {previewUrl
+          ? '업로드된 커버 이미지가 저장 대기 상태입니다. 아래 미리보기에서 바로 확인할 수 있습니다.'
+          : '파일 업로드가 기본 방식입니다. 외부 이미지 주소가 필요할 때만 아래 고급 옵션을 사용하면 됩니다.'}
+      </div>
+
+      <details className="rounded-2xl border border-white/10 bg-black/20">
+        <summary className="cursor-pointer px-4 py-3 text-sm text-zinc-300">
+          고급 옵션: 이미지 주소 직접 입력
+        </summary>
+        <div className="border-t border-white/10 px-4 py-4">
+          <label className="grid gap-2 text-sm text-zinc-300">
+            <span>커버 이미지 URL</span>
             <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => void handleFileChange(event)}
-              disabled={!channelId || isUploading}
-              className="hidden"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+              placeholder="https://..."
             />
           </label>
         </div>
+      </details>
 
-        {message ? <p className="mt-3 text-sm leading-6 text-zinc-400">{message}</p> : null}
-      </div>
+      {message ? <p className="text-sm leading-6 text-zinc-400">{message}</p> : null}
 
       <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/20">
-        {value ? (
+        {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={value} alt="Spark cover preview" className="h-56 w-full object-cover" />
+          <img src={previewUrl} alt="Spark cover preview" className="h-56 w-full object-cover" />
         ) : (
           <div className="flex h-56 items-center justify-center px-6 text-center text-sm leading-6 text-zinc-500">
             업로드되거나 입력된 커버 이미지가 이곳에 미리보기로 표시됩니다.

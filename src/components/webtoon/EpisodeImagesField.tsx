@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { FilePickerButton, ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import type { WebtoonEpisodeImageRecord } from '@/lib/webtoon'
 
 function normalizeImages(initialImages: WebtoonEpisodeImageRecord[]) {
@@ -28,6 +29,7 @@ export function EpisodeImagesField({
 }) {
   const [images, setImages] = useState(() => normalizeImages(initialImages))
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [isBatchUploading, setIsBatchUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const imagesJson = useMemo(
     () =>
@@ -68,9 +70,7 @@ export function EpisodeImagesField({
     )
   }
 
-  async function handleFileChange(index: number, event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-
+  async function uploadImageAtIndex(index: number, file: File) {
     if (!file || !episodeId) {
       return
     }
@@ -121,7 +121,60 @@ export function EpisodeImagesField({
       setMessage(errorMessage)
     } finally {
       setUploadingIndex(null)
-      event.target.value = ''
+    }
+  }
+
+  async function handleBatchFilesSelected(files: File[]) {
+    if (files.length === 0) {
+      return
+    }
+
+    if (!episodeId) {
+      setImages(
+        files.map((file, index) => ({
+          imageUrl: URL.createObjectURL(file),
+          sortOrder: index,
+        }))
+      )
+      setMessage('선택한 회차 이미지를 먼저 미리보고 있습니다. 회차를 저장하면 업로드가 함께 진행됩니다.')
+      return
+    }
+
+    const existingEmptyIndices = images.reduce<number[]>((acc, image, index) => {
+      if (!image.imageUrl.trim()) {
+        acc.push(index)
+      }
+
+      return acc
+    }, [])
+    const additionalRowCount = Math.max(0, files.length - existingEmptyIndices.length)
+    const targetIndices = [
+      ...existingEmptyIndices.slice(0, files.length),
+      ...Array.from({ length: additionalRowCount }, (_, offset) => images.length + offset),
+    ]
+
+    if (additionalRowCount > 0) {
+      setImages((current) => [
+        ...current,
+        ...Array.from({ length: additionalRowCount }, (_, offset) => ({
+          imageUrl: '',
+          sortOrder: current.length + offset,
+        })),
+      ])
+    }
+
+    setIsBatchUploading(true)
+    setMessage(null)
+
+    try {
+      for (const [offset, file] of files.entries()) {
+        const targetIndex = targetIndices[offset]
+        await uploadImageAtIndex(targetIndex, file)
+      }
+
+      setMessage(`${files.length}장의 회차 이미지가 순서대로 업로드되었습니다.`)
+    } finally {
+      setIsBatchUploading(false)
     }
   }
 
@@ -135,6 +188,22 @@ export function EpisodeImagesField({
           : '새 회차는 먼저 저장한 뒤 수정 화면에서 이미지를 올릴 수 있습니다. 이미 URL이 있다면 먼저 직접 입력할 수도 있습니다.'}
       </div>
 
+      <ImageUploadDropzone
+        title="회차 이미지 여러 장 올리기"
+        description={
+          episodeId
+            ? '여러 컷을 한 번에 선택하면 현재 순서대로 업로드 칸이 채워집니다.'
+            : '새 회차 단계에서도 여러 이미지를 먼저 골라 순서를 확인할 수 있습니다. 저장 시 실제 업로드가 이어집니다.'
+        }
+        disabled={false}
+        multiple
+        isUploading={isBatchUploading || uploadingIndex !== null}
+        buttonLabel="이미지 여러 장 고르기"
+        inputName={episodeId ? undefined : 'pendingEpisodeImageFiles'}
+        preserveSelection={!episodeId}
+        onFilesSelected={handleBatchFilesSelected}
+      />
+
       <div className="grid gap-4">
         {images.map((image, index) => (
           <section key={`episode-image-${index}`} className="rounded-3xl border border-white/10 bg-white/5 p-4">
@@ -145,22 +214,20 @@ export function EpisodeImagesField({
                   <p className="text-xs text-zinc-500">정렬 순서 {index + 1}번으로 저장됩니다.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <label
-                    className={`inline-flex w-fit rounded-full px-4 py-2 text-sm transition ${
-                      episodeId
-                        ? 'cursor-pointer border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
-                        : 'cursor-not-allowed border border-white/10 bg-black/30 text-zinc-600'
-                    }`}
-                  >
-                    {uploadingIndex === index ? '업로드 중...' : '이미지 업로드'}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={(event) => void handleFileChange(index, event)}
-                      disabled={!episodeId || uploadingIndex !== null}
-                      className="hidden"
-                    />
-                  </label>
+                  <FilePickerButton
+                    label="이 이미지 고르기"
+                    disabled={!episodeId || uploadingIndex !== null}
+                    isUploading={uploadingIndex === index}
+                    onFilesSelected={async (files) => {
+                      const [file] = files
+
+                      if (!file) {
+                        return
+                      }
+
+                      await uploadImageAtIndex(index, file)
+                    }}
+                  />
                   {images.length > 1 ? (
                     <button
                       type="button"
@@ -174,13 +241,11 @@ export function EpisodeImagesField({
               </div>
 
               <label className="grid gap-2 text-sm text-zinc-300">
-                <span>이미지 URL</span>
-                <input
-                  value={image.imageUrl}
-                  onChange={(event) => updateImage(index, event.target.value)}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="https://..."
-                />
+                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-400">
+                  {image.imageUrl
+                    ? '파일 업로드 또는 직접 입력된 이미지가 준비되어 있습니다.'
+                    : '파일 업로드를 기본으로 사용하고, 필요할 때만 URL 직접 입력을 열어주세요.'}
+                </span>
               </label>
 
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/20">
@@ -193,6 +258,23 @@ export function EpisodeImagesField({
                   </div>
                 )}
               </div>
+
+              <details className="rounded-2xl border border-white/10 bg-black/20">
+                <summary className="cursor-pointer px-4 py-3 text-sm text-zinc-300">
+                  고급 옵션: {index + 1}번 이미지 주소 직접 입력
+                </summary>
+                <div className="border-t border-white/10 px-4 py-4">
+                  <label className="grid gap-2 text-sm text-zinc-300">
+                    <span>이미지 URL</span>
+                    <input
+                      value={image.imageUrl}
+                      onChange={(event) => updateImage(index, event.target.value)}
+                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                      placeholder="https://..."
+                    />
+                  </label>
+                </div>
+              </details>
             </div>
           </section>
         ))}
@@ -210,4 +292,3 @@ export function EpisodeImagesField({
     </div>
   )
 }
-

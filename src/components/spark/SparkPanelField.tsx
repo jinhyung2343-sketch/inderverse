@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { FilePickerButton, ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import type { SparkFormat, SparkPanel } from '@/lib/spark'
 import { getSparkFormatLabel } from '@/lib/spark'
 
@@ -34,6 +35,7 @@ export function SparkPanelField({
   const [format, setFormat] = useState<SparkFormat>(initialFormat)
   const [panels, setPanels] = useState(() => normalizePanels(initialPanels))
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [isBatchUploading, setIsBatchUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const activePanelCount = getRequiredPanelCount(format)
 
@@ -72,9 +74,7 @@ export function SparkPanelField({
     )
   }
 
-  async function handleFileChange(index: number, event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-
+  async function uploadPanelAtIndex(index: number, file: File) {
     if (!file || !channelId) {
       return
     }
@@ -124,7 +124,49 @@ export function SparkPanelField({
       setMessage(errorMessage)
     } finally {
       setUploadingIndex(null)
-      event.target.value = ''
+    }
+  }
+
+  async function handleBatchFilesSelected(files: File[]) {
+    if (files.length === 0) {
+      return
+    }
+
+    if (!channelId) {
+      const previewFiles = files.slice(0, activePanelCount)
+
+      setPanels((current) =>
+        current.map((panel, index) => ({
+          ...panel,
+          imageUrl: previewFiles[index] ? URL.createObjectURL(previewFiles[index]) : panel.imageUrl,
+        }))
+      )
+      setMessage(
+        format === 'single_cut'
+          ? '대표 컷 이미지를 먼저 미리보고 있습니다. 스파크를 저장하면 업로드가 함께 진행됩니다.'
+          : '선택한 컷 이미지를 먼저 미리보고 있습니다. 스파크를 저장하면 업로드가 함께 진행됩니다.'
+      )
+      return
+    }
+
+    const uploadTargets = files.slice(0, activePanelCount)
+    const skippedCount = Math.max(0, files.length - uploadTargets.length)
+
+    setIsBatchUploading(true)
+    setMessage(null)
+
+    try {
+      for (const [index, file] of uploadTargets.entries()) {
+        await uploadPanelAtIndex(index, file)
+      }
+
+      setMessage(
+        skippedCount > 0
+          ? `${uploadTargets.length}개의 공개 컷을 먼저 채웠고, 나머지 ${skippedCount}개 파일은 현재 포맷 기준으로 보류했습니다.`
+          : `${uploadTargets.length}개의 공개 컷 이미지가 순서대로 업로드되었습니다.`
+      )
+    } finally {
+      setIsBatchUploading(false)
     }
   }
 
@@ -138,6 +180,24 @@ export function SparkPanelField({
           ? ' 첫 번째 컷만 실제 공개 패널로 사용됩니다.'
           : ' 4개의 컷이 모두 공개 패널로 사용됩니다.'}
       </div>
+
+      <ImageUploadDropzone
+        title="컷 이미지 올리기"
+        description={
+          channelId
+            ? format === 'single_cut'
+              ? '한 장을 바로 대표 컷으로 올릴 수 있습니다. 여러 장을 선택하면 첫 번째 파일만 현재 공개 컷에 반영됩니다.'
+              : '여러 장을 한 번에 선택하면 1번 컷부터 차례대로 채워집니다.'
+            : '새 스파크 단계에서도 먼저 컷 이미지를 골라 배치를 확인할 수 있습니다. 저장 시 실제 업로드가 이어집니다.'
+        }
+        disabled={false}
+        multiple
+        isUploading={isBatchUploading || uploadingIndex !== null}
+        buttonLabel={format === 'single_cut' ? '대표 컷 고르기' : '컷 여러 장 고르기'}
+        inputName={channelId ? undefined : 'pendingSparkPanelFiles'}
+        preserveSelection={!channelId}
+        onFilesSelected={handleBatchFilesSelected}
+      />
 
       <div className="grid gap-4">
         {panels.map((panel, index) => {
@@ -162,33 +222,27 @@ export function SparkPanelField({
                         : '포맷을 4컷으로 바꾸면 이 컷도 공개 대상에 포함됩니다.'}
                     </p>
                   </div>
-                  <label
-                    className={`inline-flex w-fit rounded-full px-4 py-2 text-sm transition ${
-                      channelId
-                        ? 'cursor-pointer border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
-                        : 'cursor-not-allowed border border-white/10 bg-black/30 text-zinc-600'
-                    }`}
-                  >
-                    {uploadingIndex === index ? '업로드 중...' : '컷 업로드'}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={(event) => void handleFileChange(index, event)}
-                      disabled={!channelId || uploadingIndex !== null}
-                      className="hidden"
-                    />
-                  </label>
+                  <FilePickerButton
+                    label="이 컷 고르기"
+                    disabled={!channelId || uploadingIndex !== null}
+                    isUploading={uploadingIndex === index}
+                    onFilesSelected={async (files) => {
+                      const [file] = files
+
+                      if (!file) {
+                        return
+                      }
+
+                      await uploadPanelAtIndex(index, file)
+                    }}
+                  />
                 </div>
 
-                <label className="grid gap-2 text-sm text-zinc-300">
-                  <span>컷 이미지 URL</span>
-                  <input
-                    value={panel.imageUrl}
-                    onChange={(event) => updatePanel(index, 'imageUrl', event.target.value)}
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                    placeholder="https://..."
-                  />
-                </label>
+                <div className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-400">
+                  {panel.imageUrl
+                    ? '이 컷 이미지는 업로드되었거나 직접 입력되어 준비된 상태입니다.'
+                    : '파일 업로드를 기본으로 사용하고, 필요할 때만 아래 고급 옵션에서 직접 주소를 입력하세요.'}
+                </div>
 
                 <label className="grid gap-2 text-sm text-zinc-300">
                   <span>컷 설명 / 자막</span>
@@ -211,6 +265,23 @@ export function SparkPanelField({
                     </div>
                   )}
                 </div>
+
+                <details className="rounded-2xl border border-white/10 bg-black/20">
+                  <summary className="cursor-pointer px-4 py-3 text-sm text-zinc-300">
+                    고급 옵션: {index + 1}번 컷 주소 직접 입력
+                  </summary>
+                  <div className="border-t border-white/10 px-4 py-4">
+                    <label className="grid gap-2 text-sm text-zinc-300">
+                      <span>컷 이미지 URL</span>
+                      <input
+                        value={panel.imageUrl}
+                        onChange={(event) => updatePanel(index, 'imageUrl', event.target.value)}
+                        className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                        placeholder="https://..."
+                      />
+                    </label>
+                  </div>
+                </details>
               </div>
             </section>
           )
