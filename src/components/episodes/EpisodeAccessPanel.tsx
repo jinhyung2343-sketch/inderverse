@@ -10,6 +10,7 @@ import {
   subscribeEpisodeAccess,
 } from '@/lib/mock/episode-access-client'
 import { WaitFreeCountdown } from '@/components/episodes/WaitFreeCountdown'
+import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
 import { getUserScope } from '@/lib/mock/user-scope-client'
 import { hasServerEpisodeLink } from '@/lib/mock/episode-backend-link'
 import { tryPurchaseEpisode, tryWaitFreeUnlock } from '@/lib/mock/episode-api-client'
@@ -42,6 +43,11 @@ export function EpisodeAccessPanel({
   }, [])
 
   async function handlePurchase() {
+    if (!user) {
+      setActionMessage(LOGIN_REQUIRED_MESSAGE)
+      return
+    }
+
     setIsPending(true)
 
     try {
@@ -59,6 +65,11 @@ export function EpisodeAccessPanel({
   }
 
   async function handleWaitFree() {
+    if (!user) {
+      setActionMessage(LOGIN_REQUIRED_MESSAGE)
+      return
+    }
+
     setIsPending(true)
 
     try {

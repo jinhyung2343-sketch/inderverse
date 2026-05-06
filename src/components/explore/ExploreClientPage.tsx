@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useDeferredValue, useState } from 'react'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import {
   categories,
@@ -39,7 +39,9 @@ export function ExploreClientPage({
     <main className="min-h-[100dvh] overflow-hidden bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+
+          <div>
             <div className="space-y-3">
               <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Explore</p>
               <h1 className="text-4xl font-black tracking-tight">{BRAND.name} 작품보기</h1>
@@ -48,13 +50,6 @@ export function ExploreClientPage({
                 없는 정보만 프로토타입 설명으로 보강하도록 연결했습니다.
               </p>
             </div>
-
-            <Link
-              href="/main"
-              className="hidden rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 md:inline-flex"
-            >
-              허브로 돌아가기
-            </Link>
           </div>
 
           <section className="rounded-[32px] border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-5">
@@ -189,12 +184,6 @@ export function ExploreClientPage({
           </section>
         </section>
 
-        <Link
-          href="/main"
-          className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 md:hidden"
-        >
-          허브로 돌아가기
-        </Link>
       </div>
     </main>
   )

@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { CreatorAgreementForm } from '@/components/studio/CreatorAgreementForm'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
@@ -37,7 +37,9 @@ export default async function CreatorAgreementPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+
+        <header>
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Creator Agreement</p>
             <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
@@ -45,13 +47,6 @@ export default async function CreatorAgreementPage() {
               채널 생성과 정산 설정으로 이어집니다.
             </p>
           </div>
-
-          <Link
-            href="/main"
-            className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            허브로 돌아가기
-          </Link>
         </header>
 
         <CreatorAgreementForm displayName={displayName} />

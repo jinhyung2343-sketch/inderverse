@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
+import { useAuthStore } from '@/stores/auth'
 
 const FEEDBACK_DRAFT_KEY = 'inderverse:community-feedback-draft'
 
@@ -11,6 +14,7 @@ const categoryOptions = [
 ] as const
 
 export function CommunityFeedbackPanel() {
+  const { isLoggedIn, checkSession } = useAuthStore()
   const [draft] = useState(() => {
     if (typeof window === 'undefined') {
       return null
@@ -37,6 +41,10 @@ export function CommunityFeedbackPanel() {
   )
   const [message, setMessage] = useState(draft?.message ?? '')
   const [statusMessage, setStatusMessage] = useState('')
+
+  useEffect(() => {
+    checkSession()
+  }, [checkSession])
 
   const handleSaveDraft = () => {
     if (typeof window === 'undefined') {
@@ -77,6 +85,45 @@ export function CommunityFeedbackPanel() {
 
   const isMessageEmpty = message.trim().length === 0
 
+  if (!isLoggedIn) {
+    return (
+      <section
+        id="feedback"
+        className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl scroll-mt-24"
+      >
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Feedback</p>
+          <h2 className="text-2xl font-bold text-white">의견 남기기</h2>
+          <p className="max-w-2xl text-sm leading-6 text-zinc-400">
+            커뮤니티 공지와 알림은 게스트도 볼 수 있지만, 의견 작성과 전송은 로그인 후 사용할 수 있습니다.
+          </p>
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5">
+          <p className="text-sm leading-6 text-zinc-200">
+            글 작성, 의견 제출, 댓글 같은 참여 기능은 계정 기준으로 기록됩니다.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setStatusMessage(LOGIN_REQUIRED_MESSAGE)}
+              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+            >
+              의견 작성하기
+            </button>
+            <Link
+              href="/join-prompt?next=/community"
+              className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+            >
+              로그인 화면으로 이동
+            </Link>
+          </div>
+          {statusMessage ? <p className="mt-4 text-sm leading-6 text-cyan-100">{statusMessage}</p> : null}
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section
       id="feedback"
@@ -86,8 +133,7 @@ export function CommunityFeedbackPanel() {
         <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Feedback</p>
         <h2 className="text-2xl font-bold text-white">의견 남기기</h2>
         <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-          아직 서버 전송 폼은 열지 않았지만, 느낀 점과 개선 아이디어를 바로 정리할 수 있게 초안 패널을
-          먼저 준비했습니다.
+          느낀 점과 개선 아이디어를 정리하고, 필요한 내용을 저장하거나 복사해둘 수 있습니다.
         </p>
       </div>
 
@@ -147,7 +193,7 @@ export function CommunityFeedbackPanel() {
       </div>
 
       <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 text-sm leading-6 text-zinc-200">
-        <p>다음 단계 예정: 커뮤니티 운영 공지와 일반 알림을 분리한 피드, 실제 의견 전송 API 연결</p>
+        <p>의견은 계정 기준으로 관리되며, 운영 공지와 작품 알림 개선에 참고됩니다.</p>
         {statusMessage ? <p className="mt-2 text-sky-100">{statusMessage}</p> : null}
       </div>
     </section>

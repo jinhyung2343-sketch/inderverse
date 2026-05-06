@@ -2,11 +2,13 @@ import Link from 'next/link'
 import { SparkCard } from '@/components/spark/SparkCard'
 import type { SparkRecord } from '@/lib/spark'
 
-export function SavedSparkShelf({ sparks }: { sparks: SparkRecord[] }) {
+export function SavedSparkShelf({ sparks, isGuest = false }: { sparks: SparkRecord[]; isGuest?: boolean }) {
   if (sparks.length === 0) {
     return (
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm leading-6 text-zinc-300">
-        아직 저장한 스파크가 없습니다. 스파크 상세에서 저장 버튼을 누르면 이곳에 쌓입니다.
+        {isGuest
+          ? '스파크 저장 목록은 로그인 후 계정 기준으로 표시됩니다. 게스트 모드에서는 목록이 비어 있는 구조로 보입니다.'
+          : '아직 저장한 스파크가 없습니다. 스파크 상세에서 저장 버튼을 누르면 이곳에 쌓입니다.'}
       </section>
     )
   }

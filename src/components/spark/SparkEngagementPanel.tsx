@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
+import { useAuthStore } from '@/stores/auth'
 
 interface SparkEngagementState {
   viewCount: number
@@ -39,6 +41,11 @@ export function SparkEngagementPanel({
   const [engagement, setEngagement] = useState<SparkEngagementState>(initialState)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
+  const { isLoggedIn, checkSession } = useAuthStore()
+
+  useEffect(() => {
+    checkSession()
+  }, [checkSession])
 
   useEffect(() => {
     async function trackView() {
@@ -144,12 +151,17 @@ export function SparkEngagementPanel({
   }
 
   function handleApplause() {
+    if (!isLoggedIn) {
+      setStatusMessage(LOGIN_REQUIRED_MESSAGE)
+      return
+    }
+
     void runAction('applause')
   }
 
   function handleSave() {
-    if (!engagement.canSave) {
-      setStatusMessage('스파크 저장은 로그인 후 사용할 수 있습니다.')
+    if (!isLoggedIn || !engagement.canSave) {
+      setStatusMessage(LOGIN_REQUIRED_MESSAGE)
       return
     }
 

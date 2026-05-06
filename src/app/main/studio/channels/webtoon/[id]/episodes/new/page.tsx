@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createWebtoonEpisode } from '@/app/main/studio/channels/actions'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { WebtoonEpisodeEditorForm } from '@/components/webtoon/WebtoonEpisodeEditorForm'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
 
@@ -25,17 +25,13 @@ export default async function NewWebtoonEpisodePage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="flex items-center justify-between gap-4">
+        <PageBackLink href={`/main/studio/channels/webtoon/${id}/edit`} ariaLabel="채널 편집으로 돌아가기" />
+
+        <header>
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon / Episode</p>
             <p className="text-sm text-zinc-400">{webtoon.title}에 새 회차를 추가합니다.</p>
           </div>
-          <Link
-            href={`/main/studio/channels/webtoon/${id}/edit`}
-            className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            채널 편집으로
-          </Link>
         </header>
 
         <WebtoonEpisodeEditorForm

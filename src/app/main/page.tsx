@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { PageBackLink } from '@/components/navigation/PageBackLink';
 import { BRAND } from '@/lib/brand';
+import { canGuestOpenMainMenu, LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy';
 import { useAuthStore } from '@/stores/auth';
 
 const MENUS = [
@@ -97,11 +98,11 @@ export default function MainHubPage() {
   }, [toast]);
 
   const handleMenuClick = (menuId: string, path: string) => {
-    // 권한 가드 로직: 작품 탐색이 아니고 로그인 안된 경우 차단
-    if (menuId !== 'explore' && menuId !== 'spark' && !isLoggedIn) {
+    // 게스트는 읽기/탐색/모니터링 메뉴까지만 진입할 수 있습니다.
+    if (!canGuestOpenMainMenu(menuId) && !isLoggedIn) {
       setToast({
         id: Date.now(),
-        message: '몰입을 위해 로그인이 필요한 서비스입니다.',
+        message: LOGIN_REQUIRED_MESSAGE,
       });
       return;
     }
@@ -149,15 +150,7 @@ export default function MainHubPage() {
       <header className="absolute top-0 left-0 w-full p-6 md:p-10 z-30 flex items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           {/* 뒤로가기 버튼 */}
-          <Link
-            href="/"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors backdrop-blur-md"
-            aria-label="뒤로 가기"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-          </Link>
+          <PageBackLink href="/" />
           
           <div className="flex items-center gap-4">
             <span className="text-xl font-black tracking-tighter">{BRAND.name}</span>

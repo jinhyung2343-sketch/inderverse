@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
@@ -35,6 +36,8 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <PageBackLink href="/main/explore" ariaLabel="작품보기로 돌아가기" />
+
         <header className="overflow-hidden rounded-[32px] border border-white/10 bg-white/5 backdrop-blur-xl">
           <div className="grid gap-0 lg:grid-cols-[1.15fr_1.85fr]">
             <div
@@ -43,10 +46,6 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
             />
 
             <div className="flex flex-col gap-5 p-6 md:p-8">
-              <Link href="/main/explore" className="inline-flex w-fit rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10">
-                작품보기로 돌아가기
-              </Link>
-
               <div className="space-y-3">
                 <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">{artwork.category}</p>
                 <h1 className="text-4xl font-black tracking-tight">{artwork.title}</h1>

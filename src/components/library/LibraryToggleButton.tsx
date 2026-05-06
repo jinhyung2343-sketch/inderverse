@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth'
+import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
 
 export function LibraryToggleButton({
   artworkId,
@@ -26,7 +27,7 @@ export function LibraryToggleButton({
 
   async function handleToggle() {
     if (!isLoggedIn) {
-      router.push(`/join-prompt?next=/main/explore/${artworkId}`)
+      setFeedback(LOGIN_REQUIRED_MESSAGE)
       return
     }
 

@@ -1,22 +1,18 @@
-import Link from 'next/link'
 import { createWebtoonChannel } from '@/app/main/studio/channels/actions'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
 
 export default function NewWebtoonPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="flex items-center justify-between gap-4">
+        <PageBackLink href="/main/studio/channels" ariaLabel="채널 메뉴로 돌아가기" />
+
+        <header>
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon</p>
             <p className="text-sm text-zinc-400">텍스트 메타데이터는 Supabase에, 커버와 회차 이미지는 GCS에 두는 기본 구조입니다.</p>
           </div>
-          <Link
-            href="/main/studio/channels"
-            className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            채널 메뉴로
-          </Link>
         </header>
 
         <WebtoonEditorForm

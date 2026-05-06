@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getCreatorSparkList } from '@/lib/server/spark'
 import { getCreatorWebtoonList } from '@/lib/server/webtoon-studio'
 import { getAgeRatingLabel as getSparkAgeRatingLabel, getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
@@ -17,7 +18,9 @@ export default async function StudioChannelsPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <PageBackLink href="/main/studio" ariaLabel="스튜디오 홈으로 돌아가기" />
+
+        <header>
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Channels</p>
             <h1 className="text-4xl font-black tracking-tight">채널 메뉴</h1>
@@ -25,13 +28,6 @@ export default async function StudioChannelsPage() {
               작품 생성과 수정, 공개 상태 관리, 회차 편집은 이 화면을 중심으로 이어집니다.
             </p>
           </div>
-
-          <Link
-            href="/main/studio"
-            className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            스튜디오 홈
-          </Link>
         </header>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">

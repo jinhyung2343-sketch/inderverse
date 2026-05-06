@@ -83,9 +83,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'applause') {
+      if (!user) {
+        return NextResponse.json({ error: 'Login required to react to sparks' }, { status: 401 })
+      }
+
       await admin.from('spark_reactions').insert({
         channel_id: sparkId,
-        user_id: user?.id ?? null,
+        user_id: user.id,
         reaction_type: 'applause',
         anon_id: typeof anonId === 'string' ? anonId : null,
       })

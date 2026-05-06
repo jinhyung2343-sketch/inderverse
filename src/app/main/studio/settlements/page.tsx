@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { getSettlementStatusLabel } from '@/lib/settlement'
 import { getCreatorSettlementDashboard } from '@/lib/server/settlements'
@@ -30,7 +30,9 @@ export default async function StudioSettlementsPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+
+        <header>
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Settlements</p>
             <h1 className="text-4xl font-black tracking-tight">정산 구조</h1>
@@ -39,13 +41,6 @@ export default async function StudioSettlementsPage() {
               그 안에서 작가 {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%를 계산합니다.
             </p>
           </div>
-
-          <Link
-            href="/main"
-            className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            허브로 돌아가기
-          </Link>
         </header>
 
         <section className="rounded-3xl border border-emerald-400/20 bg-emerald-500/5 p-6">
