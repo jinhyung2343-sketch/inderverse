@@ -134,7 +134,7 @@ export async function generateSparkPanelSignedUrl({
   return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
 }
 
-export async function uploadChannelCoverFile({
+async function uploadCoverFile({
   channelId,
   file,
 }: {
@@ -151,21 +151,12 @@ export async function uploadChannelCoverFile({
   return uploadFileToPath(file, filePath, file.type)
 }
 
-export async function uploadSparkCoverFile({
-  channelId,
-  file,
-}: {
-  channelId: string
-  file: File
-}) {
-  if (!isAllowedContentType(file.type)) {
-    throw new Error('지원하지 않는 커버 이미지 형식입니다.')
-  }
+export async function uploadChannelCoverFile(args: { channelId: string; file: File }) {
+  return uploadCoverFile(args)
+}
 
-  const extension = getFileExtension(file.type)
-  const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`
-
-  return uploadFileToPath(file, filePath, file.type)
+export async function uploadSparkCoverFile(args: { channelId: string; file: File }) {
+  return uploadCoverFile(args)
 }
 
 export async function uploadSparkPanelFile({

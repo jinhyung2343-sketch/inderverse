@@ -19,6 +19,13 @@ const studioSections = [
   },
 ]
 
+const registrationChecklist = [
+  '작가 등록 및 작품 게시 기본 동의',
+  '저작권과 2차 사업 기본 원칙 확인',
+  '수익배분 및 정산 기준 동의',
+  '연재 운영과 플랫폼 책임 확인',
+]
+
 type UserRole = Database['public']['Enums']['user_role']
 
 export default async function StudioPage() {
@@ -40,39 +47,40 @@ export default async function StudioPage() {
   const [webtoonChannels, sparkChannels] = canEnterCreatorTools
     ? await Promise.all([getCreatorWebtoonList(), getCreatorSparkList()])
     : [[], []]
+  const creatorName = profile?.display_name ?? '지금 계정'
+  const totalChannels = webtoonChannels.length + sparkChannels.length
 
   return (
-    <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+    <main className="min-h-[100dvh] bg-[#050505] px-5 py-8 text-white md:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
+        <header className="space-y-6 border-b border-white/10 pb-6">
+          <div className="flex items-center justify-between gap-4">
+            <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Studio</p>
+          </div>
 
-        <header>
           <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio</p>
-            <h1 className="text-4xl font-black tracking-tight">작가 스튜디오</h1>
-            <p className="max-w-3xl text-zinc-400">
-              inderverse는 작가가 플랫폼 규칙에 맞춰 끼워 넣는 구조가 아니라, 작가가 채널과 수익 모델을 먼저 정의하고 플랫폼이 이를 뒷받침하는 구조를 지향합니다.
+            <h1 className="text-4xl font-black tracking-tight md:text-5xl">작가 스튜디오</h1>
+            <p className="max-w-2xl text-sm leading-7 text-zinc-400 md:text-base">
+              작품 만들기, 채널 관리, 정산과 안전 설정을 한곳에서 시작합니다.
             </p>
           </div>
         </header>
 
         {!canEnterCreatorTools ? (
-          <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <article className="rounded-[32px] border border-emerald-400/20 bg-emerald-500/5 p-8">
-              <p className="text-sm uppercase tracking-[0.3em] text-emerald-200/80">Creator Access</p>
-              <h2 className="mt-4 text-3xl font-black tracking-tight">
-                {profile?.display_name ?? '지금 계정'}을 작가 모드로 전환하기
-              </h2>
+          <section className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
+            <article className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-6 md:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80">Creator Access</p>
+              <h2 className="mt-4 text-3xl font-black tracking-tight">{creatorName}을 작가 모드로 전환하기</h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-                지금 계정은 아직 독자 권한이라 채널 작성, 스파크 발행, 정산 설정 화면이 잠겨 있습니다. 작가 등록 전에는 기본 동의서를 확인하고,
-                게시와 정산에 필요한 운영 원칙에 동의한 뒤에 스튜디오 도구로 이어지게 됩니다.
+                작가 등록을 완료하면 웹툰 채널 생성, 스파크 발행, 정산 설정 메뉴를 사용할 수 있습니다.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 {user ? (
                   <Link
                     href="/main/studio/creator-agreement"
-                    className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+                    className="inline-flex min-h-11 items-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
                   >
                     작가 등록 시작하기
                   </Link>
@@ -83,74 +91,81 @@ export default async function StudioPage() {
                 )}
                 <Link
                   href="/main/spark"
-                  className="inline-flex rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+                  className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-white/[0.06] px-6 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
                 >
                   먼저 스파크 둘러보기
                 </Link>
               </div>
             </article>
 
-            <aside className="rounded-[32px] border border-white/10 bg-white/5 p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">등록 전에 확인하는 것</p>
-              <div className="mt-4 grid gap-3 text-sm text-zinc-300">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">작가 등록 및 작품 게시 기본 동의서</div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">저작권과 2차 사업 기본 원칙</div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">수익배분 및 정산 기준</div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">연재 운영과 플랫폼 질서 관련 책임</div>
-              </div>
+            <aside className="rounded-2xl border border-white/10 bg-white/[0.06] p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">등록 전 확인</p>
+              <ul className="mt-5 space-y-4 text-sm leading-6 text-zinc-300">
+                {registrationChecklist.map((item) => (
+                  <li key={item} className="border-b border-white/10 pb-4 last:border-b-0 last:pb-0">
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </aside>
           </section>
         ) : (
-          <>
-            <section className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6">
-              <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                <div className="max-w-3xl">
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Channel Menu</p>
-                  <h2 className="mt-2 text-3xl font-black tracking-tight text-white">작품 관리는 채널 메뉴에서 시작합니다</h2>
-                  <p className="mt-3 text-sm leading-7 text-zinc-300 md:text-base">
-                    웹툰 만들기, 스파크 만들기, 채널 수정, 회차 관리까지 한 흐름으로 이어지도록 정리했습니다. 먼저 채널 메뉴로 들어가면 지금 만든 작품과 다음 작업을 한눈에 볼 수 있습니다.
-                  </p>
+          <section className="space-y-7">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Link
+                href="/main/studio/channels"
+                className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-6 transition hover:border-sky-300/40 hover:bg-sky-500/15 md:col-span-2"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-100/70">Start Here</p>
+                <h2 className="mt-3 text-3xl font-black tracking-tight text-white">채널 관리</h2>
+                <p className="mt-3 text-sm leading-6 text-zinc-300">
+                  웹툰 만들기, 스파크 발행, 작품 수정과 회차 관리를 여기서 시작합니다.
+                </p>
+              </Link>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Total</p>
+                <p className="mt-3 text-4xl font-black text-white">{totalChannels}</p>
+                <p className="mt-2 text-sm text-zinc-400">관리 중인 채널</p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Works</p>
+                <p className="mt-3 text-lg font-bold text-white">
+                  웹툰 {webtoonChannels.length} · 스파크 {sparkChannels.length}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">작품 유형별 현황</p>
+              </div>
+            </div>
+
+            <section className="space-y-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">운영 메뉴</h2>
+                  <p className="mt-1 text-sm text-zinc-400">정산과 안전 설정은 필요할 때 바로 들어갈 수 있게 분리했습니다.</p>
                 </div>
                 <Link
                   href="/main/studio/channels"
-                  className="inline-flex w-fit rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+                  className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
                 >
                   채널 메뉴 열기
                 </Link>
               </div>
 
-              <div className="mt-6 grid gap-3 md:grid-cols-3">
-                <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Webtoon</p>
-                  <p className="mt-3 text-3xl font-black text-white">{webtoonChannels.length}</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">관리 중인 웹툰 채널 수</p>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark</p>
-                  <p className="mt-3 text-3xl font-black text-white">{sparkChannels.length}</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">관리 중인 스파크 채널 수</p>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Flow</p>
-                  <p className="mt-3 text-lg font-bold text-white">스튜디오 홈 → 채널 메뉴 → 만들기/수정</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">새 작품 생성도 채널 메뉴 안에서 이어지도록 흐름을 맞췄습니다.</p>
-                </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {studioSections.map((section) => (
+                  <Link
+                    key={section.href}
+                    href={section.href}
+                    className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 transition hover:border-white/20 hover:bg-white/[0.09]"
+                  >
+                    <h3 className="text-xl font-bold">{section.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-zinc-400">{section.description}</p>
+                  </Link>
+                ))}
               </div>
             </section>
-
-            <section className="grid gap-4 md:grid-cols-2">
-              {studioSections.map((section) => (
-                <Link
-                  key={section.href}
-                  href={section.href}
-                  className="rounded-3xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20 hover:bg-white/7"
-                >
-                  <h2 className="text-2xl font-bold">{section.title}</h2>
-                  <p className="mt-3 text-sm leading-6 text-zinc-400">{section.description}</p>
-                </Link>
-              ))}
-            </section>
-          </>
+          </section>
         )}
       </div>
     </main>

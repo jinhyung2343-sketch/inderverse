@@ -1,13 +1,15 @@
 import Link from 'next/link'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
+import { sanitizeInternalPath } from '@/lib/guest-policy'
 
 export function JoinPromptPageClient({
   nextPath,
 }: {
   nextPath: string | null
 }) {
-  const encodedNextPath = nextPath ? encodeURIComponent(nextPath) : null
+  const safeNextPath = nextPath ? sanitizeInternalPath(nextPath, '/main') : null
+  const encodedNextPath = safeNextPath ? encodeURIComponent(safeNextPath) : null
   const signUpHref = encodedNextPath ? `/auth/sign-up?next=${encodedNextPath}` : '/auth/sign-up'
 
   return (

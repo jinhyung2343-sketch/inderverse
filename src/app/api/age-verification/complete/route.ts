@@ -44,7 +44,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Verification was not approved' }, { status: 400 })
   }
 
-  const parsedState = parseVerificationState(verificationState)
+  let parsedState: ReturnType<typeof parseVerificationState>
+
+  try {
+    parsedState = parseVerificationState(verificationState)
+  } catch {
+    return NextResponse.json({ error: 'Invalid or tampered verification state' }, { status: 400 })
+  }
+
   const providerConfig = getVerificationProvider(provider)
 
   if (parsedState.userId !== user.id || parsedState.provider !== provider) {

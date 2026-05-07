@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
+import { getJoinPromptHref, LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
 import { useAuthStore } from '@/stores/auth'
 
 const FEEDBACK_DRAFT_KEY = 'inderverse:community-feedback-draft'
@@ -41,6 +41,7 @@ export function CommunityFeedbackPanel() {
   )
   const [message, setMessage] = useState(draft?.message ?? '')
   const [statusMessage, setStatusMessage] = useState('')
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
 
   useEffect(() => {
     checkSession()
@@ -87,53 +88,75 @@ export function CommunityFeedbackPanel() {
 
   if (!isLoggedIn) {
     return (
-      <section
-        id="feedback"
-        className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl scroll-mt-24"
-      >
-        <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Feedback</p>
-          <h2 className="text-2xl font-bold text-white">의견 남기기</h2>
-          <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-            커뮤니티 공지와 알림은 게스트도 볼 수 있지만, 의견 작성과 전송은 로그인 후 사용할 수 있습니다.
-          </p>
-        </div>
-
-        <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5">
-          <p className="text-sm leading-6 text-zinc-200">
-            글 작성, 의견 제출, 댓글 같은 참여 기능은 계정 기준으로 기록됩니다.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => setStatusMessage(LOGIN_REQUIRED_MESSAGE)}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-            >
-              의견 작성하기
-            </button>
-            <Link
-              href="/join-prompt?next=/community"
-              className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-            >
-              로그인 화면으로 이동
-            </Link>
+      <>
+        <section
+          id="feedback"
+          className="h-fit scroll-mt-24 rounded-2xl border border-white/10 bg-white/[0.06] p-6"
+        >
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Feedback</p>
+            <h2 className="text-2xl font-bold tracking-tight text-white">의견 남기기</h2>
+            <p className="text-sm leading-6 text-zinc-400">
+              서비스에 바라는 점이나 개선 아이디어를 남길 수 있습니다.
+            </p>
           </div>
-          {statusMessage ? <p className="mt-4 text-sm leading-6 text-cyan-100">{statusMessage}</p> : null}
-        </div>
-      </section>
+
+          <button
+            type="button"
+            onClick={() => setShowLoginPrompt(true)}
+            className="mt-6 inline-flex min-h-11 items-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+          >
+            의견 작성하기
+          </button>
+        </section>
+
+        {showLoginPrompt ? (
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="community-login-required-title"
+          >
+            <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#080808] p-6 text-center shadow-2xl shadow-black/50">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Login Required</p>
+              <h2 id="community-login-required-title" className="mt-4 text-2xl font-bold tracking-tight text-white">
+                {LOGIN_REQUIRED_MESSAGE}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">
+                의견 작성은 로그인 후 사용할 수 있습니다.
+              </p>
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+                >
+                  취소
+                </button>
+                <Link
+                  href={getJoinPromptHref('/community')}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+                >
+                  로그인
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </>
     )
   }
 
   return (
     <section
       id="feedback"
-      className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl scroll-mt-24"
+      className="h-fit scroll-mt-24 rounded-2xl border border-white/10 bg-white/[0.06] p-6"
     >
       <div className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Feedback</p>
-        <h2 className="text-2xl font-bold text-white">의견 남기기</h2>
-        <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-          느낀 점과 개선 아이디어를 정리하고, 필요한 내용을 저장하거나 복사해둘 수 있습니다.
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Feedback</p>
+        <h2 className="text-2xl font-bold tracking-tight text-white">의견 남기기</h2>
+        <p className="text-sm leading-6 text-zinc-400">
+          느낀 점과 개선 아이디어를 남겨주세요. 초안 저장과 복사를 지원합니다.
         </p>
       </div>
 
@@ -145,7 +168,7 @@ export function CommunityFeedbackPanel() {
             onChange={(event) =>
               setCategory(event.target.value as (typeof categoryOptions)[number]['value'])
             }
-            className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+            className="min-h-12 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
           >
             {categoryOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -161,8 +184,8 @@ export function CommunityFeedbackPanel() {
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             rows={8}
-            className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-            placeholder="예: 커뮤니티에서 공지와 알림을 구분해서 보고 싶어요. 작품별 소식과 플랫폼 공지가 섞이지 않게 탭이 있으면 좋겠습니다."
+            className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-white/30"
+            placeholder="예: 작품별 소식과 플랫폼 공지를 더 쉽게 구분하고 싶어요."
           />
         </label>
       </div>
@@ -171,7 +194,7 @@ export function CommunityFeedbackPanel() {
         <button
           type="button"
           onClick={handleSaveDraft}
-          className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+          className="inline-flex min-h-11 items-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
         >
           초안 저장
         </button>
@@ -179,23 +202,23 @@ export function CommunityFeedbackPanel() {
           type="button"
           onClick={handleCopy}
           disabled={isMessageEmpty}
-          className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
         >
           내용 복사
         </button>
         <button
           type="button"
           onClick={handleReset}
-          className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+          className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
         >
           비우기
         </button>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 text-sm leading-6 text-zinc-200">
-        <p>의견은 계정 기준으로 관리되며, 운영 공지와 작품 알림 개선에 참고됩니다.</p>
-        {statusMessage ? <p className="mt-2 text-sky-100">{statusMessage}</p> : null}
-      </div>
+      <p className="mt-5 border-l border-sky-400/30 pl-4 text-sm leading-6 text-zinc-300">
+        의견은 운영 공지와 작품 알림 개선에 참고됩니다.
+        {statusMessage ? <span className="mt-2 block text-sky-100">{statusMessage}</span> : null}
+      </p>
     </section>
   )
 }

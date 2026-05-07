@@ -2,10 +2,10 @@ import Link from 'next/link'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { SavedSparkShelf } from '@/components/library/SavedSparkShelf'
 import { LibraryShelf } from '@/components/library/LibraryShelf'
-import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
 import { getSavedSparkList } from '@/lib/server/spark'
 import { getSavedArtworks } from '@/lib/server/library'
 import { createClient } from '@/lib/supabase/server'
+import { getJoinPromptHref } from '@/lib/guest-policy'
 
 export default async function LibraryPage() {
   const supabase = await createClient()
@@ -40,12 +40,11 @@ export default async function LibraryPage() {
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link
-                href={`/join-prompt?next=${encodeURIComponent('/main/library')}`}
+                href={getJoinPromptHref('/main/library')}
                 className="inline-flex rounded-full border border-white/10 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
                 로그인하고 기록 동기화
               </Link>
-              <span className="text-xs text-zinc-500">{LOGIN_REQUIRED_MESSAGE}</span>
             </div>
           </section>
         ) : null}

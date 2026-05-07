@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PolicyViewerModal } from '@/components/auth/PolicyViewerModal'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
+import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/client'
 import {
   buildGuardianProfileMetadata,
@@ -115,9 +116,8 @@ export function SignUpPageClient({
   const [viewerDocument, setViewerDocument] = useState<PolicyDocument | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const redirectPath =
-    nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/main'
-  const backHref = nextPath ? `/join-prompt?next=${encodeURIComponent(nextPath)}` : '/join-prompt'
+  const redirectPath = sanitizeInternalPath(nextPath, '/main')
+  const backHref = nextPath ? getJoinPromptHref(nextPath) : '/join-prompt'
 
   const allRequiredAgreed = hasAcceptedAllRequiredSignUpConsents(consents)
   const allConsentsChecked = [...requiredSignUpConsentItems, ...optionalSignUpConsentItems].every(

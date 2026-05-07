@@ -799,6 +799,7 @@ export async function updateWebtoonChannel(formData: FormData) {
 
   const input = parseWebtoonDraft(formData)
   const payload = buildWebtoonChannelPayload(input, userId)
+  const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
 
   const { error } = await supabase
     .from('channels')
@@ -829,6 +830,24 @@ export async function updateWebtoonChannel(formData: FormData) {
   }
 
   await syncChannelTags(channelId, input.category, input.tags)
+
+  if (pendingCoverImageFile) {
+    const uploadedCoverUrl = await uploadChannelCoverFile({
+      channelId,
+      file: pendingCoverImageFile,
+    })
+
+    const { error: coverError } = await supabase
+      .from('channels')
+      .update({ cover_image_url: uploadedCoverUrl })
+      .eq('id', channelId)
+      .eq('creator_id', userId)
+      .eq('work_type', 'webtoon')
+
+    if (coverError) {
+      throw new Error(coverError.message)
+    }
+  }
 
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)

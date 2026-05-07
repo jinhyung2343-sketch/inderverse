@@ -1,48 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { getRouteAccessDecision } from '@/lib/guest-policy'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
   const { response, userId, profile } = await updateSession(request)
   const { pathname, search } = request.nextUrl
 
-  if (pathname.startsWith('/api/')) {
-    return response
-  }
+  const accessDecision = getRouteAccessDecision({
+    pathname,
+    search,
+    isLoggedIn: Boolean(userId),
+    userRole: profile?.role,
+    guardianConsentStatus: profile?.guardian_consent_status,
+  })
 
-  const isAuthPage = pathname === '/join-prompt' || pathname.startsWith('/auth/')
-  const isGuardianConsentPage = pathname === '/main/guardian-consent'
-  const isCreatorAgreementPage = pathname === '/main/studio/creator-agreement'
-  const isCreatorPage = pathname.startsWith('/main/studio/')
-  const isAdminPage = pathname.startsWith('/admin')
-  const isLoggedIn = Boolean(userId)
-  const isCreator = profile?.role === 'creator' || profile?.role === 'admin'
-  const isAdmin = profile?.role === 'admin'
-  const isGuardianPending = profile?.guardian_consent_status === 'pending'
-
-  if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL('/main', request.url))
-  }
-
-  if ((isCreatorPage || isAdminPage) && !isLoggedIn) {
-    const redirectUrl = new URL('/join-prompt', request.url)
-    redirectUrl.searchParams.set('next', `${pathname}${search}`)
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  if (
-    isGuardianPending &&
-    !isGuardianConsentPage &&
-    (pathname.startsWith('/main/store') || pathname.startsWith('/main/studio'))
-  ) {
-    return NextResponse.redirect(new URL('/main/guardian-consent', request.url))
-  }
-
-  if (isCreatorPage && !isCreator && !isCreatorAgreementPage) {
-    return NextResponse.redirect(new URL('/main?denied=creator', request.url))
-  }
-
-  if (isAdminPage && !isAdmin) {
-    return NextResponse.redirect(new URL('/main?denied=admin', request.url))
+  if (accessDecision.type === 'redirect') {
+    return NextResponse.redirect(new URL(accessDecision.location, request.url))
   }
 
   return response

@@ -3,46 +3,31 @@ import type { SparkRecord } from '@/lib/spark'
 
 export function SparkFeed({ sparkWorks }: { sparkWorks: SparkRecord[] }) {
   return (
-    <section className="grid gap-5 lg:grid-cols-[1.1fr_1.9fr]">
-      <aside className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-        <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark Overview</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight text-white">짧고 날카로운 만평 영역</h2>
-        <p className="mt-4 text-sm leading-7 text-zinc-300">
-          Spark는 사회, 정치, 인물 이슈를 위트 있게 압축하는 숏폼 섹션입니다. 지금은 카드 레이아웃만 먼저 고정해 두고,
-          이후 후원, 댓글, 주제별 피드, 신고 규칙을 같은 구조 안에 이어 붙일 수 있게 뼈대를 분리했습니다.
-        </p>
-
-        <div className="mt-6 grid gap-3 text-sm text-zinc-300">
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">포맷: 단독 컷 / 4컷 스트립</div>
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">주제: 사회, 정치, 인물 풍자</div>
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">다음 단계: 후원, 댓글, 신고 규칙, 큐레이션</div>
+    <section className="space-y-5">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">전체 스파크</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            지금 공개된 스파크 {sparkWorks.length}개를 최신 피드로 보여줍니다.
+          </p>
         </div>
-      </aside>
-
-      <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-        <div className="flex items-end justify-between gap-4 border-b border-white/10 pb-5">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark Cards</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">실데이터 스파크 피드</h2>
-          </div>
-          <p className="text-sm text-zinc-400">{sparkWorks.length}개의 스파크</p>
-        </div>
-
-        {sparkWorks.length > 0 ? (
-          <div className="mt-6 grid gap-5 xl:grid-cols-2">
-            {sparkWorks.map((spark) => (
-              <SparkCard key={spark.id} spark={spark} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 rounded-[28px] border border-dashed border-white/10 bg-black/20 px-6 py-12 text-center">
-            <p className="text-lg font-semibold text-white">공개된 스파크가 아직 없습니다.</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">
-              첫 공개 스파크가 올라오면 이 피드가 실제 데이터로 채워집니다.
-            </p>
-          </div>
-        )}
+        <p className="text-sm text-zinc-500">단독 컷 · 4컷 스트립</p>
       </div>
+
+      {sparkWorks.length > 0 ? (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {sparkWorks.map((spark) => (
+            <SparkCard key={spark.id} spark={spark} />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.04] px-6 py-12 text-center">
+          <p className="text-lg font-semibold text-white">공개된 스파크가 아직 없습니다.</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            첫 공개 스파크가 올라오면 이 피드가 실제 데이터로 채워집니다.
+          </p>
+        </div>
+      )}
     </section>
   )
 }

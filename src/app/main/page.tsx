@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageBackLink } from '@/components/navigation/PageBackLink';
 import { BRAND } from '@/lib/brand';
-import { canGuestOpenMainMenu, LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy';
+import { canGuestOpenMainMenu, getJoinPromptHref, LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy';
 import { useAuthStore } from '@/stores/auth';
 
 const MENUS = [
@@ -78,32 +78,17 @@ export default function MainHubPage() {
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
+  const [loginPrompt, setLoginPrompt] = useState<{ title: string; path: string } | null>(null);
 
   // 컴포넌트 마운트 시 세션 체크
   useEffect(() => {
     checkSession();
   }, [checkSession]);
 
-  useEffect(() => {
-    if (!toast) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setToast(null);
-    }, 2400);
-
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const handleMenuClick = (menuId: string, path: string) => {
+  const handleMenuClick = (menuId: string, path: string, title?: string) => {
     // 게스트는 읽기/탐색/모니터링 메뉴까지만 진입할 수 있습니다.
     if (!canGuestOpenMainMenu(menuId) && !isLoggedIn) {
-      setToast({
-        id: Date.now(),
-        message: LOGIN_REQUIRED_MESSAGE,
-      });
+      setLoginPrompt({ title: title ?? '이 메뉴', path });
       return;
     }
 
@@ -128,6 +113,14 @@ export default function MainHubPage() {
     } finally {
       setIsSigningOut(false);
     }
+  };
+
+  const handleLoginConfirm = () => {
+    if (!loginPrompt) {
+      return;
+    }
+
+    router.push(getJoinPromptHref(loginPrompt.path));
   };
 
   const activeAmbient = MENUS.find(m => m.id === hoveredMenu)?.ambientColor || 'bg-white';
@@ -181,14 +174,38 @@ export default function MainHubPage() {
         ) : null}
       </header>
 
-      {toast ? (
+      {loginPrompt ? (
         <div
-          key={toast.id}
-          className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-3xl border border-white/10 bg-[#050505]/85 px-5 py-4 text-center text-sm font-medium text-white shadow-2xl shadow-black/40 backdrop-blur animate-in fade-in slide-in-from-top-3 duration-200"
-          role="status"
-          aria-live="polite"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="login-required-title"
         >
-          {toast.message}
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#080808] p-6 text-center shadow-2xl shadow-black/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Login Required</p>
+            <h2 id="login-required-title" className="mt-4 text-2xl font-bold tracking-tight text-white">
+              {LOGIN_REQUIRED_MESSAGE}
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              {loginPrompt.title} 메뉴는 로그인 후 사용할 수 있습니다.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setLoginPrompt(null)}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleLoginConfirm}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+              >
+                로그인
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -221,7 +238,7 @@ export default function MainHubPage() {
             return (
               <button
                 key={menu.id}
-                onClick={() => handleMenuClick(menu.id, menu.path)}
+                onClick={() => handleMenuClick(menu.id, menu.path, menu.title)}
                 onMouseEnter={() => setHoveredMenu(menu.id)}
                 onMouseLeave={() => setHoveredMenu(null)}
                 className={`group relative text-left h-40 md:h-56 p-8 rounded-3xl transition-all duration-700 ease-out overflow-hidden

@@ -6,7 +6,17 @@ import { AgeVerificationProvider, VerificationStatePayload } from './types'
 const oneYearMs = 365 * 24 * 60 * 60 * 1000
 
 function getStateSecret() {
-  return process.env.AGE_VERIFICATION_STATE_SECRET || 'inderverse-dev-age-verification-secret'
+  const secret = process.env.AGE_VERIFICATION_STATE_SECRET
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('AGE_VERIFICATION_STATE_SECRET must be set in production')
+    }
+
+    return 'inderverse-dev-age-verification-secret'
+  }
+
+  return secret
 }
 
 function getProviderSecret() {
