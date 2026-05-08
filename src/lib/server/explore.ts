@@ -7,6 +7,7 @@ import {
   getEpisodePublicId,
   type ExploreArtwork,
 } from '@/lib/explore'
+import { artworks as fallbackArtworks, getArtworkById as getFallbackArtworkById } from '@/lib/mock/explore-data'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
@@ -76,11 +77,27 @@ const publicArtworkIdByChannelId = new Map(
     .map(([artworkId, value]) => [value.backendChannelId as string, artworkId])
 )
 
+function isNextRuntimeSignal(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    typeof error.digest === 'string' &&
+    error.digest.startsWith('DYNAMIC_')
+  )
+}
+
 const getViewerSession = cache(async () => {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data, error } = await supabase.auth.getUser()
+
+  if (error) {
+    return {
+      isAdultVerified: false,
+    }
+  }
+
+  const user = data.user
 
   if (!user) {
     return {
@@ -381,22 +398,46 @@ const getPublicArtworkBundles = cache(async () => {
 })
 
 export async function getPublicArtworkList() {
-  const bundles = await getPublicArtworkBundles()
-  return bundles.map(mapBackendArtwork)
+  try {
+    const bundles = await getPublicArtworkBundles()
+    return bundles.map(mapBackendArtwork)
+  } catch (error) {
+    if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    console.warn('Falling back to mock explore artworks:', error)
+    return fallbackArtworks.filter((artwork) => !artwork.isAdultOnly)
+  }
 }
 
 export async function getPublicArtworkById(id: string) {
-  const bundles = await getPublicArtworkBundles()
-  const bundle = bundles.find((entry) => {
-    const publicArtworkId = publicArtworkIdByChannelId.get(entry.channel.id) ?? entry.channel.id
-    return entry.channel.id === id || publicArtworkId === id
-  })
+  try {
+    const bundles = await getPublicArtworkBundles()
+    const bundle = bundles.find((entry) => {
+      const publicArtworkId = publicArtworkIdByChannelId.get(entry.channel.id) ?? entry.channel.id
+      return entry.channel.id === id || publicArtworkId === id
+    })
 
-  if (!bundle) {
-    return null
+    if (!bundle) {
+      return null
+    }
+
+    return mapBackendArtwork(bundle)
+  } catch (error) {
+    if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    console.warn('Falling back to mock explore artwork:', error)
+    const artwork = getFallbackArtworkById(id)
+
+    if (!artwork || artwork.isAdultOnly) {
+      return null
+    }
+
+    return artwork
   }
-
-  return mapBackendArtwork(bundle)
 }
 
 function getSimilarityScore(base: ExploreArtwork, candidate: ExploreArtwork) {

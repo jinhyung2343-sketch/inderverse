@@ -39,7 +39,7 @@ export default function StorePage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
         <header className="space-y-6 border-b border-white/10 pb-6">
           <div className="flex items-center justify-between gap-4">
-            <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+            <PageBackLink href="/main" ariaLabel="허브로 돌아가기" showLabel />
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Store</p>
           </div>
 

@@ -9,9 +9,12 @@ import { getJoinPromptHref } from '@/lib/guest-policy'
 
 export default async function LibraryPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  const user = authError ? null : authData.user
+
+  if (authError) {
+    console.warn('Unable to read viewer session for library page:', authError)
+  }
 
   const savedSparks = await getSavedSparkList()
   const savedArtworks = await getSavedArtworks()
@@ -20,7 +23,7 @@ export default async function LibraryPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+        <PageBackLink href="/main" ariaLabel="허브로 돌아가기" showLabel />
 
         <header>
           <div className="space-y-3">

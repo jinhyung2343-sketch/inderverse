@@ -12,9 +12,9 @@ test('guest main menu access is limited to public browsing areas', () => {
   assert.equal(canGuestOpenMainMenu('explore'), true)
   assert.equal(canGuestOpenMainMenu('spark'), true)
   assert.equal(canGuestOpenMainMenu('community'), true)
-  assert.equal(canGuestOpenMainMenu('library'), false)
-  assert.equal(canGuestOpenMainMenu('store'), false)
-  assert.equal(canGuestOpenMainMenu('studio'), false)
+  assert.equal(canGuestOpenMainMenu('studio'), true)
+  assert.equal(canGuestOpenMainMenu('library'), true)
+  assert.equal(canGuestOpenMainMenu('store'), true)
 })
 
 test('join prompt next paths are normalized to internal routes', () => {
@@ -24,18 +24,14 @@ test('join prompt next paths are normalized to internal routes', () => {
   assert.equal(getJoinPromptHref('/main/store?tab=charge'), '/join-prompt?next=%2Fmain%2Fstore%3Ftab%3Dcharge')
 })
 
-test('guests are redirected from account-bound main pages with return targets', () => {
+test('guests can open stable landing pages and are redirected from account-bound actions', () => {
   assert.deepEqual(
     getRouteAccessDecision({
       pathname: '/main/store',
       search: '?plan=basic',
       isLoggedIn: false,
     }),
-    {
-      type: 'redirect',
-      location: '/join-prompt?next=%2Fmain%2Fstore%3Fplan%3Dbasic',
-      reason: 'login_required',
-    }
+    { type: 'allow' }
   )
 
   assert.deepEqual(
@@ -43,11 +39,7 @@ test('guests are redirected from account-bound main pages with return targets', 
       pathname: '/main/library',
       isLoggedIn: false,
     }),
-    {
-      type: 'redirect',
-      location: '/join-prompt?next=%2Fmain%2Flibrary',
-      reason: 'login_required',
-    }
+    { type: 'allow' }
   )
 
   assert.deepEqual(
@@ -64,6 +56,26 @@ test('guests are redirected from account-bound main pages with return targets', 
 })
 
 test('creator routes allow agreement before creator role and protect tools afterwards', () => {
+  assert.deepEqual(
+    getRouteAccessDecision({
+      pathname: '/main/studio',
+      isLoggedIn: false,
+    }),
+    { type: 'allow' }
+  )
+
+  assert.deepEqual(
+    getRouteAccessDecision({
+      pathname: '/main/studio/channels',
+      isLoggedIn: false,
+    }),
+    {
+      type: 'redirect',
+      location: '/join-prompt?next=%2Fmain%2Fstudio%2Fchannels',
+      reason: 'login_required',
+    }
+  )
+
   assert.deepEqual(
     getRouteAccessDecision({
       pathname: '/main/studio/creator-agreement',

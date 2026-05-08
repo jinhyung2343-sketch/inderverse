@@ -30,9 +30,12 @@ type UserRole = Database['public']['Enums']['user_role']
 
 export default async function StudioPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  const user = authError ? null : authData.user
+
+  if (authError) {
+    console.warn('Unable to read viewer session for studio:', authError)
+  }
 
   const { data: profile } = user
     ? await supabase
@@ -40,6 +43,14 @@ export default async function StudioPage() {
         .select('display_name, role')
         .eq('id', user.id)
         .single()
+        .then((result) => {
+          if (result.error) {
+            console.warn('Unable to load studio profile:', result.error)
+            return { data: null }
+          }
+
+          return { data: result.data }
+        })
     : { data: null }
 
   const role = profile?.role as UserRole | undefined
@@ -55,7 +66,7 @@ export default async function StudioPage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
         <header className="space-y-6 border-b border-white/10 pb-6">
           <div className="flex items-center justify-between gap-4">
-            <PageBackLink href="/main" ariaLabel="허브로 돌아가기" />
+            <PageBackLink href="/main" ariaLabel="허브로 돌아가기" showLabel />
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Studio</p>
           </div>
 

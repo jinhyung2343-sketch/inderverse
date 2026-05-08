@@ -11,11 +11,21 @@ export function JoinPromptPageClient({
   const safeNextPath = nextPath ? sanitizeInternalPath(nextPath, '/main') : null
   const encodedNextPath = safeNextPath ? encodeURIComponent(safeNextPath) : null
   const signUpHref = encodedNextPath ? `/auth/sign-up?next=${encodedNextPath}` : '/auth/sign-up'
+  const backHref = safeNextPath?.startsWith('/main') ? '/main' : '/'
+  const backLabel = safeNextPath?.startsWith('/main') ? '허브로 돌아가기' : '처음으로 돌아가기'
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#050505] px-6 text-white selection:bg-white/30">
       <header className="absolute left-0 top-0 z-20 w-full p-6 md:p-8">
-        <PageBackLink href="/" />
+        <div className="flex items-center gap-3">
+          <PageBackLink href={backHref} ariaLabel={backLabel} />
+          <Link
+            href={backHref}
+            className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+          >
+            {backLabel}
+          </Link>
+        </div>
       </header>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20">

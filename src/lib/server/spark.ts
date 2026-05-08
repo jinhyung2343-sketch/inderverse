@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseRatingChecklist } from '@/lib/content-rating'
+import { getSparkRecordById, sparkRecords as fallbackSparkRecords } from '@/lib/mock/spark-data'
 import { createClient } from '@/lib/supabase/server'
 import type { SparkRecord, SparkStatus } from '@/lib/spark'
 import { getSparkPanelCount, parseSparkMeta } from '@/lib/spark'
@@ -48,6 +49,24 @@ export interface SparkEngagementSummary {
   viewerCanSave: boolean
 }
 
+const EMPTY_SPARK_ENGAGEMENT: SparkEngagementSummary = {
+  viewCount: 0,
+  applauseCount: 0,
+  saveCount: 0,
+  viewerHasSaved: false,
+  viewerCanSave: false,
+}
+
+function isNextRuntimeSignal(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    typeof error.digest === 'string' &&
+    error.digest.startsWith('DYNAMIC_')
+  )
+}
+
 function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
   const meta = parseSparkMeta(row.spark_meta)
   const format = row.spark_format ?? 'single_cut'
@@ -79,9 +98,16 @@ function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
 
 const getViewerSession = cache(async () => {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data, error } = await supabase.auth.getUser()
+
+  if (error) {
+    return {
+      userId: null,
+      isAdultVerified: false,
+    }
+  }
+
+  const user = data.user
 
   if (!user) {
     return {
@@ -107,140 +133,173 @@ function getPublicStatuses(): SparkStatus[] {
 }
 
 export async function getPublicSparkList() {
-  const { isAdultVerified } = await getViewerSession()
-  const admin = createAdminClient()
-  let query = admin
-    .from('channels')
-    .select(
-      `
-        id,
-        title,
-        description,
-        cover_image_url,
-        age_rating,
-        is_adult_only,
-        rating_checklist,
-        status,
-        spark_caption,
-        spark_format,
-        spark_panel_count,
-        spark_meta,
-        created_at,
-        updated_at,
-        creator:profiles!channels_creator_id_fkey(display_name)
-      `
-    )
-    .eq('work_type', 'spark')
-    .in('status', getPublicStatuses())
-    .order('updated_at', { ascending: false })
+  try {
+    const { isAdultVerified } = await getViewerSession()
+    const admin = createAdminClient()
+    let query = admin
+      .from('channels')
+      .select(
+        `
+          id,
+          title,
+          description,
+          cover_image_url,
+          age_rating,
+          is_adult_only,
+          rating_checklist,
+          status,
+          spark_caption,
+          spark_format,
+          spark_panel_count,
+          spark_meta,
+          created_at,
+          updated_at,
+          creator:profiles!channels_creator_id_fkey(display_name)
+        `
+      )
+      .eq('work_type', 'spark')
+      .in('status', getPublicStatuses())
+      .order('updated_at', { ascending: false })
 
-  if (!isAdultVerified) {
-    query = query.eq('is_adult_only', false)
+    if (!isAdultVerified) {
+      query = query.eq('is_adult_only', false)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      throw new Error(`Failed to load spark feed: ${error.message}`)
+    }
+
+    return ((data ?? []) as SparkChannelQueryRow[]).map(mapSparkRow)
+  } catch (error) {
+    if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    console.warn('Falling back to mock spark feed:', error)
+    return fallbackSparkRecords.filter((spark) => !spark.isAdultOnly)
   }
-
-  const { data, error } = await query
-
-  if (error) {
-    throw new Error(`Failed to load spark feed: ${error.message}`)
-  }
-
-  return ((data ?? []) as SparkChannelQueryRow[]).map(mapSparkRow)
 }
 
 export async function getPublicSparkById(id: string) {
-  const { isAdultVerified } = await getViewerSession()
-  const admin = createAdminClient()
-  let query = admin
-    .from('channels')
-    .select(
-      `
-        id,
-        title,
-        description,
-        cover_image_url,
-        age_rating,
-        is_adult_only,
-        rating_checklist,
-        status,
-        spark_caption,
-        spark_format,
-        spark_panel_count,
-        spark_meta,
-        created_at,
-        updated_at,
-        creator:profiles!channels_creator_id_fkey(display_name)
-      `
-    )
-    .eq('id', id)
-    .eq('work_type', 'spark')
-    .in('status', getPublicStatuses())
+  try {
+    const { isAdultVerified } = await getViewerSession()
+    const admin = createAdminClient()
+    let query = admin
+      .from('channels')
+      .select(
+        `
+          id,
+          title,
+          description,
+          cover_image_url,
+          age_rating,
+          is_adult_only,
+          rating_checklist,
+          status,
+          spark_caption,
+          spark_format,
+          spark_panel_count,
+          spark_meta,
+          created_at,
+          updated_at,
+          creator:profiles!channels_creator_id_fkey(display_name)
+        `
+      )
+      .eq('id', id)
+      .eq('work_type', 'spark')
+      .in('status', getPublicStatuses())
 
-  if (!isAdultVerified) {
-    query = query.eq('is_adult_only', false)
+    if (!isAdultVerified) {
+      query = query.eq('is_adult_only', false)
+    }
+
+    const { data, error } = await query.maybeSingle()
+
+    if (error) {
+      throw new Error(`Failed to load spark detail: ${error.message}`)
+    }
+
+    if (!data) {
+      return null
+    }
+
+    return mapSparkRow(data as SparkChannelQueryRow)
+  } catch (error) {
+    if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    console.warn('Falling back to mock spark detail:', error)
+    const spark = getSparkRecordById(id)
+
+    if (!spark || spark.isAdultOnly) {
+      return null
+    }
+
+    return spark
   }
-
-  const { data, error } = await query.maybeSingle()
-
-  if (error) {
-    throw new Error(`Failed to load spark detail: ${error.message}`)
-  }
-
-  if (!data) {
-    return null
-  }
-
-  return mapSparkRow(data as SparkChannelQueryRow)
 }
 
 export async function getSparkEngagementSummary(channelId: string): Promise<SparkEngagementSummary> {
-  const admin = createAdminClient()
-  const { userId } = await getViewerSession()
+  try {
+    const admin = createAdminClient()
+    const { userId } = await getViewerSession()
 
-  const [viewsResult, applauseResult, savesResult, viewerSaveResult] = await Promise.all([
-    admin
-      .from('spark_views')
-      .select('*', { count: 'exact', head: true })
-      .eq('channel_id', channelId),
-    admin
-      .from('spark_reactions')
-      .select('*', { count: 'exact', head: true })
-      .eq('channel_id', channelId)
-      .eq('reaction_type', 'applause'),
-    admin
-      .from('spark_saves')
-      .select('*', { count: 'exact', head: true })
-      .eq('channel_id', channelId),
-    userId
-      ? admin
-          .from('spark_saves')
-          .select('id', { head: true, count: 'exact' })
-          .eq('channel_id', channelId)
-          .eq('user_id', userId)
-      : Promise.resolve({ count: 0, error: null }),
-  ])
+    const [viewsResult, applauseResult, savesResult, viewerSaveResult] = await Promise.all([
+      admin
+        .from('spark_views')
+        .select('*', { count: 'exact', head: true })
+        .eq('channel_id', channelId),
+      admin
+        .from('spark_reactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('channel_id', channelId)
+        .eq('reaction_type', 'applause'),
+      admin
+        .from('spark_saves')
+        .select('*', { count: 'exact', head: true })
+        .eq('channel_id', channelId),
+      userId
+        ? admin
+            .from('spark_saves')
+            .select('id', { head: true, count: 'exact' })
+            .eq('channel_id', channelId)
+            .eq('user_id', userId)
+        : Promise.resolve({ count: 0, error: null }),
+    ])
 
-  if (viewsResult.error) {
-    throw new Error(`Failed to load spark views: ${viewsResult.error.message}`)
-  }
+    if (viewsResult.error) {
+      throw new Error(`Failed to load spark views: ${viewsResult.error.message}`)
+    }
 
-  if (applauseResult.error) {
-    throw new Error(`Failed to load spark applause: ${applauseResult.error.message}`)
-  }
+    if (applauseResult.error) {
+      throw new Error(`Failed to load spark applause: ${applauseResult.error.message}`)
+    }
 
-  if (savesResult.error) {
-    throw new Error(`Failed to load spark saves: ${savesResult.error.message}`)
-  }
+    if (savesResult.error) {
+      throw new Error(`Failed to load spark saves: ${savesResult.error.message}`)
+    }
 
-  if (viewerSaveResult.error) {
-    throw new Error(`Failed to load spark save state: ${viewerSaveResult.error.message}`)
-  }
+    if (viewerSaveResult.error) {
+      throw new Error(`Failed to load spark save state: ${viewerSaveResult.error.message}`)
+    }
 
-  return {
-    viewCount: viewsResult.count ?? 0,
-    applauseCount: applauseResult.count ?? 0,
-    saveCount: savesResult.count ?? 0,
-    viewerHasSaved: (viewerSaveResult.count ?? 0) > 0,
-    viewerCanSave: Boolean(userId),
+    return {
+      viewCount: viewsResult.count ?? 0,
+      applauseCount: applauseResult.count ?? 0,
+      saveCount: savesResult.count ?? 0,
+      viewerHasSaved: (viewerSaveResult.count ?? 0) > 0,
+      viewerCanSave: Boolean(userId),
+    }
+  } catch (error) {
+    if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    console.warn('Falling back to empty spark engagement summary:', error)
+    return EMPTY_SPARK_ENGAGEMENT
   }
 }
 
@@ -400,9 +459,14 @@ export async function getCreatorSparkById(id: string) {
 
 export async function getSavedSparkList() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+
+  if (authError) {
+    console.warn('Unable to read viewer session for saved sparks:', authError)
+    return []
+  }
+
+  const user = authData.user
 
   if (!user) {
     return []
@@ -415,7 +479,8 @@ export async function getSavedSparkList() {
     .order('saved_at', { ascending: false })
 
   if (savesError) {
-    throw new Error(`Failed to load saved spark ids: ${savesError.message}`)
+    console.warn('Unable to load saved spark ids:', savesError)
+    return []
   }
 
   const channelIds = (saves ?? []).map((save) => save.channel_id)
@@ -448,7 +513,8 @@ export async function getSavedSparkList() {
     .eq('work_type', 'spark')
 
   if (channelsError) {
-    throw new Error(`Failed to load saved sparks: ${channelsError.message}`)
+    console.warn('Unable to load saved sparks:', channelsError)
+    return []
   }
 
   const sparkById = new Map(

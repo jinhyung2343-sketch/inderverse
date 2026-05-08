@@ -5,9 +5,14 @@ import { getPublicArtworkById } from '@/lib/server/explore'
 
 export async function getSavedArtworkIds() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+
+  if (authError) {
+    console.warn('Unable to read viewer session for library:', authError)
+    return []
+  }
+
+  const user = authData.user
 
   if (!user) {
     return []
@@ -20,7 +25,8 @@ export async function getSavedArtworkIds() {
     .order('saved_at', { ascending: false })
 
   if (error) {
-    throw new Error(`Failed to load saved artwork ids: ${error.message}`)
+    console.warn('Unable to load saved artwork ids:', error)
+    return []
   }
 
   return (data ?? []).map((entry) => entry.artwork_id)
