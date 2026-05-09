@@ -5,6 +5,7 @@ export interface ArtworkEpisode {
   id: string
   backendEpisodeId?: string
   backendChannelId?: string
+  workType?: 'webtoon' | 'novel'
   title: string
   accessState: EpisodeAccessState
   accessLabel: string
@@ -16,6 +17,7 @@ export interface ArtworkEpisode {
 
 export interface ExploreArtwork {
   id: string
+  workType?: 'webtoon' | 'novel'
   title: string
   authorName: string
   coverImageUrl: string

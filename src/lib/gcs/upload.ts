@@ -109,6 +109,31 @@ export async function generateChannelCoverSignedUrl({
   return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
 }
 
+export async function generateCreatorChannelImageSignedUrl({
+  creatorChannelId,
+  imageRole,
+  contentType,
+}: {
+  creatorChannelId: string
+  imageRole: 'avatar' | 'cover'
+  contentType: AllowedContentType
+}) {
+  const extension = getFileExtension(contentType)
+  const filePath = `creator-channels/${creatorChannelId}/${imageRole}/${Date.now()}-${randomUUID()}.${extension}`
+
+  const [url] = await bucket.file(filePath).getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 15 * 60 * 1000,
+    contentType,
+    extensionHeaders: {
+      'x-goog-content-length-range': '1,20971520',
+    },
+  })
+
+  return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
+}
+
 export async function generateSparkPanelSignedUrl({
   channelId,
   panelIndex,

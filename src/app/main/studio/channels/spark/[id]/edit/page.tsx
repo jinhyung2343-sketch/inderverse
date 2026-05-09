@@ -27,7 +27,7 @@ export default async function EditSparkPage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href="/main/studio/channels" ariaLabel="채널 메뉴로 돌아가기" />
+        <PageBackLink href="/main/studio/channels" ariaLabel="내 작품으로 돌아가기" />
 
         <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">

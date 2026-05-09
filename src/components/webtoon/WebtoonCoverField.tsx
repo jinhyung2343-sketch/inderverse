@@ -6,9 +6,11 @@ import { ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 export function WebtoonCoverField({
   channelId,
   initialValue,
+  workLabel = '웹툰',
 }: {
   channelId?: string
   initialValue?: string | null
+  workLabel?: string
 }) {
   const [value, setValue] = useState(initialValue ?? '')
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
@@ -93,7 +95,7 @@ export function WebtoonCoverField({
         description={
           channelId
             ? '파일을 올리면 공개 URL이 자동으로 입력됩니다. 저장 버튼까지 눌러야 최종 반영됩니다.'
-            : '새 웹툰 채널 단계에서도 먼저 커버를 골라 미리볼 수 있습니다. 저장 시 실제 업로드가 이어집니다.'
+            : `새 ${workLabel} 단계에서도 먼저 커버를 골라 미리볼 수 있습니다. 저장 시 실제 업로드가 이어집니다.`
         }
         disabled={false}
         isUploading={isUploading}
@@ -131,7 +133,7 @@ export function WebtoonCoverField({
       <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/20">
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt="Webtoon cover preview" className="h-56 w-full object-cover" />
+          <img src={previewUrl} alt={`${workLabel} cover preview`} className="h-56 w-full object-cover" />
         ) : (
           <div className="flex h-56 items-center justify-center px-6 text-center text-sm leading-6 text-zinc-500">
             업로드되거나 입력된 커버 이미지가 이곳에 미리보기로 표시됩니다.

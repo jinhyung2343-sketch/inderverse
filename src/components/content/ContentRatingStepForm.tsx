@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import type { ChannelAgeRating, RatingChecklist } from '@/lib/content-rating'
+import type { WorkType } from '@/lib/work'
 
 export function ContentRatingStepForm({
   action,
@@ -14,7 +15,7 @@ export function ContentRatingStepForm({
 }: {
   action: (formData: FormData) => void | Promise<void>
   channelId: string
-  workType: 'webtoon' | 'spark'
+  workType: WorkType
   title: string
   ageRating: ChannelAgeRating
   ratingChecklist: RatingChecklist

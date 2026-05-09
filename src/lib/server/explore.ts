@@ -23,6 +23,7 @@ type ChannelRow = Pick<
   | 'is_comment_enabled'
   | 'status'
   | 'wait_free_hours'
+  | 'work_type'
   | 'created_at'
   | 'updated_at'
 > & {
@@ -37,6 +38,7 @@ type EpisodeRow = Pick<
   | 'channel_id'
   | 'episode_number'
   | 'title'
+  | 'body_text'
   | 'pricing_type'
   | 'status'
   | 'published_at'
@@ -84,6 +86,23 @@ function isNextRuntimeSignal(error: unknown) {
     'digest' in error &&
     typeof error.digest === 'string' &&
     error.digest.startsWith('DYNAMIC_')
+  )
+}
+
+function isExploreSchemaUnavailable(error: { code?: string; message?: string } | null) {
+  if (!error) {
+    return false
+  }
+
+  const message = error.message ?? ''
+
+  return (
+    error.code === '22P02' ||
+    error.code === '42703' ||
+    message.includes('invalid input value for enum work_type') ||
+    message.includes('Could not find') ||
+    message.includes('body_text') ||
+    message.includes('novel')
   )
 }
 
@@ -183,6 +202,26 @@ function buildGenericEpisodePreview(artworkTitle: string, episodeTitle: string) 
   return `${artworkTitle}의 ${episodeTitle}입니다. 실제 회차 소개 문구는 추후 스튜디오 편집 흐름에 연결할 수 있습니다.`
 }
 
+function buildNovelEpisodePreview(bodyText: string, episodeTitle: string) {
+  const firstParagraph = bodyText
+    .split(/\n{2,}/)
+    .map((entry) => entry.trim())
+    .find(Boolean)
+
+  if (!firstParagraph) {
+    return `${episodeTitle} 본문은 아직 준비 중입니다.`
+  }
+
+  return firstParagraph.length > 120 ? `${firstParagraph.slice(0, 120)}...` : firstParagraph
+}
+
+function buildNovelEpisodeBody(bodyText: string) {
+  return bodyText
+    .split(/\n{2,}/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
 function buildGenericEpisodeBody(artworkTitle: string, episodeTitle: string, hasImages: boolean) {
   if (hasImages) {
     return [
@@ -216,6 +255,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
 
   return {
     id: publicArtworkId,
+    workType: bundle.channel.work_type === 'novel' ? 'novel' : 'webtoon',
     title,
     authorName: bundle.channel.creator?.display_name?.trim() || '작가',
     coverImageUrl: bundle.channel.cover_image_url?.trim() || '',
@@ -239,6 +279,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
         id: getEpisodePublicId(episode.episode_number),
         backendEpisodeId: episode.id,
         backendChannelId: bundle.channel.id,
+        workType: bundle.channel.work_type === 'novel' ? 'novel' : 'webtoon',
         title: episode.title,
         accessState: access.accessState,
         accessLabel: access.accessLabel,
@@ -246,60 +287,96 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
           access.accessState === 'wait_free'
             ? bundle.channel.wait_free_hours
             : undefined,
-        preview: buildGenericEpisodePreview(title, episode.title),
-        body: buildGenericEpisodeBody(title, episode.title, imageUrls.length > 0),
+        preview:
+          bundle.channel.work_type === 'novel'
+            ? buildNovelEpisodePreview(episode.body_text?.trim() || '', episode.title)
+            : buildGenericEpisodePreview(title, episode.title),
+        body:
+          bundle.channel.work_type === 'novel'
+            ? buildNovelEpisodeBody(episode.body_text?.trim() || '')
+            : buildGenericEpisodeBody(title, episode.title, imageUrls.length > 0),
         imageUrls,
       }
     }),
   }
 }
 
-const getPublicArtworkBundles = cache(async () => {
-  const { isAdultVerified } = await getViewerSession()
+async function loadPublicChannels({
+  isAdultVerified,
+}: {
+  isAdultVerified: boolean
+}) {
   const admin = createAdminClient()
-  let channelQuery = admin
+  const selectColumns = `
+    id,
+    title,
+    description,
+    cover_image_url,
+    is_adult_only,
+    is_comment_enabled,
+    comment_policy_note,
+    status,
+    wait_free_hours,
+    work_type,
+    created_at,
+    updated_at,
+    creator:profiles!channels_creator_id_fkey(display_name)
+  `
+  let query = admin
     .from('channels')
-    .select(
-      `
-        id,
-        title,
-        description,
-        cover_image_url,
-        is_adult_only,
-        is_comment_enabled,
-        comment_policy_note,
-        status,
-        wait_free_hours,
-        created_at,
-        updated_at,
-        creator:profiles!channels_creator_id_fkey(display_name)
-      `
-    )
+    .select(selectColumns)
+    .in('work_type', ['webtoon', 'novel'])
+    .in('status', PUBLIC_CHANNEL_STATUSES)
+    .order('updated_at', { ascending: false })
+
+  if (!isAdultVerified) {
+    query = query.eq('is_adult_only', false)
+  }
+
+  const result = await query
+
+  if (!result.error) {
+    return (result.data ?? []) as ChannelRow[]
+  }
+
+  if (!isExploreSchemaUnavailable(result.error)) {
+    throw new Error(`Failed to load explore channels: ${result.error.message}`)
+  }
+
+  console.warn('Novel explore schema is not available yet. Falling back to webtoon-only explore.')
+
+  let fallbackQuery = admin
+    .from('channels')
+    .select(selectColumns)
     .eq('work_type', 'webtoon')
     .in('status', PUBLIC_CHANNEL_STATUSES)
     .order('updated_at', { ascending: false })
 
   if (!isAdultVerified) {
-    channelQuery = channelQuery.eq('is_adult_only', false)
+    fallbackQuery = fallbackQuery.eq('is_adult_only', false)
   }
 
-  const { data: channels, error: channelsError } = await channelQuery
+  const fallbackResult = await fallbackQuery
 
-  if (channelsError) {
-    throw new Error(`Failed to load explore channels: ${channelsError.message}`)
+  if (fallbackResult.error) {
+    throw new Error(`Failed to load explore channels: ${fallbackResult.error.message}`)
   }
 
-  const channelRows = (channels ?? []) as ChannelRow[]
-  const channelIds = channelRows.map((channel) => channel.id)
+  return (fallbackResult.data ?? []) as ChannelRow[]
+}
 
-  if (channelIds.length === 0) {
-    return []
-  }
-
+async function loadPublicEpisodes({
+  channelIds,
+  isAdultVerified,
+}: {
+  channelIds: string[]
+  isAdultVerified: boolean
+}) {
+  const admin = createAdminClient()
   let episodeQuery = admin
     .from('episodes')
     .select(
-      'id, channel_id, episode_number, title, pricing_type, status, published_at, is_adult_only'
+      'id, channel_id, episode_number, title, body_text, pricing_type, status, published_at, is_adult_only'
     )
     .in('channel_id', channelIds)
     .order('episode_number', { ascending: true })
@@ -308,13 +385,53 @@ const getPublicArtworkBundles = cache(async () => {
     episodeQuery = episodeQuery.eq('is_adult_only', false)
   }
 
-  const { data: episodes, error: episodesError } = await episodeQuery
+  const result = await episodeQuery
 
-  if (episodesError) {
-    throw new Error(`Failed to load explore episodes: ${episodesError.message}`)
+  if (!result.error) {
+    return (result.data ?? []) as EpisodeRow[]
   }
 
-  const episodeRows = (episodes ?? []) as EpisodeRow[]
+  if (!isExploreSchemaUnavailable(result.error)) {
+    throw new Error(`Failed to load explore episodes: ${result.error.message}`)
+  }
+
+  console.warn('Novel episode body schema is not available yet. Falling back to legacy episode fields.')
+
+  let fallbackQuery = admin
+    .from('episodes')
+    .select(
+      'id, channel_id, episode_number, title, pricing_type, status, published_at, is_adult_only'
+    )
+    .in('channel_id', channelIds)
+    .order('episode_number', { ascending: true })
+
+  if (!isAdultVerified) {
+    fallbackQuery = fallbackQuery.eq('is_adult_only', false)
+  }
+
+  const fallbackResult = await fallbackQuery
+
+  if (fallbackResult.error) {
+    throw new Error(`Failed to load explore episodes: ${fallbackResult.error.message}`)
+  }
+
+  return ((fallbackResult.data ?? []) as Omit<EpisodeRow, 'body_text'>[]).map((episode) => ({
+    ...episode,
+    body_text: null,
+  }))
+}
+
+const getPublicArtworkBundles = cache(async () => {
+  const { isAdultVerified } = await getViewerSession()
+  const admin = createAdminClient()
+  const channelRows = await loadPublicChannels({ isAdultVerified })
+  const channelIds = channelRows.map((channel) => channel.id)
+
+  if (channelIds.length === 0) {
+    return []
+  }
+
+  const episodeRows = await loadPublicEpisodes({ channelIds, isAdultVerified })
   const episodeIds = episodeRows.map((episode) => episode.id)
 
   const [channelTagsResult, tagsResult, imagesResult] = await Promise.all([

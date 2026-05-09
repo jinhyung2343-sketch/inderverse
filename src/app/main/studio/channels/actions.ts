@@ -17,11 +17,20 @@ import {
   uploadSparkCoverFile,
   uploadSparkPanelFile,
 } from '@/lib/gcs/upload'
+import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
 import { createClient } from '@/lib/supabase/server'
 import type { SparkDraftInput, SparkFormat, SparkPanel, SparkStatus } from '@/lib/spark'
 import { buildSparkMeta, getSparkPanelCount, sanitizeSparkTags } from '@/lib/spark'
+import { isWorkType } from '@/lib/work'
+import type {
+  NovelDraftInput,
+  NovelEpisodeDraftInput,
+  NovelEpisodePricing,
+  NovelEpisodeStatus,
+} from '@/lib/novel'
+import { sanitizeNovelTags } from '@/lib/novel'
 import type {
   WebtoonDraftInput,
   WebtoonEpisodeDraftInput,
@@ -174,6 +183,14 @@ function isEpisodePricing(value: string): value is WebtoonEpisodePricing {
 }
 
 function isEpisodeStatus(value: string): value is WebtoonEpisodeStatus {
+  return value === 'draft' || value === 'published' || value === 'hidden'
+}
+
+function isNovelEpisodePricing(value: string): value is NovelEpisodePricing {
+  return value === 'free' || value === 'paid' || value === 'wait_free'
+}
+
+function isNovelEpisodeStatus(value: string): value is NovelEpisodeStatus {
   return value === 'draft' || value === 'published' || value === 'hidden'
 }
 
@@ -437,9 +454,14 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
   }
 }
 
-function buildSparkChannelPayload(input: SparkDraftInput, creatorId: string) {
+function buildSparkChannelPayload(
+  input: SparkDraftInput,
+  creatorId: string,
+  creatorChannelId: string
+) {
   return {
     creator_id: creatorId,
+    creator_channel_id: creatorChannelId,
     title: input.title,
     description: input.description,
     cover_image_url: input.coverImageUrl,
@@ -531,9 +553,14 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   }
 }
 
-function buildWebtoonChannelPayload(input: WebtoonDraftInput, creatorId: string) {
+function buildWebtoonChannelPayload(
+  input: WebtoonDraftInput,
+  creatorId: string,
+  creatorChannelId: string
+) {
   return {
     creator_id: creatorId,
+    creator_channel_id: creatorChannelId,
     title: input.title,
     description: input.description,
     cover_image_url: input.coverImageUrl,
@@ -546,6 +573,103 @@ function buildWebtoonChannelPayload(input: WebtoonDraftInput, creatorId: string)
     work_type: 'webtoon' as const,
     serialization_days: input.serializationDays,
     wait_free_hours: input.waitFreeHours,
+  }
+}
+
+function parseNovelDraft(formData: FormData): NovelDraftInput {
+  const title = readText(formData, 'title')
+  const description = readText(formData, 'description')
+  const category = readText(formData, 'category')
+  const statusValue = readText(formData, 'status')
+  const waitFreeHours = readInteger(formData, 'waitFreeHours', 24)
+
+  if (!title || !description || !category) {
+    throw new Error('필수 항목이 비어 있습니다.')
+  }
+
+  if (!isWebtoonStatus(statusValue)) {
+    throw new Error('유효하지 않은 작품 상태입니다.')
+  }
+
+  if (waitFreeHours < 0 || waitFreeHours > 168) {
+    throw new Error('기다리면 무료 시간은 0시간에서 168시간 사이여야 합니다.')
+  }
+
+  const contentRating = parseChannelContentRating(formData)
+
+  return {
+    title,
+    description,
+    coverImageUrl: readOptionalAssetUrl(formData, 'coverImageUrl'),
+    ageRating: contentRating.ageRating,
+    ratingChecklist: contentRating.ratingChecklist,
+    isAdultOnly: contentRating.isAdultOnly,
+    isCommentEnabled: readBoolean(formData, 'isCommentEnabled'),
+    commentPolicyNote: readOptionalText(formData, 'commentPolicyNote'),
+    status: statusValue,
+    waitFreeHours,
+    category,
+    tags: sanitizeNovelTags(readText(formData, 'tags')),
+  }
+}
+
+function buildNovelChannelPayload(
+  input: NovelDraftInput,
+  creatorId: string,
+  creatorChannelId: string
+) {
+  return {
+    creator_id: creatorId,
+    creator_channel_id: creatorChannelId,
+    title: input.title,
+    description: input.description,
+    cover_image_url: input.coverImageUrl,
+    age_rating: input.ageRating,
+    rating_checklist: buildRatingChecklistJson(input.ratingChecklist),
+    is_adult_only: input.isAdultOnly,
+    is_comment_enabled: input.isCommentEnabled,
+    comment_policy_note: input.commentPolicyNote,
+    status: input.status,
+    work_type: 'novel' as const,
+    serialization_days: [],
+    wait_free_hours: input.waitFreeHours,
+  }
+}
+
+function parseNovelEpisodeDraft(formData: FormData): NovelEpisodeDraftInput {
+  const title = readText(formData, 'title')
+  const episodeNumber = readInteger(formData, 'episodeNumber')
+  const bodyText = readText(formData, 'bodyText')
+  const pricingTypeValue = readText(formData, 'pricingType')
+  const statusValue = readText(formData, 'status')
+
+  if (!title || episodeNumber <= 0) {
+    throw new Error('회차 제목과 번호를 확인해 주세요.')
+  }
+
+  if (!isNovelEpisodePricing(pricingTypeValue)) {
+    throw new Error('유효하지 않은 가격 정책입니다.')
+  }
+
+  if (!isNovelEpisodeStatus(statusValue)) {
+    throw new Error('유효하지 않은 회차 상태입니다.')
+  }
+
+  if (statusValue === 'published' && bodyText.replace(/\s/g, '').length < 200) {
+    throw new Error('공개 웹소설 회차에는 최소 200자 이상의 본문이 필요합니다.')
+  }
+
+  const coinPrice =
+    pricingTypeValue === 'free' ? 0 : Math.max(0, readInteger(formData, 'coinPrice', 7))
+
+  return {
+    title,
+    episodeNumber,
+    bodyText,
+    pricingType: pricingTypeValue,
+    coinPrice,
+    isAdultOnly: readBoolean(formData, 'isAdultOnly'),
+    status: statusValue,
   }
 }
 
@@ -585,8 +709,9 @@ function parseWebtoonEpisodeDraft(formData: FormData): WebtoonEpisodeDraftInput 
 
 export async function createSparkChannel(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
+  const creatorChannel = await ensureDefaultCreatorChannel(userId)
   const input = parseSparkDraft(formData)
-  const payload = buildSparkChannelPayload(input, userId)
+  const payload = buildSparkChannelPayload(input, userId, creatorChannel.id)
   const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
   const pendingPanelFiles = readImageFiles(formData, 'pendingSparkPanelFiles')
 
@@ -658,6 +783,7 @@ export async function createSparkChannel(formData: FormData) {
 
 export async function updateSparkChannel(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
+  const creatorChannel = await ensureDefaultCreatorChannel(userId)
   const channelId = readText(formData, 'channelId')
 
   if (!channelId) {
@@ -665,7 +791,7 @@ export async function updateSparkChannel(formData: FormData) {
   }
 
   const input = parseSparkDraft(formData)
-  const payload = buildSparkChannelPayload(input, userId)
+  const payload = buildSparkChannelPayload(input, userId, creatorChannel.id)
 
   const { error } = await supabase
     .from('channels')
@@ -686,8 +812,9 @@ export async function updateSparkChannel(formData: FormData) {
 
 export async function createWebtoonChannel(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
+  const creatorChannel = await ensureDefaultCreatorChannel(userId)
   const input = parseWebtoonDraft(formData)
-  const payload = buildWebtoonChannelPayload(input, userId)
+  const payload = buildWebtoonChannelPayload(input, userId, creatorChannel.id)
   const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
 
   const { data, error } = await supabase
@@ -754,7 +881,7 @@ export async function updateChannelContentRating(formData: FormData) {
     throw new Error('등급을 저장할 작품을 찾지 못했습니다.')
   }
 
-  if (workType !== 'webtoon' && workType !== 'spark') {
+  if (!isWorkType(workType)) {
     throw new Error('유효하지 않은 작품 유형입니다.')
   }
 
@@ -782,7 +909,7 @@ export async function updateChannelContentRating(formData: FormData) {
 
   if (workType === 'spark') {
     revalidatePath(`/main/spark/${channelId}`)
-  } else {
+  } else if (workType === 'webtoon') {
     revalidatePath(`/main/explore/${channelId}`)
   }
 
@@ -791,6 +918,7 @@ export async function updateChannelContentRating(formData: FormData) {
 
 export async function updateWebtoonChannel(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
+  const creatorChannel = await ensureDefaultCreatorChannel(userId)
   const channelId = readText(formData, 'channelId')
 
   if (!channelId) {
@@ -798,7 +926,7 @@ export async function updateWebtoonChannel(formData: FormData) {
   }
 
   const input = parseWebtoonDraft(formData)
-  const payload = buildWebtoonChannelPayload(input, userId)
+  const payload = buildWebtoonChannelPayload(input, userId, creatorChannel.id)
   const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
 
   const { error } = await supabase
@@ -853,6 +981,222 @@ export async function updateWebtoonChannel(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath('/main/studio/channels')
   redirect(`/main/studio/channels/webtoon/${channelId}/edit`)
+}
+
+export async function createNovelChannel(formData: FormData) {
+  const { supabase, userId } = await requireCreatorAccess()
+  const creatorChannel = await ensureDefaultCreatorChannel(userId)
+  const input = parseNovelDraft(formData)
+  const payload = buildNovelChannelPayload(input, userId, creatorChannel.id)
+  const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
+
+  const { data, error } = await supabase
+    .from('channels')
+    .insert(payload)
+    .select('id')
+    .single()
+
+  if (error || !data) {
+    throw new Error(error?.message || '웹소설을 만들지 못했습니다.')
+  }
+
+  const { error: revenueError } = await supabase
+    .from('revenue_settings')
+    .upsert({ channel_id: data.id }, { onConflict: 'channel_id' })
+
+  if (revenueError) {
+    throw new Error(revenueError.message)
+  }
+
+  await syncChannelTags(data.id, input.category, input.tags)
+
+  if (pendingCoverImageFile) {
+    const uploadedCoverUrl = await uploadChannelCoverFile({
+      channelId: data.id,
+      file: pendingCoverImageFile,
+    })
+
+    const { error: coverError } = await supabase
+      .from('channels')
+      .update({ cover_image_url: uploadedCoverUrl })
+      .eq('id', data.id)
+      .eq('creator_id', userId)
+      .eq('work_type', 'novel')
+
+    if (coverError) {
+      throw new Error(coverError.message)
+    }
+  }
+
+  revalidatePath('/main/explore')
+  revalidatePath('/main/studio')
+  revalidatePath('/main/studio/channels')
+  redirect(`/main/studio/channels/novel/${data.id}/rating`)
+}
+
+export async function updateNovelChannel(formData: FormData) {
+  const { supabase, userId } = await requireCreatorAccess()
+  const creatorChannel = await ensureDefaultCreatorChannel(userId)
+  const channelId = readText(formData, 'channelId')
+
+  if (!channelId) {
+    throw new Error('수정 대상 웹소설을 찾지 못했습니다.')
+  }
+
+  const input = parseNovelDraft(formData)
+  const payload = buildNovelChannelPayload(input, userId, creatorChannel.id)
+  const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
+
+  const { error } = await supabase
+    .from('channels')
+    .update(payload)
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', 'novel')
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  await syncChannelTags(channelId, input.category, input.tags)
+
+  if (pendingCoverImageFile) {
+    const uploadedCoverUrl = await uploadChannelCoverFile({
+      channelId,
+      file: pendingCoverImageFile,
+    })
+
+    const { error: coverError } = await supabase
+      .from('channels')
+      .update({ cover_image_url: uploadedCoverUrl })
+      .eq('id', channelId)
+      .eq('creator_id', userId)
+      .eq('work_type', 'novel')
+
+    if (coverError) {
+      throw new Error(coverError.message)
+    }
+  }
+
+  revalidatePath('/main/explore')
+  revalidatePath(`/main/explore/${channelId}`)
+  revalidatePath('/main/studio/channels')
+  redirect(`/main/studio/channels/novel/${channelId}/edit`)
+}
+
+export async function createNovelEpisode(formData: FormData) {
+  const { supabase, userId } = await requireCreatorAccess()
+  const channelId = readText(formData, 'channelId')
+
+  if (!channelId) {
+    throw new Error('회차를 추가할 웹소설을 찾지 못했습니다.')
+  }
+
+  const input = parseNovelEpisodeDraft(formData)
+
+  const { data: channel, error: channelError } = await supabase
+    .from('channels')
+    .select('id')
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', 'novel')
+    .single()
+
+  if (channelError || !channel) {
+    throw new Error('내 웹소설에서만 회차를 만들 수 있습니다.')
+  }
+
+  const publishedAt = input.status === 'published' ? new Date().toISOString() : null
+
+  const { data: episode, error: episodeError } = await supabase
+    .from('episodes')
+    .insert({
+      channel_id: channelId,
+      episode_number: input.episodeNumber,
+      title: input.title,
+      body_text: input.bodyText,
+      pricing_type: input.pricingType,
+      coin_price: input.coinPrice,
+      is_adult_only: input.isAdultOnly,
+      status: input.status,
+      published_at: publishedAt,
+    })
+    .select('id')
+    .single()
+
+  if (episodeError || !episode) {
+    throw new Error(episodeError?.message || '웹소설 회차를 만들지 못했습니다.')
+  }
+
+  revalidatePath('/main/explore')
+  revalidatePath(`/main/explore/${channelId}`)
+  revalidatePath(`/main/studio/channels/novel/${channelId}/edit`)
+  redirect(`/main/studio/channels/novel/${channelId}/episodes/${episode.id}/edit`)
+}
+
+export async function updateNovelEpisode(formData: FormData) {
+  const { supabase, userId } = await requireCreatorAccess()
+  const channelId = readText(formData, 'channelId')
+  const episodeId = readText(formData, 'episodeId')
+
+  if (!channelId || !episodeId) {
+    throw new Error('수정 대상 웹소설 회차를 찾지 못했습니다.')
+  }
+
+  const input = parseNovelEpisodeDraft(formData)
+
+  const { data: ownedChannel, error: channelError } = await supabase
+    .from('channels')
+    .select('id')
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', 'novel')
+    .single()
+
+  if (channelError || !ownedChannel) {
+    throw new Error('내 웹소설에서만 회차를 수정할 수 있습니다.')
+  }
+
+  const { data: existingEpisode, error: existingError } = await supabase
+    .from('episodes')
+    .select('id, published_at, status')
+    .eq('id', episodeId)
+    .eq('channel_id', channelId)
+    .single()
+
+  if (existingError || !existingEpisode) {
+    throw new Error('수정할 웹소설 회차를 찾지 못했습니다.')
+  }
+
+  const publishedAt =
+    input.status === 'published'
+      ? existingEpisode.published_at ?? new Date().toISOString()
+      : null
+
+  const { error } = await supabase
+    .from('episodes')
+    .update({
+      episode_number: input.episodeNumber,
+      title: input.title,
+      body_text: input.bodyText,
+      pricing_type: input.pricingType,
+      coin_price: input.coinPrice,
+      is_adult_only: input.isAdultOnly,
+      status: input.status,
+      published_at: publishedAt,
+    })
+    .eq('id', episodeId)
+    .eq('channel_id', channelId)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  revalidatePath('/main/explore')
+  revalidatePath(`/main/explore/${channelId}`)
+  revalidatePath(`/main/explore/${channelId}/episodes/${episodeId}`)
+  revalidatePath(`/main/studio/channels/novel/${channelId}/edit`)
+  redirect(`/main/studio/channels/novel/${channelId}/episodes/${episodeId}/edit`)
 }
 
 export async function createWebtoonEpisode(formData: FormData) {

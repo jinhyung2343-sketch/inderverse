@@ -28,6 +28,7 @@ export function LibraryShelf({ artworks, isGuest = false }: { artworks: ExploreA
             title={artwork.title}
             authorName={artwork.authorName}
             coverImageUrl={artwork.coverImageUrl}
+            workType={artwork.workType}
             status={artwork.status}
             isAdultOnly={artwork.isAdultOnly}
             isCommentEnabled={artwork.isCommentEnabled}

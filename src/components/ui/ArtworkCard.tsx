@@ -1,10 +1,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { getWorkTypeLabel } from '@/lib/work';
+import type { WorkType } from '@/lib/work';
 
 interface ArtworkCardProps {
   title: string;
   authorName: string;
   coverImageUrl: string;
+  workType?: WorkType;
   status: 'publishing' | 'completed';
   isAdultOnly: boolean;
   href?: string;
@@ -17,6 +20,7 @@ export function ArtworkCard({
   title,
   authorName,
   coverImageUrl,
+  workType,
   status,
   isAdultOnly,
   href,
@@ -46,6 +50,11 @@ export function ArtworkCard({
           {isAdultOnly && (
             <span className="rounded bg-red-600/90 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
               19
+            </span>
+          )}
+          {workType && (
+            <span className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
+              {getWorkTypeLabel(workType)}
             </span>
           )}
           {status === 'completed' && (

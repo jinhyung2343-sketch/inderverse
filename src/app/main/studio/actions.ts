@@ -84,7 +84,7 @@ export async function becomeCreator() {
   const currentRole = profile.role as UserRole | undefined
 
   if (currentRole === 'creator' || currentRole === 'admin') {
-    redirect('/main/studio/channels')
+    redirect('/main/studio/creator-channel')
   }
 
   const { error } = await admin
@@ -97,8 +97,9 @@ export async function becomeCreator() {
   }
 
   revalidatePath('/main/studio')
+  revalidatePath('/main/studio/creator-channel')
   revalidatePath('/main/studio/channels')
-  redirect('/main/studio/channels')
+  redirect('/main/studio/creator-channel')
 }
 
 export async function acceptCreatorAgreement(
@@ -140,7 +141,7 @@ export async function acceptCreatorAgreement(
   const currentRole = profile.role as UserRole | undefined
 
   if (currentRole === 'creator' || currentRole === 'admin') {
-    redirect('/main/studio/channels')
+    redirect('/main/studio/creator-channel')
   }
 
   const { error: consentError } = await admin
@@ -178,6 +179,7 @@ export async function acceptCreatorAgreement(
   revalidatePath('/main')
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/creator-agreement')
+  revalidatePath('/main/studio/creator-channel')
   revalidatePath('/main/studio/channels')
-  redirect('/main/studio/channels')
+  redirect('/main/studio/creator-channel')
 }

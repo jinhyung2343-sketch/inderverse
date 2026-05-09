@@ -134,6 +134,7 @@ export type Database = {
           comment_policy_note: string | null
           cover_image_url: string | null
           created_at: string
+          creator_channel_id: string | null
           creator_id: string
           description: string | null
           id: string
@@ -156,6 +157,7 @@ export type Database = {
           comment_policy_note?: string | null
           cover_image_url?: string | null
           created_at?: string
+          creator_channel_id?: string | null
           creator_id: string
           description?: string | null
           id?: string
@@ -178,6 +180,7 @@ export type Database = {
           comment_policy_note?: string | null
           cover_image_url?: string | null
           created_at?: string
+          creator_channel_id?: string | null
           creator_id?: string
           description?: string | null
           id?: string
@@ -197,10 +200,86 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "channels_creator_channel_id_fkey"
+            columns: ["creator_channel_id"]
+            isOneToOne: false
+            referencedRelation: "creator_channels"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "channels_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_assets: {
+        Row: {
+          asset_type: string
+          channel_id: string
+          created_at: string
+          duration_seconds: number | null
+          episode_id: string | null
+          file_size_bytes: number | null
+          height: number | null
+          id: string
+          metadata: Json
+          mime_type: string
+          processing_status: string
+          public_url: string
+          sort_order: number
+          storage_path: string | null
+          width: number | null
+        }
+        Insert: {
+          asset_type: string
+          channel_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          episode_id?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          metadata?: Json
+          mime_type: string
+          processing_status?: string
+          public_url: string
+          sort_order?: number
+          storage_path?: string | null
+          width?: number | null
+        }
+        Update: {
+          asset_type?: string
+          channel_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          episode_id?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          metadata?: Json
+          mime_type?: string
+          processing_status?: string
+          public_url?: string
+          sort_order?: number
+          storage_path?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_assets_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_assets_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
             referencedColumns: ["id"]
           },
         ]
@@ -238,6 +317,56 @@ export type Database = {
             foreignKeyName: "creator_agreement_consents_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_channels: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          cover_image_url: string | null
+          created_at: string
+          display_name: string
+          external_links: Json
+          id: string
+          owner_id: string
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          display_name: string
+          external_links?: Json
+          id?: string
+          owner_id: string
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          display_name?: string
+          external_links?: Json
+          id?: string
+          owner_id?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_channels_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -660,6 +789,8 @@ export type Database = {
       }
       episodes: {
         Row: {
+          body_json: Json
+          body_text: string | null
           channel_id: string
           coin_price: number
           created_at: string
@@ -673,6 +804,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          body_json?: Json
+          body_text?: string | null
           channel_id: string
           coin_price?: number
           created_at?: string
@@ -686,6 +819,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          body_json?: Json
+          body_text?: string | null
           channel_id?: string
           coin_price?: number
           created_at?: string
@@ -1025,7 +1160,15 @@ export type Database = {
       settlement_status: "pending" | "processing" | "completed" | "failed"
       tag_category: "genre" | "mood" | "warning"
       user_role: "reader" | "creator" | "admin"
-      work_type: "webtoon" | "spark"
+      work_type:
+        | "webtoon"
+        | "spark"
+        | "novel"
+        | "audio_drama"
+        | "music"
+        | "illustration"
+        | "essay"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1167,7 +1310,16 @@ export const Constants = {
       settlement_status: ["pending", "processing", "completed", "failed"],
       tag_category: ["genre", "mood", "warning"],
       user_role: ["reader", "creator", "admin"],
-      work_type: ["webtoon", "spark"],
+      work_type: [
+        "webtoon",
+        "spark",
+        "novel",
+        "audio_drama",
+        "music",
+        "illustration",
+        "essay",
+        "other",
+      ],
     },
   },
 } as const

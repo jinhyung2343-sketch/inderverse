@@ -31,11 +31,10 @@ export async function POST(req: NextRequest) {
       .select('id, creator_id, work_type')
       .eq('id', channelId)
       .eq('creator_id', user.id)
-      .eq('work_type', 'webtoon')
       .single()
 
     if (channelError || !ownedChannel) {
-      return NextResponse.json({ error: 'Forbidden: not your webtoon channel' }, { status: 403 })
+      return NextResponse.json({ error: 'Forbidden: not your channel' }, { status: 403 })
     }
 
     const { url, filePath, publicUrl } = await generateChannelCoverSignedUrl({

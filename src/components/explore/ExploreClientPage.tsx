@@ -10,6 +10,9 @@ import {
   quickFilters,
   type ExploreArtwork,
 } from '@/lib/explore'
+import { getWorkTypeLabel } from '@/lib/work'
+
+const workTypeFilters = ['전체 형식', 'webtoon', 'novel'] as const
 
 export function ExploreClientPage({
   initialArtworks,
@@ -18,14 +21,19 @@ export function ExploreClientPage({
 }) {
   const [activeCategory, setActiveCategory] = useState('전체')
   const [activeFilter, setActiveFilter] = useState('추천')
+  const [activeWorkType, setActiveWorkType] = useState<(typeof workTypeFilters)[number]>('전체 형식')
   const [searchQuery, setSearchQuery] = useState('')
   const deferredQuery = useDeferredValue(searchQuery)
   const activeTags = categoryTags[activeCategory] ?? []
   const normalizedQuery = deferredQuery.trim().toLowerCase()
   const hasActiveConditions =
-    activeCategory !== '전체' || activeFilter !== '추천' || searchQuery.trim().length > 0
+    activeCategory !== '전체' ||
+    activeFilter !== '추천' ||
+    activeWorkType !== '전체 형식' ||
+    searchQuery.trim().length > 0
 
   const filteredArtworks = initialArtworks.filter((artwork) => {
+    const matchesWorkType = activeWorkType === '전체 형식' || artwork.workType === activeWorkType
     const matchesCategory = activeCategory === '전체' || artwork.category === activeCategory
     const matchesFilter = activeFilter === '추천' || artwork.filterTags.includes(activeFilter)
     const matchesQuery =
@@ -34,12 +42,13 @@ export function ExploreClientPage({
       artwork.authorName.toLowerCase().includes(normalizedQuery) ||
       artwork.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
 
-    return matchesCategory && matchesFilter && matchesQuery
+    return matchesWorkType && matchesCategory && matchesFilter && matchesQuery
   })
 
   const resetFilters = () => {
     setActiveCategory('전체')
     setActiveFilter('추천')
+    setActiveWorkType('전체 형식')
     setSearchQuery('')
   }
 
@@ -84,6 +93,29 @@ export function ExploreClientPage({
             </div>
 
             <div className="space-y-3">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="작품 형식">
+                {workTypeFilters.map((workType) => {
+                  const isActive = workType === activeWorkType
+                  const label = workType === '전체 형식' ? workType : getWorkTypeLabel(workType)
+
+                  return (
+                    <button
+                      key={workType}
+                      type="button"
+                      onClick={() => setActiveWorkType(workType)}
+                      className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
+                        isActive
+                          ? 'border-violet-400/40 bg-violet-500/15 text-violet-100'
+                          : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="카테고리">
                 {categories.map((category) => {
                   const isActive = category === activeCategory
@@ -184,6 +216,7 @@ export function ExploreClientPage({
                   title={artwork.title}
                   authorName={artwork.authorName}
                   coverImageUrl={artwork.coverImageUrl}
+                  workType={artwork.workType}
                   status={artwork.status}
                   isAdultOnly={artwork.isAdultOnly}
                   isCommentEnabled={artwork.isCommentEnabled}

@@ -1,32 +1,32 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { updateWebtoonChannel } from '@/app/main/studio/channels/actions'
+import { updateNovelChannel } from '@/app/main/studio/channels/actions'
+import { NovelEditorForm } from '@/components/novel/NovelEditorForm'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
-import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
-import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
+import { getCreatorNovelById } from '@/lib/server/novel-studio'
 import {
   getAgeRatingLabel,
-  getEpisodePricingLabel,
-  getEpisodeStatusLabel,
-  getWebtoonStatusLabel,
-} from '@/lib/webtoon'
+  getNovelEpisodePricingLabel,
+  getNovelEpisodeStatusLabel,
+  getNovelStatusLabel,
+} from '@/lib/novel'
 
-export default async function EditWebtoonPage({
+export default async function EditNovelPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const webtoon = await getCreatorWebtoonById(id)
+  const novel = await getCreatorNovelById(id)
 
-  if (!webtoon) {
+  if (!novel) {
     notFound()
   }
 
-  async function updateWebtoonChannelWithId(formData: FormData) {
+  async function updateNovelChannelWithId(formData: FormData) {
     'use server'
     formData.set('channelId', id)
-    await updateWebtoonChannel(formData)
+    await updateNovelChannel(formData)
   }
 
   return (
@@ -36,52 +36,50 @@ export default async function EditWebtoonPage({
 
         <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon</p>
-            <p className="text-sm text-zinc-400">현재 상태: {getWebtoonStatusLabel(webtoon.status)}</p>
-            <p className="text-sm text-zinc-500">현재 등급: {getAgeRatingLabel(webtoon.ageRating)}</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Novel</p>
+            <p className="text-sm text-zinc-400">현재 상태: {getNovelStatusLabel(novel.status)}</p>
+            <p className="text-sm text-zinc-500">현재 등급: {getAgeRatingLabel(novel.ageRating)}</p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/main/studio/channels/webtoon/${webtoon.id}/rating`}
-              className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-            >
-              등급 설정
-            </Link>
-          </div>
+          <Link
+            href={`/main/studio/channels/novel/${novel.id}/rating`}
+            className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+          >
+            등급 설정
+          </Link>
         </header>
 
-        <WebtoonEditorForm
-          action={updateWebtoonChannelWithId}
-          initialValue={webtoon}
-          heading="웹툰 채널 수정"
-          description="탐색 노출에 쓰이는 작품 메타데이터와 연재 운용 기준을 직접 다듬습니다."
+        <NovelEditorForm
+          action={updateNovelChannelWithId}
+          initialValue={novel}
+          heading="웹소설 수정"
+          description="작품 메타데이터와 공개 설정을 다듬고, 아래 회차 섹션에서 본문을 이어서 관리합니다."
           submitLabel="변경 저장"
-          channelId={webtoon.id}
+          channelId={novel.id}
         />
 
         <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Episodes</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Novel Episodes</p>
               <h2 className="mt-2 text-2xl font-bold text-white">회차 관리</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                회차별 공개 상태, 가격 정책, 이미지 업로드를 이곳에서 이어서 관리합니다.
+                회차별 본문, 공개 상태, 가격 정책을 이곳에서 이어서 관리합니다.
               </p>
             </div>
             <Link
-              href={`/main/studio/channels/webtoon/${webtoon.id}/episodes/new`}
+              href={`/main/studio/channels/novel/${novel.id}/episodes/new`}
               className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
             >
               새 회차 만들기
             </Link>
           </div>
 
-          {webtoon.episodes.length > 0 ? (
+          {novel.episodes.length > 0 ? (
             <div className="mt-6 grid gap-3">
-              {webtoon.episodes.map((episode) => (
+              {novel.episodes.map((episode) => (
                 <Link
                   key={episode.id}
-                  href={`/main/studio/channels/webtoon/${webtoon.id}/episodes/${episode.id}/edit`}
+                  href={`/main/studio/channels/novel/${novel.id}/episodes/${episode.id}/edit`}
                   className="rounded-3xl border border-white/10 bg-black/20 p-5 transition hover:bg-white/10"
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -90,12 +88,12 @@ export default async function EditWebtoonPage({
                         {episode.episodeNumber}화. {episode.title}
                       </h3>
                       <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        이미지 {episode.images.length}장 · {getEpisodePricingLabel(episode.pricingType)}
+                        본문 {episode.bodyText.replace(/\s/g, '').length.toLocaleString('ko-KR')}자 · {getNovelEpisodePricingLabel(episode.pricingType)}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                        {getEpisodeStatusLabel(episode.status)}
+                        {getNovelEpisodeStatusLabel(episode.status)}
                       </span>
                       {episode.pricingType !== 'free' ? (
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
@@ -109,7 +107,7 @@ export default async function EditWebtoonPage({
             </div>
           ) : (
             <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-400">
-              아직 만든 회차가 없습니다. 첫 회차를 만들면 여기에서 이미지 업로드와 공개 상태를 계속 다듬을 수 있습니다.
+              아직 만든 회차가 없습니다. 첫 회차를 만들면 여기에서 본문과 공개 상태를 계속 다듬을 수 있습니다.
             </div>
           )}
         </section>

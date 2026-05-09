@@ -89,6 +89,7 @@ export function EpisodeAccessPanel({
   const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
   const canRead = effective.accessState === 'free' || effective.accessState === 'purchased'
   const isServerReady = hasServerEpisodeLink(episode)
+  const isNovel = episode.workType === 'novel'
 
   if (canRead) {
     return (
@@ -98,7 +99,17 @@ export function EpisodeAccessPanel({
             구매 완료
           </div>
         ) : null}
-        {episode.imageUrls && episode.imageUrls.length > 0 ? (
+        {isNovel ? (
+          <div className="mx-auto max-w-3xl space-y-7 font-serif text-[17px] leading-9 text-zinc-100 md:text-xl md:leading-10">
+            {episode.body.length > 0 ? (
+              episode.body.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))
+            ) : (
+              <p className="text-zinc-400">아직 공개 본문이 준비되지 않았습니다.</p>
+            )}
+          </div>
+        ) : episode.imageUrls && episode.imageUrls.length > 0 ? (
           <div className="grid gap-4">
             {episode.body.length > 0 ? (
               <div className="space-y-4 text-sm leading-7 text-zinc-300 md:text-base">

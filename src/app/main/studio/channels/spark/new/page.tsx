@@ -6,7 +6,7 @@ export default function NewSparkPage() {
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href="/main/studio/channels" ariaLabel="채널 메뉴로 돌아가기" />
+        <PageBackLink href="/main/studio/channels/webtoon" ariaLabel="웹툰 만들기로 돌아가기" />
 
         <header>
           <div className="space-y-2">

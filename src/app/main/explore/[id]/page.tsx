@@ -7,6 +7,7 @@ import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
 import { getPublicArtworkById, getPublicArtworkList, getRelatedArtworks } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
+import { getWorkTypeLabel } from '@/lib/work'
 
 const sectionLinks = [
   { id: 'overview', label: '작품 소개' },
@@ -47,7 +48,9 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
 
             <div className="flex flex-col gap-5 p-6 md:p-8">
               <div className="space-y-3">
-                <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">{artwork.category}</p>
+                <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">
+                  {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'} · {artwork.category}
+                </p>
                 <h1 className="text-4xl font-black tracking-tight">{artwork.title}</h1>
                 <p className="text-sm text-zinc-400">{artwork.authorName} · {artwork.status === 'completed' ? '완결' : '연재중'}</p>
               </div>
@@ -116,7 +119,10 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
           <aside className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">작품 정보</p>
             <div className="mt-5 grid gap-3 text-sm text-zinc-300">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">장르: {artwork.category}</div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  형식: {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'}
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">장르: {artwork.category}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">작가: {artwork.authorName}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">상태: {artwork.status === 'completed' ? '완결' : '연재중'}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">댓글: {artwork.isCommentEnabled ? '활성화' : '비활성화'}</div>
@@ -177,6 +183,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                       title={item.title}
                       authorName={item.authorName}
                       coverImageUrl={item.coverImageUrl}
+                      workType={item.workType}
                       status={item.status}
                       isAdultOnly={item.isAdultOnly}
                       isCommentEnabled={item.isCommentEnabled}
