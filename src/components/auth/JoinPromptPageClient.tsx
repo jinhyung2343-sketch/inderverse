@@ -11,20 +11,15 @@ export function JoinPromptPageClient({
   const safeNextPath = nextPath ? sanitizeInternalPath(nextPath, '/main') : null
   const encodedNextPath = safeNextPath ? encodeURIComponent(safeNextPath) : null
   const signUpHref = encodedNextPath ? `/auth/sign-up?next=${encodedNextPath}` : '/auth/sign-up'
-  const backHref = safeNextPath?.startsWith('/main') ? '/main' : '/'
-  const backLabel = safeNextPath?.startsWith('/main') ? '허브로 돌아가기' : '처음으로 돌아가기'
+  const signInHref = encodedNextPath ? `/auth/sign-in?next=${encodedNextPath}` : '/auth/sign-in'
+  const backHref = '/'
+  const backLabel = '처음으로 돌아가기'
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#050505] px-6 text-white selection:bg-white/30">
       <header className="absolute left-0 top-0 z-20 w-full p-6 md:p-8">
         <div className="flex items-center gap-3">
-          <PageBackLink href={backHref} ariaLabel={backLabel} />
-          <Link
-            href={backHref}
-            className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
-          >
-            {backLabel}
-          </Link>
+          <PageBackLink href={backHref} ariaLabel={backLabel} showLabel />
         </div>
       </header>
 
@@ -46,8 +41,15 @@ export function JoinPromptPageClient({
 
         <div className="mt-4 flex w-full flex-col gap-4">
           <Link
-            href={signUpHref}
+            href={signInHref}
             className="flex w-full items-center justify-center rounded-xl bg-white py-4 font-semibold tracking-wide text-black shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-colors hover:scale-[1.02] hover:bg-zinc-200 active:scale-[0.98]"
+          >
+            로그인
+          </Link>
+
+          <Link
+            href={signUpHref}
+            className="flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 py-4 font-medium text-zinc-200 transition-colors hover:scale-[1.02] hover:bg-white/10 active:scale-[0.98]"
           >
             회원가입
           </Link>

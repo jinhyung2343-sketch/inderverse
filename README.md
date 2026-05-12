@@ -33,6 +33,24 @@ npm run build
 
 Supabase 로컬 스택을 사용한다면 프로젝트 루트의 `supabase/` 디렉터리 설정을 기준으로 실행합니다.
 
+### 실제 비밀번호 재설정 메일 테스트
+
+로컬 Supabase에서도 가입한 이메일로 비밀번호 재설정 인증코드를 실제 발송하려면 SMTP 환경 변수를 `.env.local` 또는 `supabase/.env.local`에 설정한 뒤 Supabase 로컬 스택을 재시작해야 합니다.
+
+```env
+SUPABASE_AUTH_SMTP_HOST=smtp.resend.com
+SUPABASE_AUTH_SMTP_USER=resend
+SUPABASE_AUTH_SMTP_PASS=your-resend-api-key
+SUPABASE_AUTH_SMTP_ADMIN_EMAIL=no-reply@your-verified-domain.com
+SUPABASE_AUTH_SMTP_SENDER_NAME=Inderverse
+```
+
+```bash
+npm run supabase:start:mail
+```
+
+비밀번호 재설정 메일은 로컬 메일함이 아니라 Resend SMTP를 통해 실제 가입 이메일 주소로 발송됩니다. 입력한 이메일이 현재 연결된 Supabase 프로젝트에 가입되어 있어야 메일이 발송됩니다.
+
 ## Notes
 
 - PASS/휴대폰 본인인증은 실제 외부 연동 전 단계의 확장 가능한 API 골격까지 연결되어 있습니다.

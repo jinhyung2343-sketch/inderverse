@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PolicyViewerModal } from '@/components/auth/PolicyViewerModal'
@@ -117,7 +118,9 @@ export function SignUpPageClient({
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const redirectPath = sanitizeInternalPath(nextPath, '/main')
+  const encodedRedirectPath = encodeURIComponent(redirectPath)
   const backHref = nextPath ? getJoinPromptHref(nextPath) : '/join-prompt'
+  const signInHref = `/auth/sign-in?next=${encodedRedirectPath}`
 
   const allRequiredAgreed = hasAcceptedAllRequiredSignUpConsents(consents)
   const allConsentsChecked = [...requiredSignUpConsentItems, ...optionalSignUpConsentItems].every(
@@ -204,13 +207,20 @@ export function SignUpPageClient({
     setErrorMessage('')
 
     const supabase = createClient()
+    const normalizedEmail = email.trim().toLowerCase()
     const guardianRequestedAt = ageConsentMode === 'guardian' ? new Date().toISOString() : null
     const ageBand = ageConsentMode === 'guardian' ? 'under_14' : '14_or_over'
     const guardianConsentStatus = ageConsentMode === 'guardian' ? 'pending' : 'not_required'
+    const afterVerifyPath = ageConsentMode === 'guardian' ? '/main/guardian-consent' : redirectPath
+    const emailRedirectTo =
+      typeof window === 'undefined'
+        ? undefined
+        : `${window.location.origin}/auth/verify-email?next=${encodeURIComponent(afterVerifyPath)}`
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: normalizedEmail,
       password,
       options: {
+        emailRedirectTo,
         data: {
           display_name: displayName.trim(),
           ...buildUserTermsConsentMetadata(consents),
@@ -260,7 +270,9 @@ export function SignUpPageClient({
     }
 
     setIsSubmitting(false)
-    router.replace(ageConsentMode === 'guardian' ? '/main/guardian-consent' : redirectPath)
+    router.replace(
+      `/auth/verify-email?email=${encodeURIComponent(normalizedEmail)}&next=${encodeURIComponent(afterVerifyPath)}`
+    )
     router.refresh()
   }
 
@@ -282,6 +294,13 @@ export function SignUpPageClient({
               <h1 className="text-3xl font-bold tracking-tight">{BRAND.name} 회원가입</h1>
               <p className="text-sm leading-6 text-zinc-400 md:text-base">
                 계정을 만드는 순간부터 이용 기준이 분명해야 더 안심하고 머물 수 있다고 생각했습니다. 기본 정보와 약관 동의를 한 번에 정리해 바로 시작할 수 있게 준비했습니다.
+              </p>
+              <p className="text-sm leading-6 text-zinc-500">
+                이미 계정이 있다면{' '}
+                <Link href={signInHref} className="font-semibold text-white underline underline-offset-4">
+                  로그인
+                </Link>
+                으로 이어서 사용할 수 있습니다.
               </p>
             </div>
 
