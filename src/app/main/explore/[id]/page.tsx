@@ -52,7 +52,16 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                   {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'} · {artwork.category}
                 </p>
                 <h1 className="text-4xl font-black tracking-tight">{artwork.title}</h1>
-                <p className="text-sm text-zinc-400">{artwork.authorName} · {artwork.status === 'completed' ? '완결' : '연재중'}</p>
+                <p className="text-sm text-zinc-400">
+                  {artwork.creatorSlug ? (
+                    <Link href={`/main/creators/${artwork.creatorSlug}`} className="transition hover:text-white">
+                      {artwork.authorName}
+                    </Link>
+                  ) : (
+                    artwork.authorName
+                  )}{' '}
+                  · {artwork.status === 'completed' ? '완결' : '연재중'}
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -93,6 +102,14 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                   </span>
                 )}
                 <LibraryToggleButton artworkId={artwork.id} artworkTitle={artwork.title} initialSaved={isSaved} />
+                {artwork.creatorSlug ? (
+                  <Link
+                    href={`/main/creators/${artwork.creatorSlug}`}
+                    className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-5 py-3 text-sm text-cyan-100 transition hover:bg-cyan-500/15"
+                  >
+                    작가 채널 보기
+                  </Link>
+                ) : null}
                 <a href="#overview" className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10">
                   작품 정보 보기
                 </a>
@@ -123,7 +140,16 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                   형식: {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'}
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">장르: {artwork.category}</div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">작가: {artwork.authorName}</div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                작가:{' '}
+                {artwork.creatorSlug ? (
+                  <Link href={`/main/creators/${artwork.creatorSlug}`} className="underline underline-offset-4 transition hover:text-white">
+                    {artwork.authorName}
+                  </Link>
+                ) : (
+                  artwork.authorName
+                )}
+              </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">상태: {artwork.status === 'completed' ? '완결' : '연재중'}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">댓글: {artwork.isCommentEnabled ? '활성화' : '비활성화'}</div>
               {backendCoverage.totalCount > 0 ? (
@@ -182,6 +208,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                       key={item.id}
                       title={item.title}
                       authorName={item.authorName}
+                      authorHref={item.creatorSlug ? `/main/creators/${item.creatorSlug}` : undefined}
                       coverImageUrl={item.coverImageUrl}
                       workType={item.workType}
                       status={item.status}

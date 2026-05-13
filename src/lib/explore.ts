@@ -20,6 +20,8 @@ export interface ExploreArtwork {
   workType?: 'webtoon' | 'novel'
   title: string
   authorName: string
+  authorAvatarUrl?: string | null
+  creatorSlug?: string | null
   coverImageUrl: string
   status: ArtworkStatus
   isAdultOnly: boolean

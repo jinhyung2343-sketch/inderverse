@@ -9,7 +9,7 @@ import {
 } from '@/lib/explore'
 import { artworks as fallbackArtworks, getArtworkById as getFallbackArtworkById } from '@/lib/mock/explore-data'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getViewerSession } from '@/lib/server/viewer-session'
 import type { Database } from '@/lib/supabase/types'
 
 type ChannelRow = Pick<
@@ -24,11 +24,17 @@ type ChannelRow = Pick<
   | 'status'
   | 'wait_free_hours'
   | 'work_type'
+  | 'creator_channel_id'
   | 'created_at'
   | 'updated_at'
 > & {
   creator?: {
     display_name: string
+  } | null
+  creator_channel?: {
+    slug: string
+    display_name: string
+    avatar_url: string | null
   } | null
 }
 
@@ -105,35 +111,6 @@ function isExploreSchemaUnavailable(error: { code?: string; message?: string } |
     message.includes('novel')
   )
 }
-
-const getViewerSession = cache(async () => {
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
-
-  if (error) {
-    return {
-      isAdultVerified: false,
-    }
-  }
-
-  const user = data.user
-
-  if (!user) {
-    return {
-      isAdultVerified: false,
-    }
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_adult_verified')
-    .eq('id', user.id)
-    .single()
-
-  return {
-    isAdultVerified: profile?.is_adult_verified ?? false,
-  }
-})
 
 function mapArtworkStatus(
   status: Database['public']['Enums']['channel_status']
@@ -257,7 +234,12 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
     id: publicArtworkId,
     workType: bundle.channel.work_type === 'novel' ? 'novel' : 'webtoon',
     title,
-    authorName: bundle.channel.creator?.display_name?.trim() || '작가',
+    authorName:
+      bundle.channel.creator_channel?.display_name?.trim() ||
+      bundle.channel.creator?.display_name?.trim() ||
+      '작가',
+    authorAvatarUrl: bundle.channel.creator_channel?.avatar_url ?? null,
+    creatorSlug: bundle.channel.creator_channel?.slug ?? null,
     coverImageUrl: bundle.channel.cover_image_url?.trim() || '',
     status: mapArtworkStatus(bundle.channel.status),
     isAdultOnly: bundle.channel.is_adult_only,
@@ -318,9 +300,11 @@ async function loadPublicChannels({
     status,
     wait_free_hours,
     work_type,
+    creator_channel_id,
     created_at,
     updated_at,
-    creator:profiles!channels_creator_id_fkey(display_name)
+    creator:profiles!channels_creator_id_fkey(display_name),
+    creator_channel:creator_channels!channels_creator_channel_id_fkey(slug, display_name, avatar_url)
   `
   let query = admin
     .from('channels')
@@ -523,6 +507,10 @@ export async function getPublicArtworkList() {
       throw error
     }
 
+    if (process.env.NODE_ENV === 'production') {
+      throw error
+    }
+
     console.warn('Falling back to mock explore artworks:', error)
     return fallbackArtworks.filter((artwork) => !artwork.isAdultOnly)
   }
@@ -543,6 +531,10 @@ export async function getPublicArtworkById(id: string) {
     return mapBackendArtwork(bundle)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 

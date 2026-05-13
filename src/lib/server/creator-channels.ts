@@ -105,8 +105,16 @@ export async function ensureDefaultCreatorChannel(ownerId: string) {
     .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status')
     .single()
 
-  if (error || !data) {
-    throw new Error(error?.message || '작가 채널을 만들지 못했습니다.')
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('이미 사용 중인 작가 채널 주소입니다. 잠시 후 다시 시도해 주세요.')
+    }
+
+    throw new Error(error.message || '작가 채널을 만들지 못했습니다.')
+  }
+
+  if (!data) {
+    throw new Error('작가 채널을 만들지 못했습니다.')
   }
 
   return mapCreatorChannelRow(data)

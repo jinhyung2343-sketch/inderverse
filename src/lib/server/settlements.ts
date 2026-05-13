@@ -126,7 +126,7 @@ export async function getCreatorSettlementDashboard(): Promise<CreatorSettlement
     .from('channels')
     .select('id, title, status')
     .eq('creator_id', user.id)
-    .eq('work_type', 'webtoon')
+    .in('work_type', ['webtoon', 'novel', 'audio_drama', 'music', 'illustration', 'essay', 'other'])
     .order('updated_at', { ascending: false })
 
   if (channelsResult.error) {

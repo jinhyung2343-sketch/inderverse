@@ -27,6 +27,7 @@ export function LibraryShelf({ artworks, isGuest = false }: { artworks: ExploreA
             key={artwork.id}
             title={artwork.title}
             authorName={artwork.authorName}
+            authorHref={artwork.creatorSlug ? `/main/creators/${artwork.creatorSlug}` : undefined}
             coverImageUrl={artwork.coverImageUrl}
             workType={artwork.workType}
             status={artwork.status}

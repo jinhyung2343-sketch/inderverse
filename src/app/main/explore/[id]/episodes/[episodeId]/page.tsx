@@ -44,7 +44,14 @@ export default async function EpisodeReaderPage({
 
           <div className="mt-6 space-y-3">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">
-              {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'} · {artwork.category} · {artwork.authorName}
+              {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'} · {artwork.category} ·{' '}
+              {artwork.creatorSlug ? (
+                <Link href={`/main/creators/${artwork.creatorSlug}`} className="transition hover:text-white">
+                  {artwork.authorName}
+                </Link>
+              ) : (
+                artwork.authorName
+              )}
             </p>
             <h1 className="text-3xl font-black tracking-tight md:text-4xl">{episode.title}</h1>
             <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">{episode.preview}</p>

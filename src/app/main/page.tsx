@@ -11,11 +11,20 @@ const MENUS = [
   {
     id: 'explore',
     title: '작품보기',
-    description: '무한한 세계로 빠져들 시간',
+    description: '작품과 작가 채널을 함께 발견하는 곳',
     path: '/main/explore',
     ambientColor: 'bg-indigo-500', // 블루/퍼플
     glowColor: 'group-hover:shadow-[0_0_40px_rgba(99,102,241,0.2)]',
     borderColor: 'group-hover:border-indigo-500/30'
+  },
+  {
+    id: 'creators',
+    title: '작가 채널',
+    description: '마음에 드는 작가의 세계를 따라가기',
+    path: '/main/explore?view=creators',
+    ambientColor: 'bg-violet-500',
+    glowColor: 'group-hover:shadow-[0_0_40px_rgba(139,92,246,0.2)]',
+    borderColor: 'group-hover:border-violet-500/30'
   },
   {
     id: 'spark',

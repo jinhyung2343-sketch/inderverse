@@ -1,10 +1,10 @@
 import 'server-only'
 
-import { cache } from 'react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseRatingChecklist } from '@/lib/content-rating'
 import { getSparkRecordById, sparkRecords as fallbackSparkRecords } from '@/lib/mock/spark-data'
 import { createClient } from '@/lib/supabase/server'
+import { getViewerSession } from '@/lib/server/viewer-session'
 import type { SparkRecord, SparkStatus } from '@/lib/spark'
 import { getSparkPanelCount, parseSparkMeta } from '@/lib/spark'
 import type { Database } from '@/lib/supabase/types'
@@ -96,38 +96,6 @@ function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
   }
 }
 
-const getViewerSession = cache(async () => {
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
-
-  if (error) {
-    return {
-      userId: null,
-      isAdultVerified: false,
-    }
-  }
-
-  const user = data.user
-
-  if (!user) {
-    return {
-      userId: null,
-      isAdultVerified: false,
-    }
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_adult_verified')
-    .eq('id', user.id)
-    .single()
-
-  return {
-    userId: user.id,
-    isAdultVerified: profile?.is_adult_verified ?? false,
-  }
-})
-
 function getPublicStatuses(): SparkStatus[] {
   return ['publishing', 'completed']
 }
@@ -174,6 +142,10 @@ export async function getPublicSparkList() {
     return ((data ?? []) as SparkChannelQueryRow[]).map(mapSparkRow)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 
@@ -228,6 +200,10 @@ export async function getPublicSparkById(id: string) {
     return mapSparkRow(data as SparkChannelQueryRow)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 
@@ -295,6 +271,10 @@ export async function getSparkEngagementSummary(channelId: string): Promise<Spar
     }
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 

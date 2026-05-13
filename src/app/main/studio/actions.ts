@@ -69,6 +69,23 @@ async function ensureProfileForStudioAccess(user: User): Promise<Pick<ProfileRow
   return createdProfile
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+
+  return String(error)
+}
+
 export async function becomeCreator() {
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -132,7 +149,7 @@ export async function acceptCreatorAgreement(
   try {
     profile = await ensureProfileForStudioAccess(user)
   } catch (error) {
-    console.error(error)
+    console.error('Studio action error:', getErrorMessage(error))
     return {
       error: '작가 등록에 필요한 계정 정보를 확인하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     }
@@ -158,7 +175,7 @@ export async function acceptCreatorAgreement(
     )
 
   if (consentError) {
-    console.error(consentError)
+    console.error('Studio action error:', getErrorMessage(consentError))
     return {
       error: '동의 기록을 저장하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     }
@@ -170,7 +187,7 @@ export async function acceptCreatorAgreement(
     .eq('id', user.id)
 
   if (roleError) {
-    console.error(roleError)
+    console.error('Studio action error:', getErrorMessage(roleError))
     return {
       error: '작가 권한 전환 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     }
