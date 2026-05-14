@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FilePickerButton, ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import {
   IMAGE_UPLOAD_POLICY,
@@ -72,6 +72,35 @@ function normalizeImages(initialImages: WebtoonEpisodeImageRecord[]) {
       errorMessage: null,
       pendingFile: null,
     }))
+}
+
+function normalizeDraftImages(draftImages: Partial<EpisodeImageDraft>[]) {
+  const normalized = draftImages
+    .filter((image) => typeof image.imageUrl === 'string' || image.pendingFile === null)
+    .map((image, index) => ({
+      imageUrl: typeof image.imageUrl === 'string' && !image.imageUrl.startsWith('blob:') ? image.imageUrl : '',
+      originalImageUrl: typeof image.originalImageUrl === 'string' ? image.originalImageUrl : null,
+      optimizedImageUrl: typeof image.optimizedImageUrl === 'string' ? image.optimizedImageUrl : null,
+      thumbnailImageUrl: typeof image.thumbnailImageUrl === 'string' ? image.thumbnailImageUrl : null,
+      sortOrder: index,
+      width: typeof image.width === 'number' ? image.width : null,
+      height: typeof image.height === 'number' ? image.height : null,
+      fileSizeBytes: typeof image.fileSizeBytes === 'number' ? image.fileSizeBytes : null,
+      contentType: typeof image.contentType === 'string' ? image.contentType : null,
+      derivatives: image.derivatives ?? null,
+      isVerified: Boolean(image.isVerified),
+      processingStatus: typeof image.processingStatus === 'string' ? image.processingStatus : null,
+      processingError: typeof image.processingError === 'string' ? image.processingError : null,
+      cleanupStatus: typeof image.cleanupStatus === 'string' ? image.cleanupStatus : 'active',
+      originalFilePath: typeof image.originalFilePath === 'string' ? image.originalFilePath : null,
+      optimizedFilePath: typeof image.optimizedFilePath === 'string' ? image.optimizedFilePath : null,
+      thumbnailFilePath: typeof image.thumbnailFilePath === 'string' ? image.thumbnailFilePath : null,
+      status: image.imageUrl ? 'ready' as const : 'empty' as const,
+      errorMessage: null,
+      pendingFile: null,
+    }))
+
+  return normalized.length > 0 ? normalized : [createEmptyImageDraft(0)]
 }
 
 function createEmptyImageDraft(sortOrder: number): EpisodeImageDraft {
@@ -314,10 +343,12 @@ export function EpisodeImagesField({
   channelId,
   episodeId,
   initialImages,
+  draftStorageKey,
 }: {
   channelId: string
   episodeId?: string
   initialImages: WebtoonEpisodeImageRecord[]
+  draftStorageKey?: string
 }) {
   const [images, setImages] = useState<EpisodeImageDraft[]>(() => normalizeImages(initialImages))
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
@@ -325,6 +356,8 @@ export function EpisodeImagesField({
   const [message, setMessage] = useState<string | null>(null)
   const [inspectionMessages, setInspectionMessages] = useState<string[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [draftRestored, setDraftRestored] = useState(false)
+  const draftLoadedRef = useRef(false)
   const guideItems = getWebtoonUploadGuide()
   const activeImages = images.filter((image) => image.imageUrl.trim())
   const diagnosticsByIndex = images.map((image) => {
@@ -397,6 +430,74 @@ export function EpisodeImagesField({
       ),
     [images]
   )
+
+  useEffect(() => {
+    if (!draftStorageKey) {
+      draftLoadedRef.current = true
+      return
+    }
+
+    try {
+      const rawDraft = window.localStorage.getItem(draftStorageKey)
+
+      if (!rawDraft) {
+        draftLoadedRef.current = true
+        return
+      }
+
+      const parsed = JSON.parse(rawDraft)
+
+      if (Array.isArray(parsed)) {
+        window.setTimeout(() => {
+          setImages(normalizeDraftImages(parsed))
+          setDraftRestored(true)
+        }, 0)
+      }
+    } catch {
+      window.localStorage.removeItem(draftStorageKey)
+    } finally {
+      draftLoadedRef.current = true
+    }
+  }, [draftStorageKey])
+
+  useEffect(() => {
+    if (!draftStorageKey || !draftLoadedRef.current) {
+      return
+    }
+
+    const serializableImages = images.map((image, index) => {
+      const imageUrl = image.imageUrl.startsWith('blob:') ? '' : image.imageUrl
+
+      return {
+        imageUrl,
+        originalImageUrl: image.originalImageUrl,
+        optimizedImageUrl: image.optimizedImageUrl,
+        thumbnailImageUrl: image.thumbnailImageUrl,
+        sortOrder: index,
+        width: image.width,
+        height: image.height,
+        fileSizeBytes: image.fileSizeBytes,
+        contentType: image.contentType,
+        derivatives: image.derivatives,
+        isVerified: image.isVerified,
+        processingStatus: image.processingStatus,
+        processingError: image.processingError,
+        cleanupStatus: image.cleanupStatus,
+        originalFilePath: image.originalFilePath,
+        optimizedFilePath: image.optimizedFilePath,
+        thumbnailFilePath: image.thumbnailFilePath,
+        status: imageUrl ? image.status : 'empty',
+        pendingFile: null,
+        errorMessage: null,
+      }
+    })
+
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(serializableImages))
+    } catch {
+      // Local draft persistence is best-effort only.
+    }
+  }, [draftStorageKey, images])
 
   function updateImage(index: number, value: string) {
     setInspectionMessages([])
@@ -733,6 +834,12 @@ export function EpisodeImagesField({
           ? '이미지를 올리면 GCS 공개 URL이 자동으로 채워지고, 저장 시 episode_images 테이블에 정렬 순서와 함께 기록됩니다.'
           : '새 회차는 먼저 저장한 뒤 수정 화면에서 이미지를 올릴 수 있습니다. 이미 URL이 있다면 먼저 직접 입력할 수도 있습니다.'}
       </div>
+
+      {draftRestored ? (
+        <div className="rounded-2xl border border-emerald-300/15 bg-emerald-500/5 p-4 text-xs leading-5 text-emerald-100">
+          이전 로컬 초안의 이미지 순서를 복구했습니다. 서버에 업로드되지 않았던 로컬 파일은 보안상 다시 선택해야 합니다.
+        </div>
+      ) : null}
 
       <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-zinc-500">
         {guideItems.map((item) => (

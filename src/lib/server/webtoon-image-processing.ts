@@ -139,7 +139,7 @@ async function processImageJob(
     }
   } catch (error) {
     const message = getErrorMessage(error).slice(0, 500)
-    const status = job.processing_attempt_count >= 5 ? 'failed' : 'retry_needed'
+    const status = job.processing_attempt_count + 1 >= 5 ? 'failed' : 'retry_needed'
 
     await completeProcessingJob({
       imageId: job.id,

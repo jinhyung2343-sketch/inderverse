@@ -112,6 +112,22 @@ async function uploadBufferToPath(bytes: Buffer, filePath: string, contentType: 
   return buildPublicAssetUrl(filePath)
 }
 
+async function deleteFileIfExists(filePath: string | null) {
+  if (!filePath) {
+    return
+  }
+
+  try {
+    await bucket.file(filePath).delete()
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 404) {
+      return
+    }
+
+    throw error
+  }
+}
+
 async function buildWebtoonDerivative(
   sourceBytes: Buffer,
   width: number,
@@ -146,7 +162,19 @@ export async function buildAndUploadWebtoonEpisodeDerivatives({
   const originalHeight = originalMetadata.height ?? null
   const optimizedPath = `optimized/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
   const optimized = await buildWebtoonDerivative(originalBytes, WEBTOON_READER_WIDTH, 88)
-  const optimizedImageUrl = await uploadBufferToPath(optimized.data, optimizedPath, 'image/webp')
+  const thumbnailPath = `thumbnails/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
+  const thumbnail = await buildWebtoonDerivative(originalBytes, WEBTOON_THUMBNAIL_WIDTH, 76)
+  let optimizedImageUrl: string | null = null
+  let thumbnailImageUrl: string | null = null
+
+  try {
+    optimizedImageUrl = await uploadBufferToPath(optimized.data, optimizedPath, 'image/webp')
+    thumbnailImageUrl = await uploadBufferToPath(thumbnail.data, thumbnailPath, 'image/webp')
+  } catch (error) {
+    await Promise.all([deleteFileIfExists(optimizedImageUrl ? optimizedPath : null), deleteFileIfExists(thumbnailImageUrl ? thumbnailPath : null)])
+    throw error
+  }
+
   const optimizedDerivative: ImageDerivativeMetadata = {
     url: optimizedImageUrl,
     filePath: optimizedPath,
@@ -155,10 +183,6 @@ export async function buildAndUploadWebtoonEpisodeDerivatives({
     fileSizeBytes: optimized.data.length,
     contentType: 'image/webp',
   }
-
-  const thumbnailPath = `thumbnails/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
-  const thumbnail = await buildWebtoonDerivative(originalBytes, WEBTOON_THUMBNAIL_WIDTH, 76)
-  const thumbnailImageUrl = await uploadBufferToPath(thumbnail.data, thumbnailPath, 'image/webp')
   const thumbnailDerivative: ImageDerivativeMetadata = {
     url: thumbnailImageUrl,
     filePath: thumbnailPath,
@@ -419,6 +443,7 @@ export async function uploadEpisodeImageFile({
   const extension = getFileExtension(file.type)
   const originalPath = `originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`
   const originalBytes = Buffer.from(await file.arrayBuffer())
+  const originalMetadata = await sharp(originalBytes, { limitInputPixels: false }).metadata()
   const originalImageUrl = await uploadBufferToPath(originalBytes, originalPath, file.type)
   let processingStatus: UploadedEpisodeImage['processingStatus'] = 'ready'
   let processingError: string | null = null
@@ -444,7 +469,6 @@ export async function uploadEpisodeImageFile({
     })
   }
 
-  const originalMetadata = await sharp(originalBytes, { limitInputPixels: false }).metadata()
   const originalWidth = originalMetadata.width ?? null
   const originalHeight = originalMetadata.height ?? null
 
