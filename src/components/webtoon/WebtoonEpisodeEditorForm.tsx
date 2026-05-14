@@ -73,6 +73,25 @@ export function WebtoonEpisodeEditorForm({
     }
 
     try {
+      const url = new URL(window.location.href)
+      const shouldClearSavedDraft = url.searchParams.get('saved') === '1'
+
+      if (shouldClearSavedDraft) {
+        const newEpisodeDraftKey = `inderverse:webtoon-episode-draft:${channelId}:new`
+
+        window.localStorage.removeItem(newEpisodeDraftKey)
+        window.localStorage.removeItem(`${newEpisodeDraftKey}:images`)
+        window.localStorage.removeItem(draftStorageKey)
+        window.localStorage.removeItem(imagesDraftStorageKey)
+        url.searchParams.delete('saved')
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+        window.setTimeout(() => {
+          setIsAutoSavePaused(true)
+          setDraftLoaded(true)
+        }, 0)
+        return
+      }
+
       const rawDraft = window.localStorage.getItem(draftStorageKey)
 
       if (!rawDraft) {
@@ -113,7 +132,7 @@ export function WebtoonEpisodeEditorForm({
     } finally {
       window.setTimeout(() => setDraftLoaded(true), 0)
     }
-  }, [draftStorageKey])
+  }, [channelId, draftStorageKey, imagesDraftStorageKey])
 
   useEffect(() => {
     if (!draftLoaded) {

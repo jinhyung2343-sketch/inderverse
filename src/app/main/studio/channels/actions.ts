@@ -1388,7 +1388,7 @@ export async function createWebtoonEpisode(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
-  redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episode.id}/edit`)
+  redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episode.id}/edit?saved=1`)
 }
 
 export async function updateWebtoonEpisode(formData: FormData) {
@@ -1473,5 +1473,5 @@ export async function updateWebtoonEpisode(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/explore/${channelId}/episodes/${episodeId}`)
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
-  redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episodeId}/edit`)
+  redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episodeId}/edit?saved=1`)
 }

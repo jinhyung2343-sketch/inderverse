@@ -77,28 +77,32 @@ function normalizeImages(initialImages: WebtoonEpisodeImageRecord[]) {
 function normalizeDraftImages(draftImages: Partial<EpisodeImageDraft>[]) {
   const normalized = draftImages
     .filter((image) => typeof image.imageUrl === 'string' || image.pendingFile === null)
-    .map((image, index) => ({
-      imageUrl: typeof image.imageUrl === 'string' && !image.imageUrl.startsWith('blob:') ? image.imageUrl : '',
-      originalImageUrl: typeof image.originalImageUrl === 'string' ? image.originalImageUrl : null,
-      optimizedImageUrl: typeof image.optimizedImageUrl === 'string' ? image.optimizedImageUrl : null,
-      thumbnailImageUrl: typeof image.thumbnailImageUrl === 'string' ? image.thumbnailImageUrl : null,
-      sortOrder: index,
-      width: typeof image.width === 'number' ? image.width : null,
-      height: typeof image.height === 'number' ? image.height : null,
-      fileSizeBytes: typeof image.fileSizeBytes === 'number' ? image.fileSizeBytes : null,
-      contentType: typeof image.contentType === 'string' ? image.contentType : null,
-      derivatives: image.derivatives ?? null,
-      isVerified: Boolean(image.isVerified),
-      processingStatus: typeof image.processingStatus === 'string' ? image.processingStatus : null,
-      processingError: typeof image.processingError === 'string' ? image.processingError : null,
-      cleanupStatus: typeof image.cleanupStatus === 'string' ? image.cleanupStatus : 'active',
-      originalFilePath: typeof image.originalFilePath === 'string' ? image.originalFilePath : null,
-      optimizedFilePath: typeof image.optimizedFilePath === 'string' ? image.optimizedFilePath : null,
-      thumbnailFilePath: typeof image.thumbnailFilePath === 'string' ? image.thumbnailFilePath : null,
-      status: image.imageUrl ? 'ready' as const : 'empty' as const,
-      errorMessage: null,
-      pendingFile: null,
-    }))
+    .map((image, index) => {
+      const imageUrl = typeof image.imageUrl === 'string' && !image.imageUrl.startsWith('blob:') ? image.imageUrl : ''
+
+      return {
+        imageUrl,
+        originalImageUrl: typeof image.originalImageUrl === 'string' ? image.originalImageUrl : null,
+        optimizedImageUrl: typeof image.optimizedImageUrl === 'string' ? image.optimizedImageUrl : null,
+        thumbnailImageUrl: typeof image.thumbnailImageUrl === 'string' ? image.thumbnailImageUrl : null,
+        sortOrder: index,
+        width: typeof image.width === 'number' ? image.width : null,
+        height: typeof image.height === 'number' ? image.height : null,
+        fileSizeBytes: typeof image.fileSizeBytes === 'number' ? image.fileSizeBytes : null,
+        contentType: typeof image.contentType === 'string' ? image.contentType : null,
+        derivatives: image.derivatives ?? null,
+        isVerified: Boolean(image.isVerified),
+        processingStatus: typeof image.processingStatus === 'string' ? image.processingStatus : null,
+        processingError: typeof image.processingError === 'string' ? image.processingError : null,
+        cleanupStatus: typeof image.cleanupStatus === 'string' ? image.cleanupStatus : 'active',
+        originalFilePath: typeof image.originalFilePath === 'string' ? image.originalFilePath : null,
+        optimizedFilePath: typeof image.optimizedFilePath === 'string' ? image.optimizedFilePath : null,
+        thumbnailFilePath: typeof image.thumbnailFilePath === 'string' ? image.thumbnailFilePath : null,
+        status: imageUrl ? 'ready' as const : 'empty' as const,
+        errorMessage: null,
+        pendingFile: null,
+      }
+    })
 
   return normalized.length > 0 ? normalized : [createEmptyImageDraft(0)]
 }
