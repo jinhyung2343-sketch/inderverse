@@ -35,20 +35,19 @@ export function CreatorChannelSettingsForm({
 
   return (
     <form action={formAction} className="grid gap-6">
-      <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
+      <section className="rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <div className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Creator Channel</p>
-          <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">내 작가 채널 설정</h1>
+          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Channel Profile</p>
+          <h2 className="text-3xl font-black tracking-tight text-white md:text-4xl">채널 정보 편집</h2>
           <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
-            독자가 먼저 만나는 작가 홈입니다. 작가 소개, 대표 이미지, 외부 링크를 정리하고 그 아래에 여러
-            형식의 작품을 연결합니다.
+            독자에게 보이는 작가명, 소개, 대표 이미지, 외부 링크와 공개 상태를 관리합니다.
           </p>
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">기본 정보</h2>
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2 text-sm text-zinc-300">
@@ -108,14 +107,14 @@ export function CreatorChannelSettingsForm({
             </div>
           </div>
 
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">외부 링크</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               포트폴리오, SNS, 음원 페이지처럼 작가 활동을 보여줄 링크를 최대 3개까지 연결합니다.
             </p>
             <div className="mt-5 grid gap-3">
               {[0, 1, 2].map((index) => (
-                <div key={index} className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-[0.7fr_1.3fr]">
+                <div key={index} className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-4 md:grid-cols-[0.7fr_1.3fr]">
                   <input
                     name={`linkLabel${index + 1}`}
                     defaultValue={links[index]?.label ?? ''}
@@ -135,7 +134,7 @@ export function CreatorChannelSettingsForm({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">프로필 이미지</h2>
             <div className="mt-5">
               <CreatorChannelImageField
@@ -150,7 +149,7 @@ export function CreatorChannelSettingsForm({
             </div>
           </div>
 
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">채널 커버</h2>
             <div className="mt-5">
               <CreatorChannelImageField
@@ -177,8 +176,8 @@ export function CreatorChannelSettingsForm({
             </p>
           ) : null}
 
-          <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
-            이 채널 아래에 웹툰, 웹소설, 음악, 일러스트 같은 작품이 차례로 모이게 됩니다.
+          <div className="rounded-lg border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
+            채널을 비공개로 전환하면 독자용 작가 페이지에서 노출되지 않습니다.
           </div>
 
           <SubmitButton />

@@ -1,7 +1,43 @@
 import { bucket } from './client'
 import { randomUUID } from 'node:crypto'
+import sharp from 'sharp'
 
 export type AllowedContentType = 'image/png' | 'image/jpeg' | 'image/webp'
+
+const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024
+const WEBTOON_READER_WIDTH = 1600
+const WEBTOON_THUMBNAIL_WIDTH = 480
+
+export interface UploadedEpisodeImage {
+  imageUrl: string
+  originalImageUrl: string
+  optimizedImageUrl: string | null
+  thumbnailImageUrl: string | null
+  width: number | null
+  height: number | null
+  fileSizeBytes: number
+  contentType: AllowedContentType
+  processingStatus: 'ready' | 'partial'
+  processingError: string | null
+  cleanupStatus: 'active'
+  originalFilePath: string
+  optimizedFilePath: string | null
+  thumbnailFilePath: string | null
+  derivatives: {
+    original: ImageDerivativeMetadata
+    optimized: ImageDerivativeMetadata | null
+    thumbnail: ImageDerivativeMetadata | null
+  }
+}
+
+interface ImageDerivativeMetadata {
+  url: string
+  filePath: string
+  width: number | null
+  height: number | null
+  fileSizeBytes: number
+  contentType: AllowedContentType
+}
 
 export function isAllowedContentType(value: string): value is AllowedContentType {
   return value === 'image/png' || value === 'image/jpeg' || value === 'image/webp'
@@ -22,8 +58,16 @@ export function buildPublicAssetUrl(filePath: string) {
 }
 
 async function uploadFileToPath(file: File, filePath: string, contentType: AllowedContentType) {
+  if (file.size > MAX_IMAGE_FILE_BYTES) {
+    throw new Error('이미지 파일은 20MB 이하로 업로드해 주세요.')
+  }
+
   const bytes = Buffer.from(await file.arrayBuffer())
 
+  return uploadBufferToPath(bytes, filePath, contentType)
+}
+
+async function uploadBufferToPath(bytes: Buffer, filePath: string, contentType: AllowedContentType) {
   await bucket.file(filePath).save(bytes, {
     resumable: false,
     contentType,
@@ -34,6 +78,18 @@ async function uploadFileToPath(file: File, filePath: string, contentType: Allow
   })
 
   return buildPublicAssetUrl(filePath)
+}
+
+async function buildWebtoonDerivative(
+  sourceBytes: Buffer,
+  width: number,
+  quality: number
+) {
+  return sharp(sourceBytes, { limitInputPixels: false })
+    .rotate()
+    .resize({ width, withoutEnlargement: true })
+    .webp({ quality, effort: 4 })
+    .toBuffer({ resolveWithObject: true })
 }
 
 export async function generateSignedUrl({
@@ -218,8 +274,83 @@ export async function uploadEpisodeImageFile({
     throw new Error('지원하지 않는 회차 이미지 형식입니다.')
   }
 
-  const extension = getFileExtension(file.type)
-  const filePath = `originals/${channelId}/${episodeId}/${sortOrder}.${extension}`
+  if (file.size > MAX_IMAGE_FILE_BYTES) {
+    throw new Error('이미지 파일은 20MB 이하로 업로드해 주세요.')
+  }
 
-  return uploadFileToPath(file, filePath, file.type)
+  const extension = getFileExtension(file.type)
+  const originalPath = `originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`
+  const originalBytes = Buffer.from(await file.arrayBuffer())
+  const originalMetadata = await sharp(originalBytes, { limitInputPixels: false }).metadata()
+  const originalWidth = originalMetadata.width ?? null
+  const originalHeight = originalMetadata.height ?? null
+  const originalImageUrl = await uploadBufferToPath(originalBytes, originalPath, file.type)
+  let optimizedDerivative: ImageDerivativeMetadata | null = null
+  let thumbnailDerivative: ImageDerivativeMetadata | null = null
+  let processingStatus: UploadedEpisodeImage['processingStatus'] = 'ready'
+  let processingError: string | null = null
+
+  try {
+    const optimizedPath = `optimized/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
+    const optimized = await buildWebtoonDerivative(originalBytes, WEBTOON_READER_WIDTH, 88)
+    const optimizedImageUrl = await uploadBufferToPath(optimized.data, optimizedPath, 'image/webp')
+    optimizedDerivative = {
+      url: optimizedImageUrl,
+      filePath: optimizedPath,
+      width: optimized.info.width || null,
+      height: optimized.info.height || null,
+      fileSizeBytes: optimized.data.length,
+      contentType: 'image/webp',
+    }
+
+    const thumbnailPath = `thumbnails/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
+    const thumbnail = await buildWebtoonDerivative(originalBytes, WEBTOON_THUMBNAIL_WIDTH, 76)
+    const thumbnailImageUrl = await uploadBufferToPath(thumbnail.data, thumbnailPath, 'image/webp')
+    thumbnailDerivative = {
+      url: thumbnailImageUrl,
+      filePath: thumbnailPath,
+      width: thumbnail.info.width || null,
+      height: thumbnail.info.height || null,
+      fileSizeBytes: thumbnail.data.length,
+      contentType: 'image/webp',
+    }
+  } catch (error) {
+    processingStatus = 'partial'
+    processingError = error instanceof Error ? error.message : '이미지 파생본 생성에 실패했습니다.'
+    console.warn('Webtoon image derivative generation failed:', {
+      channelId,
+      episodeId,
+      sortOrder,
+      message: processingError,
+    })
+  }
+
+  return {
+    imageUrl: optimizedDerivative?.url ?? originalImageUrl,
+    originalImageUrl,
+    optimizedImageUrl: optimizedDerivative?.url ?? null,
+    thumbnailImageUrl: thumbnailDerivative?.url ?? null,
+    width: originalWidth,
+    height: originalHeight,
+    fileSizeBytes: file.size,
+    contentType: file.type,
+    processingStatus,
+    processingError,
+    cleanupStatus: 'active',
+    originalFilePath: originalPath,
+    optimizedFilePath: optimizedDerivative?.filePath ?? null,
+    thumbnailFilePath: thumbnailDerivative?.filePath ?? null,
+    derivatives: {
+      original: {
+        url: originalImageUrl,
+        filePath: originalPath,
+        width: originalWidth,
+        height: originalHeight,
+        fileSizeBytes: file.size,
+        contentType: file.type,
+      },
+      optimized: optimizedDerivative,
+      thumbnail: thumbnailDerivative,
+    },
+  } satisfies UploadedEpisodeImage
 }

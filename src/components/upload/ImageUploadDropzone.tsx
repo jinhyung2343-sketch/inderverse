@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp'
 
@@ -89,6 +89,7 @@ export function ImageUploadDropzone({
   buttonLabel = '이미지 선택',
   inputName,
   preserveSelection = false,
+  selectedFiles,
   onFilesSelected,
 }: {
   title: string
@@ -99,11 +100,22 @@ export function ImageUploadDropzone({
   buttonLabel?: string
   inputName?: string
   preserveSelection?: boolean
+  selectedFiles?: File[]
   onFilesSelected: (files: File[]) => void | Promise<void>
 }) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
+
+  useEffect(() => {
+    if (!selectedFiles || !inputRef.current || typeof DataTransfer === 'undefined') {
+      return
+    }
+
+    const dataTransfer = new DataTransfer()
+    selectedFiles.forEach((file) => dataTransfer.items.add(file))
+    inputRef.current.files = dataTransfer.files
+  }, [selectedFiles])
 
   function submitFiles(files: File[]) {
     if (disabled || files.length === 0) {

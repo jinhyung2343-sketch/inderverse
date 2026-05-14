@@ -10,6 +10,7 @@ import {
 
 test('guest main menu access is limited to public browsing areas', () => {
   assert.equal(canGuestOpenMainMenu('explore'), true)
+  assert.equal(canGuestOpenMainMenu('creators'), false)
   assert.equal(canGuestOpenMainMenu('spark'), true)
   assert.equal(canGuestOpenMainMenu('community'), true)
   assert.equal(canGuestOpenMainMenu('studio'), true)
@@ -25,6 +26,15 @@ test('join prompt next paths are normalized to internal routes', () => {
 })
 
 test('guests can open stable landing pages and are redirected from account-bound actions', () => {
+  assert.deepEqual(
+    getRouteAccessDecision({
+      pathname: '/',
+      isLoggedIn: true,
+      userRole: 'reader',
+    }),
+    { type: 'allow' }
+  )
+
   assert.deepEqual(
     getRouteAccessDecision({
       pathname: '/main/store',

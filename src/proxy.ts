@@ -6,6 +6,10 @@ export async function proxy(request: NextRequest) {
   const { response, userId, profile } = await updateSession(request)
   const { pathname, search } = request.nextUrl
 
+  if (pathname === '/') {
+    response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
+  }
+
   const accessDecision = getRouteAccessDecision({
     pathname,
     search,

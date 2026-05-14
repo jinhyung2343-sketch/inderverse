@@ -34,12 +34,11 @@ import { sanitizeNovelTags } from '@/lib/novel'
 import type {
   WebtoonDraftInput,
   WebtoonEpisodeDraftInput,
-  WebtoonEpisodeImageRecord,
   WebtoonEpisodePricing,
   WebtoonEpisodeStatus,
 } from '@/lib/webtoon'
 import { sanitizeWebtoonTags } from '@/lib/webtoon'
-import type { Database } from '@/lib/supabase/types'
+import type { Database, Json } from '@/lib/supabase/types'
 
 type UserRole = Database['public']['Enums']['user_role']
 
@@ -186,6 +185,27 @@ function isEpisodeStatus(value: string): value is WebtoonEpisodeStatus {
   return value === 'draft' || value === 'published' || value === 'hidden'
 }
 
+function normalizeImageProcessingStatus(value: unknown) {
+  return value === 'pending' ||
+    value === 'processing' ||
+    value === 'ready' ||
+    value === 'partial' ||
+    value === 'failed' ||
+    value === 'retry_needed'
+    ? value
+    : 'ready'
+}
+
+function normalizeImageCleanupStatus(value: unknown) {
+  return value === 'active' || value === 'orphan_candidate' || value === 'deleted'
+    ? value
+    : 'active'
+}
+
+function readJsonText(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
 function isNovelEpisodePricing(value: string): value is NovelEpisodePricing {
   return value === 'free' || value === 'paid' || value === 'wait_free'
 }
@@ -302,10 +322,35 @@ function parseEpisodeImages(value: string, status: WebtoonEpisodeStatus, pending
 
       const rawImageUrl = typeof entry.imageUrl === 'string' ? entry.imageUrl.trim() : ''
       const imageUrl = rawImageUrl.startsWith('blob:') ? '' : rawImageUrl
+      const originalImageUrl =
+        typeof entry.originalImageUrl === 'string' && !entry.originalImageUrl.startsWith('blob:')
+          ? entry.originalImageUrl.trim()
+          : null
+      const optimizedImageUrl =
+        typeof entry.optimizedImageUrl === 'string' && !entry.optimizedImageUrl.startsWith('blob:')
+          ? entry.optimizedImageUrl.trim()
+          : null
+      const thumbnailImageUrl =
+        typeof entry.thumbnailImageUrl === 'string' && !entry.thumbnailImageUrl.startsWith('blob:')
+          ? entry.thumbnailImageUrl.trim()
+          : null
       const sortOrder =
         typeof entry.sortOrder === 'number' && Number.isInteger(entry.sortOrder)
           ? entry.sortOrder
           : index
+      const width = typeof entry.width === 'number' && Number.isInteger(entry.width) ? entry.width : null
+      const height = typeof entry.height === 'number' && Number.isInteger(entry.height) ? entry.height : null
+      const fileSizeBytes =
+        typeof entry.fileSizeBytes === 'number' && Number.isInteger(entry.fileSizeBytes) ? entry.fileSizeBytes : null
+      const contentType = typeof entry.contentType === 'string' ? entry.contentType.trim() || null : null
+      const derivatives = entry.derivatives && typeof entry.derivatives === 'object' ? entry.derivatives : null
+      const isVerified = typeof entry.isVerified === 'boolean' ? entry.isVerified : false
+      const processingStatus = normalizeImageProcessingStatus(entry.processingStatus)
+      const processingError = readJsonText(entry.processingError)
+      const cleanupStatus = normalizeImageCleanupStatus(entry.cleanupStatus)
+      const originalFilePath = readJsonText(entry.originalFilePath)
+      const optimizedFilePath = readJsonText(entry.optimizedFilePath)
+      const thumbnailFilePath = readJsonText(entry.thumbnailFilePath)
 
       if (!imageUrl) {
         return null
@@ -313,14 +358,44 @@ function parseEpisodeImages(value: string, status: WebtoonEpisodeStatus, pending
 
       return {
         imageUrl,
+        originalImageUrl,
+        optimizedImageUrl,
+        thumbnailImageUrl,
         sortOrder,
+        width,
+        height,
+        fileSizeBytes,
+        contentType,
+        derivatives,
+        isVerified,
+        processingStatus,
+        processingError,
+        cleanupStatus,
+        originalFilePath,
+        optimizedFilePath,
+        thumbnailFilePath,
       }
     })
-    .filter((entry): entry is WebtoonEpisodeImageRecord => entry !== null)
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((entry, index) => ({
       imageUrl: entry.imageUrl,
+      originalImageUrl: entry.originalImageUrl,
+      optimizedImageUrl: entry.optimizedImageUrl,
+      thumbnailImageUrl: entry.thumbnailImageUrl,
       sortOrder: index,
+      width: entry.width,
+      height: entry.height,
+      fileSizeBytes: entry.fileSizeBytes,
+      contentType: entry.contentType,
+      derivatives: entry.derivatives,
+      isVerified: entry.isVerified,
+      processingStatus: entry.processingStatus,
+      processingError: entry.processingError,
+      cleanupStatus: entry.cleanupStatus,
+      originalFilePath: entry.originalFilePath,
+      optimizedFilePath: entry.optimizedFilePath,
+      thumbnailFilePath: entry.thumbnailFilePath,
     }))
 
   if (status === 'published' && images.length + pendingUploadCount === 0) {
@@ -1248,7 +1323,22 @@ export async function createWebtoonEpisode(formData: FormData) {
       input.images.map((image) => ({
         episode_id: episode.id,
         image_url: image.imageUrl,
+        original_image_url: image.originalImageUrl,
+        optimized_image_url: image.optimizedImageUrl,
+        thumbnail_image_url: image.thumbnailImageUrl,
         sort_order: image.sortOrder,
+        width: image.width,
+        height: image.height,
+        file_size_bytes: image.fileSizeBytes,
+        content_type: image.contentType,
+        derivatives: image.derivatives as Json,
+        is_verified: image.isVerified,
+        processing_status: image.processingStatus ?? 'ready',
+        processing_error: image.processingError,
+        cleanup_status: image.cleanupStatus ?? 'active',
+        original_file_path: image.originalFilePath,
+        optimized_file_path: image.optimizedFilePath,
+        thumbnail_file_path: image.thumbnailFilePath,
       }))
     )
 
@@ -1265,10 +1355,25 @@ export async function createWebtoonEpisode(formData: FormData) {
           episodeId: episode.id,
           sortOrder: index,
           file,
-        }).then((imageUrl) => ({
+        }).then((image) => ({
           episode_id: episode.id,
-          image_url: imageUrl,
+          image_url: image.imageUrl,
+          original_image_url: image.originalImageUrl,
+          optimized_image_url: image.optimizedImageUrl,
+          thumbnail_image_url: image.thumbnailImageUrl,
           sort_order: input.images.length + index,
+          width: image.width,
+          height: image.height,
+          file_size_bytes: image.fileSizeBytes,
+          content_type: image.contentType,
+          derivatives: image.derivatives as Json,
+          is_verified: true,
+          processing_status: image.processingStatus,
+          processing_error: image.processingError,
+          cleanup_status: image.cleanupStatus,
+          original_file_path: image.originalFilePath,
+          optimized_file_path: image.optimizedFilePath,
+          thumbnail_file_path: image.thumbnailFilePath,
         }))
       )
     )
@@ -1340,7 +1445,22 @@ export async function updateWebtoonEpisode(formData: FormData) {
       p_published_at: publishedAt,
       p_images: input.images.map((image) => ({
         image_url: image.imageUrl,
+        original_image_url: image.originalImageUrl,
+        optimized_image_url: image.optimizedImageUrl,
+        thumbnail_image_url: image.thumbnailImageUrl,
         sort_order: image.sortOrder,
+        width: image.width,
+        height: image.height,
+        file_size_bytes: image.fileSizeBytes,
+        content_type: image.contentType,
+        derivatives: image.derivatives as Json,
+        is_verified: image.isVerified,
+        processing_status: image.processingStatus ?? 'ready',
+        processing_error: image.processingError,
+        cleanup_status: image.cleanupStatus ?? 'active',
+        original_file_path: image.originalFilePath,
+        optimized_file_path: image.optimizedFilePath,
+        thumbnail_file_path: image.thumbnailFilePath,
       })),
     }
   )

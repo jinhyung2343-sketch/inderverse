@@ -2,6 +2,10 @@
 
 import { useState } from 'react'
 import { ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
+import {
+  getWebtoonUploadGuide,
+  prepareAndInspectImageFiles,
+} from '@/lib/image-upload-policy'
 
 export function WebtoonCoverField({
   channelId,
@@ -14,9 +18,25 @@ export function WebtoonCoverField({
 }) {
   const [value, setValue] = useState(initialValue ?? '')
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [inspectionMessages, setInspectionMessages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const previewUrl = localPreviewUrl || value
+  const guideItems = getWebtoonUploadGuide()
+
+  async function prepareCoverFile(file: File) {
+    const result = await prepareAndInspectImageFiles([file], 'cover')
+
+    setInspectionMessages(result.messages)
+
+    if (result.errors.length > 0) {
+      setMessage(result.errors[0])
+      return null
+    }
+
+    return result.files[0] ?? null
+  }
 
   async function uploadFile(file: File) {
     if (!file || !channelId) {
@@ -77,18 +97,41 @@ export function WebtoonCoverField({
       return
     }
 
+    const preparedFile = await prepareCoverFile(file)
+
+    if (!preparedFile) {
+      setPendingFile(null)
+      setLocalPreviewUrl(null)
+      return
+    }
+
     if (!channelId) {
-      setLocalPreviewUrl(URL.createObjectURL(file))
+      setPendingFile(preparedFile)
+      setLocalPreviewUrl(URL.createObjectURL(preparedFile))
       setMessage('선택한 커버 이미지를 먼저 미리보고 있습니다. 채널을 저장하면 업로드가 함께 진행됩니다.')
       return
     }
 
-    await uploadFile(file)
+    await uploadFile(preparedFile)
+  }
+
+  function clearCoverImage() {
+    setValue('')
+    setPendingFile(null)
+    setLocalPreviewUrl(null)
+    setInspectionMessages([])
+    setMessage('커버 이미지를 비웠습니다. 저장하면 커버 없이 반영됩니다.')
   }
 
   return (
     <div className="grid gap-4">
       <input type="hidden" name="coverImageUrl" value={value} readOnly />
+
+      <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-zinc-500">
+        {guideItems.map((item) => (
+          <p key={item}>{item}</p>
+        ))}
+      </div>
 
       <ImageUploadDropzone
         title="커버 이미지 올리기"
@@ -102,8 +145,17 @@ export function WebtoonCoverField({
         buttonLabel="커버 이미지 고르기"
         inputName={channelId ? undefined : 'coverImageFile'}
         preserveSelection={!channelId}
+        selectedFiles={!channelId && pendingFile ? [pendingFile] : !channelId ? [] : undefined}
         onFilesSelected={handleFilesSelected}
       />
+
+      {inspectionMessages.length > 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-zinc-400">
+          {inspectionMessages.map((item) => (
+            <p key={item}>{item}</p>
+          ))}
+        </div>
+      ) : null}
 
       <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">
         {previewUrl
@@ -120,7 +172,11 @@ export function WebtoonCoverField({
             <span>커버 이미지 URL</span>
             <input
               value={value}
-              onChange={(event) => setValue(event.target.value)}
+              onChange={(event) => {
+                setValue(event.target.value)
+                setPendingFile(null)
+                setLocalPreviewUrl(null)
+              }}
               className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
               placeholder="https://..."
             />
@@ -140,6 +196,17 @@ export function WebtoonCoverField({
           </div>
         )}
       </div>
+
+      {previewUrl ? (
+        <button
+          type="button"
+          onClick={clearCoverImage}
+          disabled={isUploading}
+          className="inline-flex w-fit rounded-full border border-rose-300/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-100 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          커버 이미지 제거
+        </button>
+      ) : null}
     </div>
   )
 }

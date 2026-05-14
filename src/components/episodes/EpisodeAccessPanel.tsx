@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import type { ArtworkEpisode } from '@/lib/explore'
@@ -121,14 +120,13 @@ export function EpisodeAccessPanel({
             {episode.imageUrls.map((imageUrl, index) => (
               <div
                 key={`${imageUrl}-${index + 1}`}
-                className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
+                className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
               >
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={imageUrl}
                   alt={`${episode.title} 이미지 ${index + 1}`}
-                  width={1200}
-                  height={1800}
-                  className="h-auto w-full object-cover"
+                  className="h-auto w-full"
                 />
               </div>
             ))}

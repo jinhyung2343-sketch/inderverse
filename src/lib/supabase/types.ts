@@ -505,6 +505,50 @@ export type Database = {
           },
         ]
       }
+      welcome_email_deliveries: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welcome_email_deliveries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coin_transactions: {
         Row: {
           amount: number
@@ -589,33 +633,66 @@ export type Database = {
       }
       episode_images: {
         Row: {
+          content_type: string | null
+          cleanup_status: string
+          derivatives: Json
           episode_id: string
           file_size_bytes: number | null
           height: number | null
           id: string
           image_url: string
           is_verified: boolean
+          optimized_image_url: string | null
+          optimized_file_path: string | null
+          original_image_url: string | null
+          original_file_path: string | null
+          processing_error: string | null
+          processing_status: string
           sort_order: number
+          thumbnail_image_url: string | null
+          thumbnail_file_path: string | null
           width: number | null
         }
         Insert: {
+          content_type?: string | null
+          cleanup_status?: string
+          derivatives?: Json
           episode_id: string
           file_size_bytes?: number | null
           height?: number | null
           id?: string
           image_url: string
           is_verified?: boolean
+          optimized_image_url?: string | null
+          optimized_file_path?: string | null
+          original_image_url?: string | null
+          original_file_path?: string | null
+          processing_error?: string | null
+          processing_status?: string
           sort_order: number
+          thumbnail_image_url?: string | null
+          thumbnail_file_path?: string | null
           width?: number | null
         }
         Update: {
+          content_type?: string | null
+          cleanup_status?: string
+          derivatives?: Json
           episode_id?: string
           file_size_bytes?: number | null
           height?: number | null
           id?: string
           image_url?: string
           is_verified?: boolean
+          optimized_image_url?: string | null
+          optimized_file_path?: string | null
+          original_image_url?: string | null
+          original_file_path?: string | null
+          processing_error?: string | null
+          processing_status?: string
           sort_order?: number
+          thumbnail_image_url?: string | null
+          thumbnail_file_path?: string | null
           width?: number | null
         }
         Relationships: [
@@ -666,6 +743,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      storage_cleanup_jobs: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          file_path: string
+          id: string
+          last_error: string | null
+          reason: string
+          source_id: string | null
+          source_table: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          file_path: string
+          id?: string
+          last_error?: string | null
+          reason: string
+          source_id?: string | null
+          source_table: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          file_path?: string
+          id?: string
+          last_error?: string | null
+          reason?: string
+          source_id?: string | null
+          source_table?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       spark_reactions: {
         Row: {
@@ -1123,6 +1239,26 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      claim_storage_cleanup_jobs: {
+        Args: {
+          p_limit?: number
+        }
+        Returns: Database["public"]["Tables"]["storage_cleanup_jobs"]["Row"][]
+      }
+      complete_storage_cleanup_job: {
+        Args: {
+          p_error?: string | null
+          p_job_id: string
+          p_status: string
+        }
+        Returns: Database["public"]["Tables"]["storage_cleanup_jobs"]["Row"]
+      }
+      is_storage_file_referenced: {
+        Args: {
+          p_file_path: string
+        }
+        Returns: boolean
       }
       purchase_episode: {
         Args: {

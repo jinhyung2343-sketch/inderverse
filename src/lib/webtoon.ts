@@ -8,7 +8,22 @@ export type WebtoonEpisodeStatus = Database['public']['Enums']['episode_status']
 
 export interface WebtoonEpisodeImageRecord {
   imageUrl: string
+  originalImageUrl?: string | null
+  optimizedImageUrl?: string | null
+  thumbnailImageUrl?: string | null
   sortOrder: number
+  width?: number | null
+  height?: number | null
+  fileSizeBytes?: number | null
+  contentType?: string | null
+  derivatives?: Json | null
+  isVerified?: boolean
+  processingStatus?: string | null
+  processingError?: string | null
+  cleanupStatus?: string | null
+  originalFilePath?: string | null
+  optimizedFilePath?: string | null
+  thumbnailFilePath?: string | null
 }
 
 export interface CreatorWebtoonEpisodeRecord {

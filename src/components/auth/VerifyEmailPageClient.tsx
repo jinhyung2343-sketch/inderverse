@@ -61,6 +61,12 @@ export function VerifyEmailPageClient({
       return
     }
 
+    try {
+      await fetch('/api/email/welcome', { method: 'POST' })
+    } catch (welcomeEmailError) {
+      console.warn('Unable to request welcome email:', welcomeEmailError)
+    }
+
     setMessage('이메일 인증이 완료되었습니다.')
     router.replace(redirectPath)
     router.refresh()

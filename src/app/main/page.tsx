@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { HubSettingsButton } from '@/components/navigation/HubSettingsMenu';
 import { PageBackLink } from '@/components/navigation/PageBackLink';
 import { BRAND } from '@/lib/brand';
 import { canGuestOpenMainMenu, getJoinPromptHref, LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy';
@@ -79,14 +80,13 @@ export default function MainHubPage() {
     isLoading,
     checkSession,
     isLoggedIn,
+    profile,
     userNickname,
     guardianConsentStatus,
-    signOut,
   } = useAuthStore();
   
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState<{ title: string; path: string } | null>(null);
 
   // 컴포넌트 마운트 시 세션 체크
@@ -108,22 +108,6 @@ export default function MainHubPage() {
     }, 700); // 부드러운 전환을 위한 대기시간
   };
 
-  const handleSignOut = async () => {
-    if (isSigningOut) {
-      return;
-    }
-
-    setIsSigningOut(true);
-
-    try {
-      await signOut();
-      router.push('/');
-      router.refresh();
-    } finally {
-      setIsSigningOut(false);
-    }
-  };
-
   const handleLoginConfirm = () => {
     if (!loginPrompt) {
       return;
@@ -132,7 +116,36 @@ export default function MainHubPage() {
     router.push(getJoinPromptHref(loginPrompt.path));
   };
 
-  const activeAmbient = MENUS.find(m => m.id === hoveredMenu)?.ambientColor || 'bg-white';
+  const isCreator = isLoggedIn && (profile?.role === 'creator' || profile?.role === 'admin');
+  const menus = MENUS.flatMap((menu) => {
+    if (menu.id === 'creators') {
+      return isCreator
+        ? [{
+          ...menu,
+          id: 'creator-operations',
+          title: '내 채널 운영',
+          description: '업로드, 편집, 공개 상태를 바로 관리하기',
+          path: '/main/studio/creator-channel',
+          ambientColor: 'bg-emerald-500',
+          glowColor: 'group-hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]',
+          borderColor: 'group-hover:border-emerald-500/30'
+        }]
+        : [];
+    }
+
+    if (menu.id === 'studio') {
+      return isCreator
+        ? []
+        : [{
+          ...menu,
+          title: '작가 등록',
+          description: '창작자로 전환하고 작품을 시작하기'
+        }];
+    }
+
+    return [menu];
+  });
+  const activeAmbient = menus.find(m => m.id === hoveredMenu)?.ambientColor || 'bg-white';
   const displayNickname = isLoggedIn ? userNickname : 'Guest';
 
   return (
@@ -171,16 +184,7 @@ export default function MainHubPage() {
           </div>
         </div>
 
-        {isLoggedIn ? (
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm text-zinc-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSigningOut ? '로그아웃 중...' : '로그아웃'}
-          </button>
-        ) : null}
+        <HubSettingsButton />
       </header>
 
       {loginPrompt ? (
@@ -240,7 +244,7 @@ export default function MainHubPage() {
           ) : null}
 
           
-          {MENUS.map((menu, idx) => {
+          {menus.map((menu, idx) => {
             const isSelected = isTransitioning === menu.id;
             const isOtherTransitioning = isTransitioning && !isSelected;
 

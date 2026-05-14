@@ -40,7 +40,24 @@ type EpisodeRow = Pick<
 
 type EpisodeImageRow = Pick<
   Database['public']['Tables']['episode_images']['Row'],
-  'episode_id' | 'image_url' | 'sort_order'
+  | 'episode_id'
+  | 'image_url'
+  | 'original_image_url'
+  | 'optimized_image_url'
+  | 'thumbnail_image_url'
+  | 'sort_order'
+  | 'width'
+  | 'height'
+  | 'file_size_bytes'
+  | 'content_type'
+  | 'derivatives'
+  | 'is_verified'
+  | 'processing_status'
+  | 'processing_error'
+  | 'cleanup_status'
+  | 'original_file_path'
+  | 'optimized_file_path'
+  | 'thumbnail_file_path'
 >
 
 type ChannelTagRow = Pick<
@@ -131,9 +148,9 @@ async function getSupportingRows(channelIds: string[]) {
 
   const episodeIds = (episodesResult.data ?? []).map((episode) => episode.id)
   const imagesResult = episodeIds.length
-    ? await supabase
+      ? await supabase
         .from('episode_images')
-        .select('episode_id, image_url, sort_order')
+        .select('episode_id, image_url, original_image_url, optimized_image_url, thumbnail_image_url, sort_order, width, height, file_size_bytes, content_type, derivatives, is_verified, processing_status, processing_error, cleanup_status, original_file_path, optimized_file_path, thumbnail_file_path')
         .in('episode_id', episodeIds)
         .order('sort_order', { ascending: true })
     : { data: [], error: null }
@@ -209,8 +226,23 @@ function mapEpisodes(
       status: episode.status,
       publishedAt: episode.published_at,
       images: (imagesByEpisodeId.get(episode.id) ?? []).map((image) => ({
-        imageUrl: image.image_url,
+        imageUrl: image.optimized_image_url ?? image.image_url,
+        originalImageUrl: image.original_image_url,
+        optimizedImageUrl: image.optimized_image_url,
+        thumbnailImageUrl: image.thumbnail_image_url,
         sortOrder: image.sort_order,
+        width: image.width,
+        height: image.height,
+        fileSizeBytes: image.file_size_bytes,
+        contentType: image.content_type,
+        derivatives: image.derivatives,
+        isVerified: image.is_verified,
+        processingStatus: image.processing_status,
+        processingError: image.processing_error,
+        cleanupStatus: image.cleanup_status,
+        originalFilePath: image.original_file_path,
+        optimizedFilePath: image.optimized_file_path,
+        thumbnailFilePath: image.thumbnail_file_path,
       })),
     }))
 }

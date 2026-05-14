@@ -53,7 +53,7 @@ type EpisodeRow = Pick<
 
 type EpisodeImageRow = Pick<
   Database['public']['Tables']['episode_images']['Row'],
-  'episode_id' | 'image_url' | 'sort_order'
+  'episode_id' | 'image_url' | 'optimized_image_url' | 'sort_order'
 >
 
 type ChannelTagRow = Pick<
@@ -424,7 +424,7 @@ const getPublicArtworkBundles = cache(async () => {
     episodeIds.length > 0
       ? admin
           .from('episode_images')
-          .select('episode_id, image_url, sort_order')
+          .select('episode_id, image_url, optimized_image_url, sort_order')
           .in('episode_id', episodeIds)
           .order('sort_order', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -483,11 +483,11 @@ const getPublicArtworkBundles = cache(async () => {
     const bucket = imageUrlsByEpisodeId.get(image.episode_id)
 
     if (bucket) {
-      bucket.push(image.image_url)
+      bucket.push(image.optimized_image_url ?? image.image_url)
       return
     }
 
-    imageUrlsByEpisodeId.set(image.episode_id, [image.image_url])
+    imageUrlsByEpisodeId.set(image.episode_id, [image.optimized_image_url ?? image.image_url])
   })
 
   return channelRows.map((channel) => ({

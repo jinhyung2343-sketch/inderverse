@@ -7,7 +7,7 @@ import { getCreatorWebtoonList } from '@/lib/server/webtoon-studio'
 import { getNovelStatusLabel } from '@/lib/novel'
 import { getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
 import { getWebtoonStatusLabel } from '@/lib/webtoon'
-import { getWorkTypeLabel, type WorkType } from '@/lib/work'
+import type { WorkType } from '@/lib/work'
 
 type SupportedStudioWorkType = Extract<WorkType, 'webtoon' | 'novel' | 'spark'>
 
@@ -28,54 +28,109 @@ interface StudioWork {
   updatedAt: string
 }
 
+type CreationIdentityType = WorkType | 'multi_artist'
+
 const creationOptions: Array<{
-  workType: WorkType
+  id: CreationIdentityType
+  workType?: WorkType
   title: string
+  role: string
   description: string
+  note: string
   href?: string
   actionLabel?: string
   isReady: boolean
+  accentClassName: string
 }> = [
   {
+    id: 'webtoon',
     workType: 'webtoon',
-    title: '웹툰',
-    description: '연재 웹툰, 짧은 만화형 스파크 등 이미지 기반 만화 작품을 시작합니다.',
+    title: '웹툰 작가',
+    role: 'Toon Creator',
+    description: '연재 웹툰, 단편 웹툰, 스파크처럼 이미지 기반 만화 작품을 시작합니다.',
+    note: '포맷 선택 후 원고 이미지와 회차 편집으로 이어집니다.',
     href: '/main/studio/channels/webtoon',
-    actionLabel: '웹툰 만들기',
+    actionLabel: '웹툰으로 시작하기',
     isReady: true,
+    accentClassName: 'border-emerald-300/30 bg-emerald-400/10 text-emerald-100',
   },
   {
+    id: 'novel',
     workType: 'novel',
-    title: '웹소설',
-    description: '텍스트 본문, 회차 가격, 연재 상태를 관리합니다.',
+    title: '웹소설 작가',
+    role: 'Novel Creator',
+    description: '텍스트 본문, 회차 가격, 연재 상태를 중심으로 장편 이야기를 쌓아갑니다.',
+    note: '작품 정보를 저장한 뒤 회차 본문과 등급 설정으로 이어집니다.',
     href: '/main/studio/channels/novel/new',
-    actionLabel: '웹소설 만들기',
+    actionLabel: '웹소설로 시작하기',
     isReady: true,
+    accentClassName: 'border-sky-300/30 bg-sky-400/10 text-sky-100',
   },
   {
-    workType: 'audio_drama',
-    title: '오디오 드라마',
-    description: '오디오 파일과 시즌형 회차를 담을 수 있게 확장할 예정입니다.',
-    isReady: false,
-  },
-  {
+    id: 'music',
     workType: 'music',
-    title: '음악',
-    description: '트랙, 앨범, 가사와 음원 자산을 담을 수 있게 준비합니다.',
+    title: '음악가',
+    role: 'Music Creator',
+    description: '트랙, 앨범, 가사, 음원 자산을 작품 단위로 공개하는 구조를 준비합니다.',
+    note: '음원 업로드와 앨범형 작품 관리는 다음 단계에서 열립니다.',
     isReady: false,
+    accentClassName: 'border-amber-300/25 bg-amber-400/10 text-amber-100',
   },
   {
+    id: 'illustration',
     workType: 'illustration',
-    title: '일러스트',
-    description: '단일 이미지, 시리즈, 포트폴리오 공개를 고려합니다.',
+    title: '일러스트레이터',
+    role: 'Illustration Creator',
+    description: '단일 이미지, 시리즈, 포트폴리오형 공개 작품을 담는 흐름을 준비합니다.',
+    note: '작품 이미지, 시리즈 묶음, 공개 갤러리는 준비 중입니다.',
     isReady: false,
+    accentClassName: 'border-rose-300/25 bg-rose-400/10 text-rose-100',
+  },
+  {
+    id: 'audio_drama',
+    workType: 'audio_drama',
+    title: '오디오 드라마 제작자',
+    role: 'Audio Drama Creator',
+    description: '성우, 대본, 시즌형 회차, 오디오 파일을 함께 운영하는 형식을 준비합니다.',
+    note: '오디오 회차와 시즌 관리는 이후 확장됩니다.',
+    isReady: false,
+    accentClassName: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100',
+  },
+  {
+    id: 'essay',
+    workType: 'essay',
+    title: '에세이스트',
+    role: 'Essay Creator',
+    description: '짧은 글, 연재 에세이, 창작 노트를 독자에게 공개하는 구조를 준비합니다.',
+    note: '텍스트 중심이지만 웹소설과 다른 공개 형식으로 분리할 예정입니다.',
+    isReady: false,
+    accentClassName: 'border-lime-300/25 bg-lime-400/10 text-lime-100',
+  },
+  {
+    id: 'other',
+    workType: 'other',
+    title: '기타 창작자',
+    role: 'Original Creator',
+    description: '정해진 형식에 들어오지 않는 독립 창작물을 위한 공간을 준비합니다.',
+    note: '작품 구조가 명확해지는 형식부터 순차적으로 지원합니다.',
+    isReady: false,
+    accentClassName: 'border-zinc-300/25 bg-zinc-400/10 text-zinc-100',
+  },
+  {
+    id: 'multi_artist',
+    title: '멀티 아티스트',
+    role: 'Multi Artist',
+    description: '그림을 그리는 뮤지션, 음악을 하는 소설가처럼 여러 정체성이 공존하는 창작자를 위한 채널입니다.',
+    note: '멀티 채널은 프로젝트, 장르 섹션, 협업 흐름까지 별도 구조로 설계합니다.',
+    isReady: false,
+    accentClassName: 'border-white/25 bg-white/10 text-white',
   },
 ]
 
 const platformModel = [
-  '작가는 먼저 공개 채널을 가지고, 그 안에서 여러 형식의 작품을 운영합니다.',
+  '작가는 먼저 자기 창작 정체성을 고르고, 선택한 형식에 맞는 제작 화면으로 이동합니다.',
   '작품은 work_type으로 구분하고, 회차와 자산은 형식에 맞는 편집기를 붙입니다.',
-  '알파에서는 웹툰과 웹소설을 실제 제작 대상으로 두고, 스파크는 웹툰 계열의 짧은 포맷으로 운영합니다.',
+  '멀티 아티스트는 여러 장르를 한 채널에서 운영하는 별도 채널 구조로 확장합니다.',
 ]
 
 function formatUpdatedAt(value: string) {
@@ -158,7 +213,7 @@ export default async function StudioChannelsPage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="space-y-6 border-b border-white/10 pb-6">
           <div className="flex items-center justify-between gap-4">
-            <PageBackLink href="/main/studio" ariaLabel="스튜디오 홈으로 돌아가기" />
+            <PageBackLink href="/main/studio/creator-channel" ariaLabel="내 채널 운영으로 돌아가기" />
             <Link
               href="/main/studio/creator-channel"
               className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
@@ -169,9 +224,9 @@ export default async function StudioChannelsPage() {
 
           <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr] lg:items-end">
             <div className="space-y-3">
-              <h1 className="text-4xl font-black tracking-tight md:text-5xl">내 작품</h1>
+              <h1 className="text-4xl font-black tracking-tight md:text-5xl">새 작품 만들기</h1>
               <p className="max-w-2xl text-sm leading-7 text-zinc-400 md:text-base">
-                웹툰 계열과 웹소설을 한 화면에서 보고 형식에 맞는 편집기로 이어갑니다.
+                먼저 어떤 창작자로 시작할지 선택하세요. 지금은 웹툰과 웹소설을 열어두고, 나머지 장르는 준비 중입니다.
               </p>
             </div>
 
@@ -195,37 +250,52 @@ export default async function StudioChannelsPage() {
         <section className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Create</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight">새 작품 만들기</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Creator Identity</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight">어떤 창작자로 시작할까요?</h2>
             </div>
             <p className="max-w-xl text-sm leading-6 text-zinc-400">
-              지금은 웹툰 계열과 웹소설을 먼저 지원하고, 다른 형식은 같은 작품 구조 위에 순차적으로 붙입니다.
+              선택은 이번 작품의 시작점입니다. 나중에 한 채널 안에서 여러 형식을 운영할 수 있도록 확장합니다.
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {creationOptions.map((option) =>
-              option.href ? (
+              option.isReady && option.href ? (
                 <Link
-                  key={option.workType}
+                  key={option.id}
                   href={option.href}
-                  className="rounded-lg border border-white/10 bg-white/[0.06] p-4 transition hover:border-white/25 hover:bg-white/[0.09]"
+                  className="group flex min-h-[260px] flex-col rounded-lg border border-white/10 bg-white/[0.06] p-5 transition hover:border-white/25 hover:bg-white/[0.09]"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                    {getWorkTypeLabel(option.workType)}
-                  </p>
-                  <h3 className="mt-3 text-lg font-bold">{option.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">{option.description}</p>
-                  <p className="mt-4 text-xs font-semibold text-white">{option.actionLabel}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${option.accentClassName}`}>
+                      사용 가능
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                      {option.role}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-2xl font-black tracking-tight">{option.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-zinc-400">{option.description}</p>
+                  <p className="mt-3 text-xs leading-5 text-zinc-500">{option.note}</p>
+                  <p className="mt-auto pt-6 text-sm font-semibold text-white">{option.actionLabel}</p>
                 </Link>
               ) : (
-                <div key={option.workType} className="rounded-lg border border-dashed border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
-                    {getWorkTypeLabel(option.workType)}
-                  </p>
-                  <h3 className="mt-3 text-lg font-bold text-zinc-300">{option.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">{option.description}</p>
-                  <p className="mt-4 text-xs font-semibold text-zinc-500">준비 중</p>
+                <div
+                  key={option.id}
+                  className="flex min-h-[260px] flex-col rounded-lg border border-dashed border-white/10 bg-white/[0.03] p-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${option.accentClassName}`}>
+                      준비 중
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-600">
+                      {option.role}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-2xl font-black tracking-tight text-zinc-300">{option.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-zinc-500">{option.description}</p>
+                  <p className="mt-3 text-xs leading-5 text-zinc-600">{option.note}</p>
+                  <p className="mt-auto pt-6 text-sm font-semibold text-zinc-500">나중에 열릴 메뉴</p>
                 </div>
               )
             )}
