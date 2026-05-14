@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { FilePickerButton, ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import {
+  IMAGE_UPLOAD_POLICY,
   formatFileSize,
   getWebtoonUploadGuide,
   prepareAndInspectImageFiles,
@@ -10,6 +11,13 @@ import {
 import type { WebtoonEpisodeImageRecord } from '@/lib/webtoon'
 
 type ImageUploadStatus = 'empty' | 'pending' | 'uploading' | 'ready' | 'failed'
+type DiagnosticLevel = 'pass' | 'warning' | 'error'
+
+interface ImageDiagnosticItem {
+  level: DiagnosticLevel
+  title: string
+  message: string
+}
 
 interface EpisodeImageDraft {
   imageUrl: string
@@ -132,6 +140,176 @@ function getImageMetaLine(image: EpisodeImageDraft) {
   return [dimensions, size, type, fallback].filter(Boolean).join(' · ') || '이미지 정보가 저장 후 표시됩니다.'
 }
 
+function getDiagnosticClassName(level: DiagnosticLevel) {
+  switch (level) {
+    case 'error':
+      return 'border-rose-300/20 bg-rose-500/10 text-rose-100'
+    case 'warning':
+      return 'border-amber-300/20 bg-amber-500/10 text-amber-100'
+    case 'pass':
+    default:
+      return 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100'
+  }
+}
+
+function getDiagnosticLabel(level: DiagnosticLevel) {
+  switch (level) {
+    case 'error':
+      return '확인 필요'
+    case 'warning':
+      return '주의'
+    case 'pass':
+    default:
+      return '통과'
+  }
+}
+
+function getImageDiagnostics(image: EpisodeImageDraft): ImageDiagnosticItem[] {
+  const items: ImageDiagnosticItem[] = []
+  const hasImage = Boolean(image.imageUrl.trim())
+  const fileSizeBytes = image.fileSizeBytes ?? image.pendingFile?.size ?? null
+  const contentType = image.contentType || image.pendingFile?.type || null
+
+  if (!hasImage) {
+    items.push({
+      level: 'error',
+      title: '이미지 없음',
+      message: '공개 회차에는 실제 이미지가 필요합니다.',
+    })
+    return items
+  }
+
+  if (image.status === 'failed') {
+    items.push({
+      level: 'error',
+      title: '업로드 실패',
+      message: image.errorMessage ?? '실패한 컷을 다시 업로드해 주세요.',
+    })
+  }
+
+  if (image.status === 'pending' || image.status === 'uploading') {
+    items.push({
+      level: 'warning',
+      title: '처리 대기',
+      message: '저장 또는 업로드가 끝난 뒤 공개 상태로 전환하는 것이 안전합니다.',
+    })
+  }
+
+  if (image.processingStatus === 'partial') {
+    items.push({
+      level: 'warning',
+      title: '원본 fallback',
+      message: '최적화본 생성에 실패해 원본으로 표시 중이며 자동 재처리 대상입니다.',
+    })
+  }
+
+  if (image.processingStatus === 'retry_needed') {
+    items.push({
+      level: 'warning',
+      title: '재처리 필요',
+      message: '최적화 재시도가 필요합니다. 자동 작업이 다시 처리합니다.',
+    })
+  }
+
+  if (image.processingStatus === 'failed') {
+    items.push({
+      level: 'error',
+      title: '최적화 실패',
+      message: image.processingError ?? '최적화 실패 상태입니다. 원본 파일을 교체해 주세요.',
+    })
+  }
+
+  if (
+    contentType &&
+    !(IMAGE_UPLOAD_POLICY.allowedContentTypes as readonly string[]).includes(contentType)
+  ) {
+    items.push({
+      level: 'error',
+      title: '지원하지 않는 형식',
+      message: 'JPG, PNG, WebP 형식만 안정적으로 지원합니다.',
+    })
+  }
+
+  if (fileSizeBytes && fileSizeBytes > IMAGE_UPLOAD_POLICY.maxFileBytes) {
+    items.push({
+      level: 'error',
+      title: '용량 초과',
+      message: `파일당 최대 ${formatFileSize(IMAGE_UPLOAD_POLICY.maxFileBytes)}까지 업로드할 수 있습니다.`,
+    })
+  } else if (fileSizeBytes && fileSizeBytes > IMAGE_UPLOAD_POLICY.compressionWarningBytes) {
+    items.push({
+      level: 'warning',
+      title: '큰 파일',
+      message: '독자 로딩 속도를 위해 압축 또는 컷 분할을 권장합니다.',
+    })
+  }
+
+  if (image.width && image.height) {
+    if (image.width < IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMin) {
+      items.push({
+        level: 'warning',
+        title: '가로폭 작음',
+        message: `${IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMin}px 이상이면 확대 화면에서 더 선명합니다.`,
+      })
+    }
+
+    if (image.width > IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMax) {
+      items.push({
+        level: 'warning',
+        title: '가로폭 큼',
+        message: `${IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMax}px 안팎으로 맞추면 로딩이 안정적입니다.`,
+      })
+    }
+
+    if (
+      image.height >= IMAGE_UPLOAD_POLICY.longStripHeightPx ||
+      image.height / image.width >= IMAGE_UPLOAD_POLICY.longStripRatio
+    ) {
+      items.push({
+        level: 'warning',
+        title: '긴 세로 원고',
+        message: '너무 긴 이미지는 일부 환경에서 로딩이 불안정할 수 있어 컷 분할을 권장합니다.',
+      })
+    }
+  } else if (hasImage && image.isVerified) {
+    items.push({
+      level: 'warning',
+      title: '크기 정보 없음',
+      message: '이미지 크기 정보가 없어 선명도와 긴 원고 여부를 자동 판정하지 못했습니다.',
+    })
+  }
+
+  if (hasImage && !image.isVerified && !image.pendingFile) {
+    items.push({
+      level: 'warning',
+      title: '직접 입력 URL',
+      message: '직접 입력한 URL은 서버 검증과 자동 최적화 정보가 제한됩니다.',
+    })
+  }
+
+  if (items.length === 0) {
+    items.push({
+      level: 'pass',
+      title: '품질 기준 통과',
+      message: '크기, 형식, 처리 상태가 공개 기준에 맞습니다.',
+    })
+  }
+
+  return items
+}
+
+function getHighestDiagnosticLevel(items: ImageDiagnosticItem[]): DiagnosticLevel {
+  if (items.some((item) => item.level === 'error')) {
+    return 'error'
+  }
+
+  if (items.some((item) => item.level === 'warning')) {
+    return 'warning'
+  }
+
+  return 'pass'
+}
+
 export function EpisodeImagesField({
   channelId,
   episodeId,
@@ -148,6 +326,52 @@ export function EpisodeImagesField({
   const [inspectionMessages, setInspectionMessages] = useState<string[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const guideItems = getWebtoonUploadGuide()
+  const activeImages = images.filter((image) => image.imageUrl.trim())
+  const diagnosticsByIndex = images.map((image) => {
+    if (image.imageUrl.trim() || activeImages.length === 0) {
+      return getImageDiagnostics(image)
+    }
+
+    return [
+      {
+        level: 'warning' as const,
+        title: '빈 이미지 칸',
+        message: '저장 시 제외됩니다. 필요 없으면 제거해 주세요.',
+      },
+    ]
+  })
+  const blockingDiagnosticCount = diagnosticsByIndex.flat().filter((item) => item.level === 'error').length
+  const warningDiagnosticCount = diagnosticsByIndex.flat().filter((item) => item.level === 'warning').length
+  const publishChecks = [
+    {
+      label: '이미지 등록',
+      passed: activeImages.length > 0,
+      message: activeImages.length > 0 ? `${activeImages.length}장 준비됨` : '공개 전 최소 1장 필요',
+    },
+    {
+      label: '업로드 완료',
+      passed: images.every((image) => image.status !== 'pending' && image.status !== 'uploading'),
+      message: images.some((image) => image.status === 'pending' || image.status === 'uploading')
+        ? '저장 대기 또는 업로드 중인 컷 있음'
+        : '대기 중인 컷 없음',
+    },
+    {
+      label: '차단 오류',
+      passed: blockingDiagnosticCount === 0,
+      message:
+        blockingDiagnosticCount === 0
+          ? '공개를 막는 이미지 오류 없음'
+          : `${blockingDiagnosticCount}개 항목 확인 필요`,
+    },
+    {
+      label: '자동 최적화',
+      passed: images.every((image) => !image.imageUrl || image.processingStatus !== 'partial'),
+      message: images.some((image) => image.processingStatus === 'partial')
+        ? '원본 fallback 컷은 자동 재처리 대상'
+        : '최적화 상태 안정',
+    },
+  ]
+  const readyForPublish = publishChecks.every((check) => check.passed)
   const imagesJson = useMemo(
     () =>
       JSON.stringify(
@@ -265,7 +489,7 @@ export function EpisodeImagesField({
       return null
     }
 
-    return result.files
+    return result
   }
 
   async function uploadImageAtIndex(index: number, file: File, options: { skipInspection?: boolean } = {}) {
@@ -275,7 +499,9 @@ export function EpisodeImagesField({
 
     setMessage(null)
 
-    const uploadFile = options.skipInspection ? file : (await prepareEpisodeFiles([file]))?.[0]
+    const preparedResult = options.skipInspection ? null : await prepareEpisodeFiles([file])
+    const uploadFile = options.skipInspection ? file : preparedResult?.files[0]
+    const inspection = preparedResult?.inspections[0]
 
     if (!uploadFile) {
       return false
@@ -293,6 +519,8 @@ export function EpisodeImagesField({
                 pendingFile: uploadFile,
                 fileSizeBytes: uploadFile.size,
                 contentType: uploadFile.type,
+                width: inspection?.width ?? image.width,
+                height: inspection?.height ?? image.height,
               }
             : image
         )
@@ -398,7 +626,8 @@ export function EpisodeImagesField({
       return
     }
 
-    const preparedFiles = await prepareEpisodeFiles(files)
+    const preparedResult = await prepareEpisodeFiles(files)
+    const preparedFiles = preparedResult?.files
 
     if (!preparedFiles) {
       return
@@ -406,28 +635,32 @@ export function EpisodeImagesField({
 
     if (!episodeId) {
       setImages(
-        preparedFiles.map((file, index) => ({
-          imageUrl: URL.createObjectURL(file),
-          originalImageUrl: null,
-          optimizedImageUrl: null,
-          thumbnailImageUrl: null,
-          sortOrder: index,
-          width: null,
-          height: null,
-          fileSizeBytes: file.size,
-          contentType: file.type,
-          derivatives: null,
-          isVerified: false,
-          processingStatus: 'pending',
-          processingError: null,
-          cleanupStatus: 'active',
-          originalFilePath: null,
-          optimizedFilePath: null,
-          thumbnailFilePath: null,
-          status: 'pending',
-          errorMessage: null,
-          pendingFile: file,
-        }))
+        preparedFiles.map((file, index) => {
+          const inspection = preparedResult.inspections[index]
+
+          return {
+            imageUrl: URL.createObjectURL(file),
+            originalImageUrl: null,
+            optimizedImageUrl: null,
+            thumbnailImageUrl: null,
+            sortOrder: index,
+            width: inspection?.width ?? null,
+            height: inspection?.height ?? null,
+            fileSizeBytes: file.size,
+            contentType: file.type,
+            derivatives: null,
+            isVerified: false,
+            processingStatus: 'pending',
+            processingError: null,
+            cleanupStatus: 'active',
+            originalFilePath: null,
+            optimizedFilePath: null,
+            thumbnailFilePath: null,
+            status: 'pending',
+            errorMessage: null,
+            pendingFile: file,
+          }
+        })
       )
       setMessage('선택한 회차 이미지를 먼저 미리보고 있습니다. 회차를 저장하면 업로드가 함께 진행됩니다.')
       return
@@ -483,6 +716,14 @@ export function EpisodeImagesField({
     }
   }
 
+  function renderDiagnosticPill(level: DiagnosticLevel) {
+    return (
+      <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${getDiagnosticClassName(level)}`}>
+        {getDiagnosticLabel(level)}
+      </span>
+    )
+  }
+
   return (
     <div className="grid gap-4">
       <input type="hidden" name="imagesJson" value={imagesJson} readOnly />
@@ -498,6 +739,65 @@ export function EpisodeImagesField({
           <p key={item}>{item}</p>
         ))}
       </div>
+
+      <section className="rounded-3xl border border-white/10 bg-black/20 p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-white">발행 전 품질 체크</h3>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">
+              {readyForPublish
+                ? '이미지 등록, 처리 상태, 공개 차단 오류가 모두 안정적입니다.'
+                : '공개 전 확인이 필요한 항목이 남아 있습니다.'}
+            </p>
+          </div>
+          <div
+            className={`w-fit rounded-full border px-3 py-1 text-[11px] font-semibold ${
+              readyForPublish
+                ? 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100'
+                : blockingDiagnosticCount > 0
+                  ? 'border-rose-300/20 bg-rose-500/10 text-rose-100'
+                  : 'border-amber-300/20 bg-amber-500/10 text-amber-100'
+            }`}
+          >
+            {readyForPublish
+              ? '공개 준비 완료'
+              : blockingDiagnosticCount > 0
+                ? '확인 필요'
+                : '주의 항목 있음'}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {publishChecks.map((check) => (
+            <div
+              key={check.label}
+              className={`rounded-2xl border p-3 ${
+                check.passed
+                  ? 'border-emerald-300/10 bg-emerald-500/5'
+                  : 'border-amber-300/10 bg-amber-500/5'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-zinc-200">{check.label}</p>
+                <span
+                  className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                    check.passed ? 'bg-emerald-500/10 text-emerald-100' : 'bg-amber-500/10 text-amber-100'
+                  }`}
+                >
+                  {check.passed ? '통과' : '점검'}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">{check.message}</p>
+            </div>
+          ))}
+        </div>
+
+        {warningDiagnosticCount > 0 ? (
+          <p className="mt-3 text-xs leading-5 text-amber-100">
+            주의 항목 {warningDiagnosticCount}개가 있습니다. 공개는 가능할 수 있지만 로딩, 선명도, 자동 최적화 상태를 확인해 주세요.
+          </p>
+        ) : null}
+      </section>
 
       <ImageUploadDropzone
         title="회차 이미지 여러 장 올리기"
@@ -525,29 +825,33 @@ export function EpisodeImagesField({
       ) : null}
 
       <div className="grid gap-4">
-        {images.map((image, index) => (
-          <section
-            key={`episode-image-${index}`}
-            draggable={images.length > 1}
-            onDragStart={() => setDraggedIndex(index)}
-            onDragOver={(event) => {
-              if (draggedIndex !== null) {
-                event.preventDefault()
-              }
-            }}
-            onDrop={(event) => {
-              event.preventDefault()
+        {images.map((image, index) => {
+          const diagnostics = diagnosticsByIndex[index] ?? []
+          const highestDiagnosticLevel = getHighestDiagnosticLevel(diagnostics)
 
-              if (draggedIndex !== null) {
-                moveImageRow(draggedIndex, index)
-                setDraggedIndex(null)
-              }
-            }}
-            onDragEnd={() => setDraggedIndex(null)}
-            className={`rounded-3xl border bg-white/5 p-4 transition ${
-              draggedIndex === index ? 'border-emerald-300/40 opacity-70' : 'border-white/10'
-            }`}
-          >
+          return (
+            <section
+              key={`episode-image-${index}`}
+              draggable={images.length > 1}
+              onDragStart={() => setDraggedIndex(index)}
+              onDragOver={(event) => {
+                if (draggedIndex !== null) {
+                  event.preventDefault()
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+
+                if (draggedIndex !== null) {
+                  moveImageRow(draggedIndex, index)
+                  setDraggedIndex(null)
+                }
+              }}
+              onDragEnd={() => setDraggedIndex(null)}
+              className={`rounded-3xl border bg-white/5 p-4 transition ${
+                draggedIndex === index ? 'border-emerald-300/40 opacity-70' : 'border-white/10'
+              }`}
+            >
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -555,6 +859,9 @@ export function EpisodeImagesField({
                     <p className="text-sm font-semibold text-white">이미지 {index + 1}</p>
                     <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getStatusClassName(image.status)}`}>
                       {getStatusLabel(image.status)}
+                    </span>
+                    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getDiagnosticClassName(highestDiagnosticLevel)}`}>
+                      {getDiagnosticLabel(highestDiagnosticLevel)}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-zinc-500">
@@ -623,6 +930,18 @@ export function EpisodeImagesField({
                 </div>
               </div>
 
+              <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-3">
+                {diagnostics.map((item) => (
+                  <div key={`${item.title}-${item.message}`} className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-200">{item.title}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">{item.message}</p>
+                    </div>
+                    <div className="mt-1 w-fit shrink-0">{renderDiagnosticPill(item.level)}</div>
+                  </div>
+                ))}
+              </div>
+
               <label className="grid gap-2 text-sm text-zinc-300">
                 <span className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-400">
                   {image.imageUrl
@@ -659,8 +978,9 @@ export function EpisodeImagesField({
                 </div>
               </details>
             </div>
-          </section>
-        ))}
+            </section>
+          )
+        })}
       </div>
 
       <button

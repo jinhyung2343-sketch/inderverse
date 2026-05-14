@@ -646,7 +646,9 @@ export type Database = {
           optimized_file_path: string | null
           original_image_url: string | null
           original_file_path: string | null
+          processing_attempt_count: number
           processing_error: string | null
+          processing_last_attempt_at: string | null
           processing_status: string
           sort_order: number
           thumbnail_image_url: string | null
@@ -667,7 +669,9 @@ export type Database = {
           optimized_file_path?: string | null
           original_image_url?: string | null
           original_file_path?: string | null
+          processing_attempt_count?: number
           processing_error?: string | null
+          processing_last_attempt_at?: string | null
           processing_status?: string
           sort_order: number
           thumbnail_image_url?: string | null
@@ -688,7 +692,9 @@ export type Database = {
           optimized_file_path?: string | null
           original_image_url?: string | null
           original_file_path?: string | null
+          processing_attempt_count?: number
           processing_error?: string | null
+          processing_last_attempt_at?: string | null
           processing_status?: string
           sort_order?: number
           thumbnail_image_url?: string | null
@@ -1246,6 +1252,12 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["storage_cleanup_jobs"]["Row"][]
       }
+      claim_webtoon_image_processing_jobs: {
+        Args: {
+          p_limit?: number
+        }
+        Returns: Database["public"]["Tables"]["episode_images"]["Row"][]
+      }
       complete_storage_cleanup_job: {
         Args: {
           p_error?: string | null
@@ -1253,6 +1265,24 @@ export type Database = {
           p_status: string
         }
         Returns: Database["public"]["Tables"]["storage_cleanup_jobs"]["Row"]
+      }
+      complete_webtoon_image_processing_job: {
+        Args: {
+          p_content_type?: string | null
+          p_derivatives?: Json | null
+          p_error?: string | null
+          p_file_size_bytes?: number | null
+          p_height?: number | null
+          p_image_id: string
+          p_image_url?: string | null
+          p_optimized_file_path?: string | null
+          p_optimized_image_url?: string | null
+          p_status: string
+          p_thumbnail_file_path?: string | null
+          p_thumbnail_image_url?: string | null
+          p_width?: number | null
+        }
+        Returns: Database["public"]["Tables"]["episode_images"]["Row"]
       }
       is_storage_file_referenced: {
         Args: {

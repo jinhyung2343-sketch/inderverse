@@ -3,6 +3,10 @@
     {
       "path": "/api/internal/storage-cleanup?limit=25",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/internal/webtoon-image-processing?limit=10",
+      "schedule": "27 * * * *"
     }
   ]
 }

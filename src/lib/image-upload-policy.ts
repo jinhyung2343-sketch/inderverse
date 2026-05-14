@@ -177,6 +177,7 @@ export async function prepareAndInspectImageFiles(files: File[], purpose: ImageU
 
   return {
     files: preparedFiles,
+    inspections,
     errors: getBlockingImageErrors(inspections),
     messages: [
       ...prepared.flatMap((entry) => entry.messages),

@@ -30,7 +30,7 @@ export interface UploadedEpisodeImage {
   }
 }
 
-interface ImageDerivativeMetadata {
+export interface ImageDerivativeMetadata {
   url: string
   filePath: string
   width: number | null
@@ -39,12 +39,44 @@ interface ImageDerivativeMetadata {
   contentType: AllowedContentType
 }
 
+export interface WebtoonDerivativeProcessingResult {
+  imageUrl: string
+  originalImageUrl: string
+  optimizedImageUrl: string
+  thumbnailImageUrl: string
+  width: number | null
+  height: number | null
+  fileSizeBytes: number
+  contentType: AllowedContentType
+  processingStatus: 'ready'
+  processingError: null
+  cleanupStatus: 'active'
+  originalFilePath: string
+  optimizedFilePath: string
+  thumbnailFilePath: string
+  derivatives: UploadedEpisodeImage['derivatives']
+}
+
 export function isAllowedContentType(value: string): value is AllowedContentType {
   return value === 'image/png' || value === 'image/jpeg' || value === 'image/webp'
 }
 
 function getFileExtension(contentType: AllowedContentType) {
   return contentType.split('/')[1]
+}
+
+function inferContentTypeFromPath(filePath: string): AllowedContentType {
+  const extension = filePath.split('.').pop()?.toLowerCase()
+
+  if (extension === 'png') {
+    return 'image/png'
+  }
+
+  if (extension === 'webp') {
+    return 'image/webp'
+  }
+
+  return 'image/jpeg'
 }
 
 export function buildPublicAssetUrl(filePath: string) {
@@ -90,6 +122,112 @@ async function buildWebtoonDerivative(
     .resize({ width, withoutEnlargement: true })
     .webp({ quality, effort: 4 })
     .toBuffer({ resolveWithObject: true })
+}
+
+export async function buildAndUploadWebtoonEpisodeDerivatives({
+  channelId,
+  episodeId,
+  sortOrder,
+  originalBytes,
+  originalFilePath,
+  originalImageUrl,
+  contentType,
+}: {
+  channelId: string
+  episodeId: string
+  sortOrder: number
+  originalBytes: Buffer
+  originalFilePath: string
+  originalImageUrl: string
+  contentType: AllowedContentType
+}): Promise<WebtoonDerivativeProcessingResult> {
+  const originalMetadata = await sharp(originalBytes, { limitInputPixels: false }).metadata()
+  const originalWidth = originalMetadata.width ?? null
+  const originalHeight = originalMetadata.height ?? null
+  const optimizedPath = `optimized/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
+  const optimized = await buildWebtoonDerivative(originalBytes, WEBTOON_READER_WIDTH, 88)
+  const optimizedImageUrl = await uploadBufferToPath(optimized.data, optimizedPath, 'image/webp')
+  const optimizedDerivative: ImageDerivativeMetadata = {
+    url: optimizedImageUrl,
+    filePath: optimizedPath,
+    width: optimized.info.width || null,
+    height: optimized.info.height || null,
+    fileSizeBytes: optimized.data.length,
+    contentType: 'image/webp',
+  }
+
+  const thumbnailPath = `thumbnails/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
+  const thumbnail = await buildWebtoonDerivative(originalBytes, WEBTOON_THUMBNAIL_WIDTH, 76)
+  const thumbnailImageUrl = await uploadBufferToPath(thumbnail.data, thumbnailPath, 'image/webp')
+  const thumbnailDerivative: ImageDerivativeMetadata = {
+    url: thumbnailImageUrl,
+    filePath: thumbnailPath,
+    width: thumbnail.info.width || null,
+    height: thumbnail.info.height || null,
+    fileSizeBytes: thumbnail.data.length,
+    contentType: 'image/webp',
+  }
+
+  return {
+    imageUrl: optimizedImageUrl,
+    originalImageUrl,
+    optimizedImageUrl,
+    thumbnailImageUrl,
+    width: originalWidth,
+    height: originalHeight,
+    fileSizeBytes: originalBytes.length,
+    contentType,
+    processingStatus: 'ready',
+    processingError: null,
+    cleanupStatus: 'active',
+    originalFilePath,
+    optimizedFilePath: optimizedPath,
+    thumbnailFilePath: thumbnailPath,
+    derivatives: {
+      original: {
+        url: originalImageUrl,
+        filePath: originalFilePath,
+        width: originalWidth,
+        height: originalHeight,
+        fileSizeBytes: originalBytes.length,
+        contentType,
+      },
+      optimized: optimizedDerivative,
+      thumbnail: thumbnailDerivative,
+    },
+  }
+}
+
+export async function regenerateWebtoonEpisodeDerivatives({
+  channelId,
+  episodeId,
+  sortOrder,
+  originalFilePath,
+  originalImageUrl,
+  contentType,
+}: {
+  channelId: string
+  episodeId: string
+  sortOrder: number
+  originalFilePath: string
+  originalImageUrl?: string | null
+  contentType?: string | null
+}) {
+  const [originalBytes] = await bucket.file(originalFilePath).download()
+  const candidateContentType = contentType ?? ''
+  const normalizedContentType: AllowedContentType = isAllowedContentType(candidateContentType)
+    ? candidateContentType
+    : inferContentTypeFromPath(originalFilePath)
+
+  return buildAndUploadWebtoonEpisodeDerivatives({
+    channelId,
+    episodeId,
+    sortOrder,
+    originalBytes,
+    originalFilePath,
+    originalImageUrl: originalImageUrl ?? buildPublicAssetUrl(originalFilePath),
+    contentType: normalizedContentType,
+  })
 }
 
 export async function generateSignedUrl({
@@ -281,39 +419,20 @@ export async function uploadEpisodeImageFile({
   const extension = getFileExtension(file.type)
   const originalPath = `originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`
   const originalBytes = Buffer.from(await file.arrayBuffer())
-  const originalMetadata = await sharp(originalBytes, { limitInputPixels: false }).metadata()
-  const originalWidth = originalMetadata.width ?? null
-  const originalHeight = originalMetadata.height ?? null
   const originalImageUrl = await uploadBufferToPath(originalBytes, originalPath, file.type)
-  let optimizedDerivative: ImageDerivativeMetadata | null = null
-  let thumbnailDerivative: ImageDerivativeMetadata | null = null
   let processingStatus: UploadedEpisodeImage['processingStatus'] = 'ready'
   let processingError: string | null = null
 
   try {
-    const optimizedPath = `optimized/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
-    const optimized = await buildWebtoonDerivative(originalBytes, WEBTOON_READER_WIDTH, 88)
-    const optimizedImageUrl = await uploadBufferToPath(optimized.data, optimizedPath, 'image/webp')
-    optimizedDerivative = {
-      url: optimizedImageUrl,
-      filePath: optimizedPath,
-      width: optimized.info.width || null,
-      height: optimized.info.height || null,
-      fileSizeBytes: optimized.data.length,
-      contentType: 'image/webp',
-    }
-
-    const thumbnailPath = `thumbnails/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
-    const thumbnail = await buildWebtoonDerivative(originalBytes, WEBTOON_THUMBNAIL_WIDTH, 76)
-    const thumbnailImageUrl = await uploadBufferToPath(thumbnail.data, thumbnailPath, 'image/webp')
-    thumbnailDerivative = {
-      url: thumbnailImageUrl,
-      filePath: thumbnailPath,
-      width: thumbnail.info.width || null,
-      height: thumbnail.info.height || null,
-      fileSizeBytes: thumbnail.data.length,
-      contentType: 'image/webp',
-    }
+    return await buildAndUploadWebtoonEpisodeDerivatives({
+      channelId,
+      episodeId,
+      sortOrder,
+      originalBytes,
+      originalFilePath: originalPath,
+      originalImageUrl,
+      contentType: file.type,
+    })
   } catch (error) {
     processingStatus = 'partial'
     processingError = error instanceof Error ? error.message : '이미지 파생본 생성에 실패했습니다.'
@@ -325,11 +444,15 @@ export async function uploadEpisodeImageFile({
     })
   }
 
+  const originalMetadata = await sharp(originalBytes, { limitInputPixels: false }).metadata()
+  const originalWidth = originalMetadata.width ?? null
+  const originalHeight = originalMetadata.height ?? null
+
   return {
-    imageUrl: optimizedDerivative?.url ?? originalImageUrl,
+    imageUrl: originalImageUrl,
     originalImageUrl,
-    optimizedImageUrl: optimizedDerivative?.url ?? null,
-    thumbnailImageUrl: thumbnailDerivative?.url ?? null,
+    optimizedImageUrl: null,
+    thumbnailImageUrl: null,
     width: originalWidth,
     height: originalHeight,
     fileSizeBytes: file.size,
@@ -338,8 +461,8 @@ export async function uploadEpisodeImageFile({
     processingError,
     cleanupStatus: 'active',
     originalFilePath: originalPath,
-    optimizedFilePath: optimizedDerivative?.filePath ?? null,
-    thumbnailFilePath: thumbnailDerivative?.filePath ?? null,
+    optimizedFilePath: null,
+    thumbnailFilePath: null,
     derivatives: {
       original: {
         url: originalImageUrl,
@@ -349,8 +472,8 @@ export async function uploadEpisodeImageFile({
         fileSizeBytes: file.size,
         contentType: file.type,
       },
-      optimized: optimizedDerivative,
-      thumbnail: thumbnailDerivative,
+      optimized: null,
+      thumbnail: null,
     },
   } satisfies UploadedEpisodeImage
 }
