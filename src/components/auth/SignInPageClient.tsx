@@ -107,12 +107,7 @@ export function SignInPageClient({
             </label>
 
             <label className="block space-y-2">
-              <span className="flex items-center justify-between gap-3 text-sm text-zinc-300">
-                비밀번호
-                <Link href={forgotPasswordHref} className="text-xs text-zinc-400 underline underline-offset-4 transition hover:text-white">
-                  비밀번호를 잊으셨나요?
-                </Link>
-              </span>
+              <span className="text-sm text-zinc-300">비밀번호</span>
               <input
                 type="password"
                 value={password}
@@ -122,6 +117,15 @@ export function SignInPageClient({
                 autoComplete="current-password"
               />
             </label>
+
+            <div className="-mt-2 flex justify-end">
+              <Link
+                href={forgotPasswordHref}
+                className="inline-flex min-h-10 items-center rounded-full border border-white/10 bg-black/20 px-4 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 hover:text-white"
+              >
+                비밀번호를 잊으셨나요?
+              </Link>
+            </div>
 
             {errorMessage ? (
               <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -148,6 +152,12 @@ export function SignInPageClient({
                   >
                     비밀번호 다시 입력
                   </button>
+                  <Link
+                    href={forgotPasswordHref}
+                    className="inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-zinc-200 transition hover:bg-white/10"
+                  >
+                    비밀번호 재설정
+                  </Link>
                 </div>
               </div>
             ) : null}

@@ -42,6 +42,25 @@ interface EpisodeImageDraft {
   pendingFile: File | null
 }
 
+interface EpisodeUploadPayload {
+  imageUrl: string
+  originalImageUrl?: string | null
+  optimizedImageUrl?: string | null
+  thumbnailImageUrl?: string | null
+  width?: number | null
+  height?: number | null
+  fileSizeBytes?: number | null
+  contentType?: string | null
+  derivatives?: WebtoonEpisodeImageRecord['derivatives']
+  processingStatus?: string | null
+  processingError?: string | null
+  cleanupStatus?: string | null
+  originalFilePath?: string | null
+  optimizedFilePath?: string | null
+  thumbnailFilePath?: string | null
+  isVerified?: boolean
+}
+
 function normalizeImages(initialImages: WebtoonEpisodeImageRecord[]) {
   if (initialImages.length === 0) {
     return [createEmptyImageDraft(0)]
@@ -597,6 +616,110 @@ export function EpisodeImagesField({
     return result
   }
 
+  async function uploadImageWithSignedUrl({
+    index,
+    file,
+    width,
+    height,
+  }: {
+    index: number
+    file: File
+    width: number | null
+    height: number | null
+  }): Promise<EpisodeUploadPayload> {
+    const signedUrlResponse = await fetch('/api/upload/signed-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        channelId,
+        episodeId,
+        sortOrder: index,
+        contentType: file.type,
+      }),
+    })
+    const signedUrlPayload = (await signedUrlResponse.json()) as {
+      error?: string
+      url?: string
+      filePath?: string
+      publicUrl?: string
+      maxFileBytes?: number
+    }
+
+    if (!signedUrlResponse.ok || !signedUrlPayload.url || !signedUrlPayload.filePath || !signedUrlPayload.publicUrl) {
+      throw new Error(signedUrlPayload.error || '직접 업로드 URL을 만들지 못했습니다.')
+    }
+
+    if (signedUrlPayload.maxFileBytes && file.size > signedUrlPayload.maxFileBytes) {
+      throw new Error(`파일당 최대 ${formatFileSize(signedUrlPayload.maxFileBytes)}까지 업로드할 수 있습니다.`)
+    }
+
+    const directUploadResponse = await fetch(signedUrlPayload.url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+        'x-goog-content-length-range': `1,${signedUrlPayload.maxFileBytes ?? file.size}`,
+      },
+      body: file,
+    })
+
+    if (!directUploadResponse.ok) {
+      throw new Error('직접 업로드에 실패했습니다.')
+    }
+
+    return {
+      imageUrl: signedUrlPayload.publicUrl,
+      originalImageUrl: signedUrlPayload.publicUrl,
+      optimizedImageUrl: null,
+      thumbnailImageUrl: null,
+      width,
+      height,
+      fileSizeBytes: file.size,
+      contentType: file.type,
+      derivatives: {
+        original: {
+          url: signedUrlPayload.publicUrl,
+          filePath: signedUrlPayload.filePath,
+          width,
+          height,
+          fileSizeBytes: file.size,
+          contentType: file.type as WebtoonEpisodeImageRecord['contentType'],
+        },
+        optimized: null,
+        thumbnail: null,
+      },
+      processingStatus: 'retry_needed',
+      processingError: null,
+      cleanupStatus: 'active',
+      originalFilePath: signedUrlPayload.filePath,
+      optimizedFilePath: null,
+      thumbnailFilePath: null,
+      isVerified: true,
+    }
+  }
+
+  async function uploadImageWithServerEndpoint(index: number, file: File): Promise<EpisodeUploadPayload> {
+    const formData = new FormData()
+    formData.set('channelId', channelId)
+    formData.set('episodeId', episodeId ?? '')
+    formData.set('sortOrder', String(index))
+    formData.set('file', file)
+
+    const uploadResponse = await fetch('/api/upload/webtoon-episode-image', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const uploadPayload = (await uploadResponse.json()) as EpisodeUploadPayload & { error?: string }
+
+    if (!uploadResponse.ok || !uploadPayload.imageUrl) {
+      throw new Error(uploadPayload.error || '회차 이미지 업로드에 실패했습니다.')
+    }
+
+    return uploadPayload
+  }
+
   async function uploadImageAtIndex(index: number, file: File, options: { skipInspection?: boolean } = {}) {
     if (!file || !episodeId) {
       return false
@@ -631,38 +754,17 @@ export function EpisodeImagesField({
         )
       )
 
-      const formData = new FormData()
-      formData.set('channelId', channelId)
-      formData.set('episodeId', episodeId)
-      formData.set('sortOrder', String(index))
-      formData.set('file', uploadFile)
+      let uploadPayload: EpisodeUploadPayload
 
-      const uploadResponse = await fetch('/api/upload/webtoon-episode-image', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const uploadPayload = (await uploadResponse.json()) as {
-        error?: string
-        imageUrl?: string
-        originalImageUrl?: string
-        optimizedImageUrl?: string
-        thumbnailImageUrl?: string
-        width?: number | null
-        height?: number | null
-        fileSizeBytes?: number
-        contentType?: string
-        derivatives?: WebtoonEpisodeImageRecord['derivatives']
-        processingStatus?: string
-        processingError?: string | null
-        cleanupStatus?: string
-        originalFilePath?: string | null
-        optimizedFilePath?: string | null
-        thumbnailFilePath?: string | null
-      }
-
-      if (!uploadResponse.ok || !uploadPayload.imageUrl) {
-        throw new Error(uploadPayload.error || '회차 이미지 업로드에 실패했습니다.')
+      try {
+        uploadPayload = await uploadImageWithSignedUrl({
+          index,
+          file: uploadFile,
+          width: inspection?.width ?? images[index]?.width ?? null,
+          height: inspection?.height ?? images[index]?.height ?? null,
+        })
+      } catch {
+        uploadPayload = await uploadImageWithServerEndpoint(index, uploadFile)
       }
 
       setImages((current) =>
@@ -679,7 +781,7 @@ export function EpisodeImagesField({
                 fileSizeBytes: uploadPayload.fileSizeBytes ?? null,
                 contentType: uploadPayload.contentType ?? null,
                 derivatives: uploadPayload.derivatives ?? null,
-                isVerified: true,
+                isVerified: uploadPayload.isVerified ?? true,
                 processingStatus: uploadPayload.processingStatus ?? 'ready',
                 processingError: uploadPayload.processingError ?? null,
                 cleanupStatus: uploadPayload.cleanupStatus ?? 'active',

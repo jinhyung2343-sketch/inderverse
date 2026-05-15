@@ -1,10 +1,13 @@
 import 'server-only'
 
 import { regenerateWebtoonEpisodeDerivatives } from '@/lib/gcs/upload'
+import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/types'
 
 type WebtoonImageProcessingJob = Database['public']['Tables']['episode_images']['Row']
+
+const WEBTOON_IMAGE_PROCESSING_CONCURRENCY = 2
 
 export interface WebtoonImageProcessingRunResult {
   claimed: number
@@ -170,7 +173,11 @@ export async function runWebtoonImageProcessingJobs(
   }
 
   const jobs = (data ?? []) as WebtoonImageProcessingJob[]
-  const items = await Promise.all(jobs.map((job) => processImageJob(job)))
+  const items = await mapWithConcurrency(
+    jobs,
+    WEBTOON_IMAGE_PROCESSING_CONCURRENCY,
+    (job) => processImageJob(job)
+  )
 
   return {
     claimed: jobs.length,

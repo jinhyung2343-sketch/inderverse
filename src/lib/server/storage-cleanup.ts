@@ -1,10 +1,13 @@
 import 'server-only'
 
 import { bucket } from '@/lib/gcs/client'
+import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/types'
 
 type StorageCleanupJob = Database['public']['Tables']['storage_cleanup_jobs']['Row']
+
+const STORAGE_CLEANUP_CONCURRENCY = 5
 
 export interface StorageCleanupRunResult {
   claimed: number
@@ -149,7 +152,11 @@ export async function runStorageCleanupJobs(limit = 25): Promise<StorageCleanupR
   }
 
   const jobs = (data ?? []) as StorageCleanupJob[]
-  const items = await Promise.all(jobs.map((job) => processCleanupJob(job)))
+  const items = await mapWithConcurrency(
+    jobs,
+    STORAGE_CLEANUP_CONCURRENCY,
+    (job) => processCleanupJob(job)
+  )
 
   return {
     claimed: jobs.length,

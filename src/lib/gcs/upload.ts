@@ -4,7 +4,7 @@ import sharp from 'sharp'
 
 export type AllowedContentType = 'image/png' | 'image/jpeg' | 'image/webp'
 
-const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024
+export const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024
 const WEBTOON_READER_WIDTH = 1600
 const WEBTOON_THUMBNAIL_WIDTH = 480
 
@@ -266,7 +266,7 @@ export async function generateSignedUrl({
   contentType: AllowedContentType
 }) {
   const extension = getFileExtension(contentType)
-  const filePath = `originals/${channelId}/${episodeId}/${sortOrder}.${extension}`
+  const filePath = `originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`
   
   const [url] = await bucket.file(filePath).getSignedUrl({
     version: 'v4',

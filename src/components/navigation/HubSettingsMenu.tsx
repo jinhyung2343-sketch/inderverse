@@ -37,6 +37,8 @@ interface SettingsSection {
   items: SettingsItem[]
 }
 
+type SettingsConfirmDialog = 'sign-out' | 'withdrawal' | null
+
 function GearIcon() {
   return (
     <svg
@@ -123,6 +125,7 @@ export function SettingsPageClient() {
     signOut,
   } = useAuthStore()
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<SettingsConfirmDialog>(null)
 
   useEffect(() => {
     checkSession()
@@ -144,8 +147,15 @@ export function SettingsPageClient() {
       router.refresh()
     } finally {
       setIsSigningOut(false)
+      setConfirmDialog(null)
     }
   }, [isSigningOut, router, signOut])
+
+  const closeConfirmDialog = useCallback(() => {
+    if (!isSigningOut) {
+      setConfirmDialog(null)
+    }
+  }, [isSigningOut])
 
   const sections = useMemo<SettingsSection[]>(() => {
     const authNextPath = encodeURIComponent('/main')
@@ -170,13 +180,14 @@ export function SettingsPageClient() {
                 kind: 'action',
                 label: isSigningOut ? '로그아웃 중...' : '로그아웃',
                 description: '현재 기기에서 인더버스 접속을 종료합니다.',
-                action: handleSignOut,
+                action: () => setConfirmDialog('sign-out'),
                 disabled: isSigningOut,
               },
               {
-                kind: 'pending',
+                kind: 'action',
                 label: '회원 탈퇴',
                 description: '결제, 정산, 작성 콘텐츠 확인 절차가 필요한 메뉴입니다.',
+                action: () => setConfirmDialog('withdrawal'),
                 tone: 'danger',
               },
             ]
@@ -253,7 +264,7 @@ export function SettingsPageClient() {
         ],
       },
     ]
-  }, [handleSignOut, isCreator, isLoggedIn, isSigningOut])
+  }, [isCreator, isLoggedIn, isSigningOut])
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-5 py-8 text-white md:px-8">
@@ -293,6 +304,74 @@ export function SettingsPageClient() {
           })}
         </div>
       </div>
+
+      {confirmDialog ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-5 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-confirm-title"
+        >
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#080808] p-6 shadow-2xl shadow-black/60">
+            {confirmDialog === 'sign-out' ? (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Sign Out</p>
+                <h2 id="settings-confirm-title" className="mt-4 text-2xl font-bold tracking-tight text-white">
+                  로그아웃을 진행하시겠습니까?
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-zinc-400">
+                  현재 기기에서 인더버스 접속이 종료됩니다. 저장하지 않은 작성 내용이 있다면 먼저 저장해 주세요.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={closeConfirmDialog}
+                    disabled={isSigningOut}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSigningOut ? '로그아웃 중...' : '로그아웃'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-300/70">Account Deletion</p>
+                <h2 id="settings-confirm-title" className="mt-4 text-2xl font-bold tracking-tight text-white">
+                  회원 탈퇴를 진행하시겠습니까?
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-zinc-400">
+                  회원 탈퇴가 완료되면 계정 정보, 라이브러리 기록, 작가 채널, 작품 데이터, 정산 관련 정보에 영향을 줄 수 있습니다.
+                  결제와 정산, 작성 콘텐츠 확인 절차가 필요하므로 현재는 자동 탈퇴 대신 안내 단계로 제공됩니다.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={closeConfirmDialog}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeConfirmDialog}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-rose-300/30 bg-rose-500/15 px-4 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/25"
+                  >
+                    안내 확인
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

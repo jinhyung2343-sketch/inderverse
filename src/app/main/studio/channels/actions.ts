@@ -17,6 +17,7 @@ import {
   uploadSparkCoverFile,
   uploadSparkPanelFile,
 } from '@/lib/gcs/upload'
+import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
@@ -41,6 +42,8 @@ import { sanitizeWebtoonTags } from '@/lib/webtoon'
 import type { Database, Json } from '@/lib/supabase/types'
 
 type UserRole = Database['public']['Enums']['user_role']
+
+const WEBTOON_EPISODE_CREATE_UPLOAD_CONCURRENCY = 2
 
 function readText(formData: FormData, key: string) {
   const value = formData.get(key)
@@ -1348,8 +1351,10 @@ export async function createWebtoonEpisode(formData: FormData) {
   }
 
   if (pendingEpisodeImageFiles.length > 0) {
-    const uploadedImages = await Promise.all(
-      pendingEpisodeImageFiles.map((file, index) =>
+    const uploadedImages = await mapWithConcurrency(
+      pendingEpisodeImageFiles,
+      WEBTOON_EPISODE_CREATE_UPLOAD_CONCURRENCY,
+      (file, index) =>
         uploadEpisodeImageFile({
           channelId,
           episodeId: episode.id,
@@ -1375,7 +1380,6 @@ export async function createWebtoonEpisode(formData: FormData) {
           optimized_file_path: image.optimizedFilePath,
           thumbnail_file_path: image.thumbnailFilePath,
         }))
-      )
     )
 
     const { error: uploadedImagesError } = await supabase.from('episode_images').insert(uploadedImages)

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateSignedUrl, AllowedContentType } from '@/lib/gcs/upload'
+import {
+  generateSignedUrl,
+  isAllowedContentType,
+  MAX_IMAGE_FILE_BYTES,
+} from '@/lib/gcs/upload'
 import { createClient } from '@/lib/supabase/server'
+
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,10 +37,11 @@ export async function POST(req: NextRequest) {
       .select('id, creator_id')
       .eq('id', channelId)
       .eq('creator_id', user.id)
+      .eq('work_type', 'webtoon')
       .single()
 
     if (channelError || !ownedChannel) {
-      return NextResponse.json({ error: 'Forbidden: not your channel' }, { status: 403 })
+      return NextResponse.json({ error: 'Forbidden: not your webtoon channel' }, { status: 403 })
     }
 
     const { data: episode, error: episodeError } = await supabase
@@ -48,8 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Episode does not belong to your channel' }, { status: 403 })
     }
 
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
-    if (!allowedTypes.includes(contentType)) {
+    if (!isAllowedContentType(contentType)) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
     }
 
@@ -57,12 +63,13 @@ export async function POST(req: NextRequest) {
       channelId,
       episodeId,
       sortOrder,
-      contentType: contentType as AllowedContentType,
+      contentType,
     })
 
-    return NextResponse.json({ url, filePath, publicUrl }, { status: 200 })
+    return NextResponse.json({ url, filePath, publicUrl, maxFileBytes: MAX_IMAGE_FILE_BYTES }, { status: 200 })
   } catch (error) {
-    console.error('Error generating signed URL:', error)
+    const message = error instanceof Error ? error.message : 'Internal Server Error'
+    console.error('Error generating signed URL:', message)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
