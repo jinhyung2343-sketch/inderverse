@@ -188,6 +188,7 @@ export async function POST(request: NextRequest) {
     }
 
     const confirmationEmail = buildSignupConfirmationEmail({
+      actionLink: data.properties.action_link,
       displayName,
       otp: data.properties.email_otp,
     })

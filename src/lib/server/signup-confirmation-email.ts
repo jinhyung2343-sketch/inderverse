@@ -10,12 +10,15 @@ function escapeHtml(value: string) {
 }
 
 export function buildSignupConfirmationEmail({
+  actionLink,
   displayName,
   otp,
 }: {
+  actionLink?: string
   displayName: string
   otp: string
 }) {
+  const safeActionLink = actionLink ? escapeHtml(actionLink) : null
   const safeDisplayName = escapeHtml(displayName || '회원')
   const safeOtp = escapeHtml(otp)
 
@@ -26,6 +29,13 @@ export function buildSignupConfirmationEmail({
       '',
       safeOtp,
       '',
+      ...(actionLink
+        ? [
+            '또는 아래 링크를 열어 이메일 인증을 완료할 수 있습니다.',
+            actionLink,
+            '',
+          ]
+        : []),
       '본인이 요청하지 않았다면 이 메일을 무시해도 됩니다.',
     ].join('\n'),
     html: `<!doctype html>
@@ -53,8 +63,17 @@ export function buildSignupConfirmationEmail({
                 <p style="margin:0 0 24px;border-radius:18px;background:#ffffff;color:#050505;font-size:32px;font-weight:700;letter-spacing:0.22em;padding:18px 20px;text-align:center;">
                   ${safeOtp}
                 </p>
+                ${
+                  safeActionLink
+                    ? `<p style="margin:0 0 24px;text-align:center;">
+                  <a href="${safeActionLink}" style="display:inline-block;border-radius:999px;background:#f4f4f5;color:#050505;font-size:14px;font-weight:700;padding:14px 22px;text-decoration:none;">
+                    이메일 인증 완료하기
+                  </a>
+                </p>`
+                    : ''
+                }
                 <p style="margin:0;color:#a1a1aa;font-size:13px;line-height:1.7;">
-                  본인이 요청하지 않았다면 이 메일을 무시해도 됩니다. 인증코드는 제한 시간 이후 만료됩니다.
+                  본인이 요청하지 않았다면 이 메일을 무시해도 됩니다. 인증코드와 인증 링크는 제한 시간 이후 만료됩니다.
                 </p>
               </td>
             </tr>

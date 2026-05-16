@@ -51,6 +51,32 @@ npm run supabase:start:mail
 
 비밀번호 재설정 메일은 로컬 메일함이 아니라 Resend SMTP를 통해 실제 가입 이메일 주소로 발송됩니다. 입력한 이메일이 현재 연결된 Supabase 프로젝트에 가입되어 있어야 메일이 발송됩니다.
 
+## Production Auth Deployment
+
+인터넷 배포 환경에서 회원가입, 이메일 인증, 비밀번호 재설정, 회원 탈퇴가 정상 동작하려면 배포 프로젝트에 아래 환경 변수가 설정되어 있어야 합니다.
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SITE_URL=
+SUPABASE_AUTH_SMTP_HOST=
+SUPABASE_AUTH_SMTP_USER=
+SUPABASE_AUTH_SMTP_PASS=
+SUPABASE_AUTH_SMTP_ADMIN_EMAIL=
+SUPABASE_AUTH_SMTP_SENDER_NAME=
+```
+
+Supabase Auth URL Configuration에는 운영 도메인을 Site URL로 설정하고, Additional Redirect URLs에 아래 경로를 허용해야 합니다.
+
+```text
+https://your-domain.com/auth/callback
+https://your-domain.com/auth/reset-password
+https://your-domain.com/auth/verify-email
+```
+
+Vercel Preview 배포에서 인증 링크를 테스트한다면 Supabase Additional Redirect URLs에 Vercel preview URL 패턴도 추가해야 합니다. 운영 도메인은 와일드카드보다 정확한 경로를 우선 사용합니다.
+
 ## Notes
 
 - PASS/휴대폰 본인인증은 실제 외부 연동 전 단계의 확장 가능한 API 골격까지 연결되어 있습니다.
