@@ -24,6 +24,7 @@ type ChannelRow = Pick<
   | 'status'
   | 'wait_free_hours'
   | 'work_type'
+  | 'creator_id'
   | 'creator_channel_id'
   | 'created_at'
   | 'updated_at'
@@ -66,6 +67,16 @@ type TagRow = Pick<
   'id' | 'name' | 'category' | 'is_adult_only'
 >
 
+type ProfileSummaryRow = Pick<
+  Database['public']['Tables']['profiles']['Row'],
+  'id' | 'display_name'
+>
+
+type CreatorChannelSummaryRow = Pick<
+  Database['public']['Tables']['creator_channels']['Row'],
+  'id' | 'slug' | 'display_name' | 'avatar_url'
+>
+
 interface ArtworkBundle {
   channel: ChannelRow
   episodes: EpisodeRow[]
@@ -77,6 +88,7 @@ const PUBLIC_CHANNEL_STATUSES: Database['public']['Enums']['channel_status'][] =
   'publishing',
   'completed',
 ]
+const PUBLIC_DATA_TIMEOUT_MS = 450
 
 const KNOWN_CATEGORIES = categories.filter((category) => category !== '전체')
 const publicArtworkIdByChannelId = new Map(
@@ -110,6 +122,31 @@ function isExploreSchemaUnavailable(error: { code?: string; message?: string } |
     message.includes('body_text') ||
     message.includes('novel')
   )
+}
+
+function isRecoverablePublicDataError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+
+  return (
+    message.includes('schema cache') ||
+    message.includes('Failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('network') ||
+    message.includes('timeout')
+  )
+}
+
+function withPublicDataTimeout<T>(promise: Promise<T>) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error('Public explore data timeout')), PUBLIC_DATA_TIMEOUT_MS)
+    }),
+  ])
+}
+
+function uniqueValues(values: Array<string | null>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
 }
 
 function mapArtworkStatus(
@@ -300,11 +337,10 @@ async function loadPublicChannels({
     status,
     wait_free_hours,
     work_type,
+    creator_id,
     creator_channel_id,
     created_at,
-    updated_at,
-    creator:profiles!channels_creator_id_fkey(display_name),
-    creator_channel:creator_channels!channels_creator_channel_id_fkey(slug, display_name, avatar_url)
+    updated_at
   `
   let query = admin
     .from('channels')
@@ -320,7 +356,7 @@ async function loadPublicChannels({
   const result = await query
 
   if (!result.error) {
-    return (result.data ?? []) as ChannelRow[]
+    return attachPublicChannelCreators((result.data ?? []) as ChannelRow[])
   }
 
   if (!isExploreSchemaUnavailable(result.error)) {
@@ -346,7 +382,64 @@ async function loadPublicChannels({
     throw new Error(`Failed to load explore channels: ${fallbackResult.error.message}`)
   }
 
-  return (fallbackResult.data ?? []) as ChannelRow[]
+  return attachPublicChannelCreators((fallbackResult.data ?? []) as ChannelRow[])
+}
+
+async function attachPublicChannelCreators(channels: ChannelRow[]) {
+  if (channels.length === 0) {
+    return channels
+  }
+
+  const admin = createAdminClient()
+  const creatorIds = uniqueValues(channels.map((channel) => channel.creator_id))
+  const creatorChannelIds = uniqueValues(channels.map((channel) => channel.creator_channel_id))
+
+  try {
+    const [profilesResult, creatorChannelsResult] = await Promise.all([
+      creatorIds.length > 0
+        ? admin.from('profiles').select('id, display_name').in('id', creatorIds)
+        : Promise.resolve({ data: [], error: null }),
+      creatorChannelIds.length > 0
+        ? admin
+            .from('creator_channels')
+            .select('id, slug, display_name, avatar_url')
+            .in('id', creatorChannelIds)
+        : Promise.resolve({ data: [], error: null }),
+    ])
+
+    if (profilesResult.error) {
+      throw new Error(`Failed to load explore creators: ${profilesResult.error.message}`)
+    }
+
+    if (creatorChannelsResult.error) {
+      throw new Error(`Failed to load explore creator channels: ${creatorChannelsResult.error.message}`)
+    }
+
+    const profilesById = new Map(
+      ((profilesResult.data ?? []) as ProfileSummaryRow[]).map((profile) => [profile.id, profile])
+    )
+    const creatorChannelsById = new Map(
+      ((creatorChannelsResult.data ?? []) as CreatorChannelSummaryRow[]).map((channel) => [
+        channel.id,
+        channel,
+      ])
+    )
+
+    return channels.map((channel) => ({
+      ...channel,
+      creator: channel.creator_id ? profilesById.get(channel.creator_id) ?? null : null,
+      creator_channel: channel.creator_channel_id
+        ? creatorChannelsById.get(channel.creator_channel_id) ?? null
+        : null,
+    }))
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production' && !isRecoverablePublicDataError(error)) {
+      throw error
+    }
+
+    console.warn('Continuing explore feed without creator summaries:', error)
+    return channels
+  }
 }
 
 async function loadPublicEpisodes({
@@ -500,14 +593,14 @@ const getPublicArtworkBundles = cache(async () => {
 
 export async function getPublicArtworkList() {
   try {
-    const bundles = await getPublicArtworkBundles()
+    const bundles = await withPublicDataTimeout(getPublicArtworkBundles())
     return bundles.map(mapBackendArtwork)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
       throw error
     }
 
@@ -518,7 +611,7 @@ export async function getPublicArtworkList() {
 
 export async function getPublicArtworkById(id: string) {
   try {
-    const bundles = await getPublicArtworkBundles()
+    const bundles = await withPublicDataTimeout(getPublicArtworkBundles())
     const bundle = bundles.find((entry) => {
       const publicArtworkId = publicArtworkIdByChannelId.get(entry.channel.id) ?? entry.channel.id
       return entry.channel.id === id || publicArtworkId === id
@@ -534,7 +627,7 @@ export async function getPublicArtworkById(id: string) {
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
       throw error
     }
 

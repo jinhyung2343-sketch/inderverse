@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { HubSettingsButton } from '@/components/navigation/HubSettingsMenu';
@@ -99,7 +100,6 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
   } = useAuthStore();
   
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState<string | null>(null);
   const [loginPrompt, setLoginPrompt] = useState<{ title: string; path: string } | null>(null);
   const [isUsingInitialAuth, setIsUsingInitialAuth] = useState(true);
 
@@ -133,11 +133,7 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
       return;
     }
 
-    setIsTransitioning(menuId);
-    // 애니메이션 후 라우팅
-    setTimeout(() => {
-      router.push(path);
-    }, 700); // 부드러운 전환을 위한 대기시간
+    router.push(path);
   };
 
   const handleLoginConfirm = () => {
@@ -255,9 +251,7 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
       ) : null}
 
       {/* Main Content (Cards Grid) */}
-      <div className={`z-20 flex-1 flex flex-col items-center justify-center px-6 transition-all duration-700 ease-in-out
-        ${isTransitioning ? 'opacity-0 scale-[3]' : 'opacity-100 scale-100'}
-      `}>
+      <div className="z-20 flex flex-1 flex-col items-center justify-center px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-4xl mt-20">
           {resolvedGuardianConsentStatus === 'pending' ? (
             <div className="md:col-span-2 rounded-3xl border border-sky-400/20 bg-sky-500/10 p-6">
@@ -267,7 +261,7 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
                 확인이 끝나기 전까지는 충전하기와 작가 스튜디오 기능이 잠시 제한됩니다. 현재 상태는 보호자 동의 확인 안내 화면에서 다시 볼 수 있습니다.
               </p>
               <button
-                onClick={() => handleMenuClick('guardian-consent', '/main/guardian-consent')}
+                onClick={() => router.push('/main/guardian-consent')}
                 className="mt-5 inline-flex rounded-full border border-white/10 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
                 보호자 동의 상태 보기
@@ -277,47 +271,67 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
 
           
           {menus.map((menu, idx) => {
-            const isSelected = isTransitioning === menu.id;
-            const isOtherTransitioning = isTransitioning && !isSelected;
+            const canOpenMenu = canGuestOpenMainMenu(menu.id) || resolvedIsLoggedIn;
+            const menuClassName = `group relative block h-40 overflow-hidden rounded-3xl p-8 text-left transition-all duration-200 ease-out md:h-56
+              hover:scale-[1.01] active:scale-[0.99]`;
 
-            return (
-              <button
-                key={menu.id}
-                onClick={() => handleMenuClick(menu.id, menu.path, menu.title)}
-                onMouseEnter={() => setHoveredMenu(menu.id)}
-                onMouseLeave={() => setHoveredMenu(null)}
-                className={`group relative text-left h-40 md:h-56 p-8 rounded-3xl transition-all duration-700 ease-out overflow-hidden
-                  ${isOtherTransitioning ? 'opacity-0 scale-90 blur-sm' : ''}
-                  ${isSelected ? 'z-50 scale-[1.2]' : 'hover:scale-[1.02]'}
-                `}
-                style={{ animationDelay: `${idx * 0.1}s` }}
-              >
+            const menuContent = (
+              <>
                 {/* 카드 배경 및 Glass 효과 */}
-                <div className={`absolute inset-0 border border-white/10 rounded-3xl bg-[#0d0d0d]/60 backdrop-blur-md transition-all duration-500 
+                <div className={`absolute inset-0 rounded-3xl border border-white/10 bg-[#0d0d0d]/60 backdrop-blur-md transition-all duration-200 
                   ${menu.borderColor} ${menu.glowColor}
                 `} />
 
                 {/* 카드 내부 컨텐츠 */}
-                <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="relative z-10 flex h-full flex-col justify-between">
                   <div>
-                    <h2 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 group-hover:to-white transition-all">
+                    <h2 className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-2xl font-bold text-transparent transition-all group-hover:to-white md:text-3xl">
                       {menu.title}
                     </h2>
                   </div>
                   
                   <div className="flex items-end justify-between">
-                    <p className="text-sm md:text-base text-zinc-500 font-light tracking-wide group-hover:text-zinc-300 transition-colors">
+                    <p className="text-sm font-light tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-300 md:text-base">
                       {menu.description}
                     </p>
                     
                     {/* 우측 하단 화살표 아이콘 */}
-                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center transform translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-500 bg-white/5">
+                    <div className="flex h-8 w-8 translate-x-2 items-center justify-center rounded-full border border-white/10 bg-white/5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                       </svg>
                     </div>
                   </div>
                 </div>
+              </>
+            );
+
+            return canOpenMenu ? (
+              <Link
+                key={menu.id}
+                href={menu.path}
+                prefetch
+                onMouseEnter={() => {
+                  setHoveredMenu(menu.id);
+                  router.prefetch(menu.path);
+                }}
+                onFocus={() => router.prefetch(menu.path)}
+                onMouseLeave={() => setHoveredMenu(null)}
+                className={menuClassName}
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              >
+                {menuContent}
+              </Link>
+            ) : (
+              <button
+                key={menu.id}
+                onClick={() => handleMenuClick(menu.id, menu.path, menu.title)}
+                onMouseEnter={() => setHoveredMenu(menu.id)}
+                onMouseLeave={() => setHoveredMenu(null)}
+                className={menuClassName}
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              >
+                {menuContent}
               </button>
             );
           })}

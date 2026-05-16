@@ -3,8 +3,36 @@ import { getRouteAccessDecision } from '@/lib/guest-policy'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
-  const { response, userId, profile } = await updateSession(request)
   const { pathname, search } = request.nextUrl
+  const guestAccessDecision = getRouteAccessDecision({
+    pathname,
+    search,
+    isLoggedIn: false,
+  })
+
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next({ request })
+  }
+
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
+
+  if (!hasAuthCookie) {
+    if (guestAccessDecision.type === 'redirect') {
+      return NextResponse.redirect(new URL(guestAccessDecision.location, request.url))
+    }
+
+    const response = NextResponse.next({ request })
+
+    if (pathname === '/') {
+      response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
+    }
+
+    return response
+  }
+
+  const { response, userId, profile } = await updateSession(request)
 
   if (pathname === '/') {
     response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')

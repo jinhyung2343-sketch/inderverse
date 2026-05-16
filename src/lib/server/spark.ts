@@ -30,7 +30,12 @@ interface SparkChannelQueryRow
     | 'created_at'
     | 'updated_at'
   > {
+  creator_id?: string | null
   creator?: Pick<ProfileRow, 'display_name'> | null
+}
+type SparkQueryResult = {
+  data: unknown
+  error: { message: string } | null
 }
 
 export interface SparkDetailContext {
@@ -56,6 +61,7 @@ const EMPTY_SPARK_ENGAGEMENT: SparkEngagementSummary = {
   viewerHasSaved: false,
   viewerCanSave: false,
 }
+const PUBLIC_DATA_TIMEOUT_MS = 450
 
 function isNextRuntimeSignal(error: unknown) {
   return (
@@ -65,6 +71,70 @@ function isNextRuntimeSignal(error: unknown) {
     typeof error.digest === 'string' &&
     error.digest.startsWith('DYNAMIC_')
   )
+}
+
+function isRecoverablePublicDataError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+
+  return (
+    message.includes('schema cache') ||
+    message.includes('Failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('network') ||
+    message.includes('timeout')
+  )
+}
+
+function withPublicDataTimeout<T>(promise: PromiseLike<T>) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error('Public spark data timeout')), PUBLIC_DATA_TIMEOUT_MS)
+    }),
+  ])
+}
+
+function uniqueValues(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
+}
+
+async function attachSparkCreators(rows: SparkChannelQueryRow[]) {
+  const creatorIds = uniqueValues(rows.map((row) => row.creator_id))
+
+  if (creatorIds.length === 0) {
+    return rows
+  }
+
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('profiles')
+      .select('id, display_name')
+      .in('id', creatorIds)
+
+    if (error) {
+      throw new Error(`Failed to load spark creators: ${error.message}`)
+    }
+
+    const profilesById = new Map(
+      ((data ?? []) as Pick<ProfileRow, 'id' | 'display_name'>[]).map((profile) => [
+        profile.id,
+        profile,
+      ])
+    )
+
+    return rows.map((row) => ({
+      ...row,
+      creator: row.creator_id ? profilesById.get(row.creator_id) ?? null : null,
+    }))
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production' && !isRecoverablePublicDataError(error)) {
+      throw error
+    }
+
+    console.warn('Continuing spark feed without creator summaries:', error)
+    return rows
+  }
 }
 
 function mapSparkRow(row: SparkChannelQueryRow): SparkRecord {
@@ -120,9 +190,9 @@ export async function getPublicSparkList() {
           spark_format,
           spark_panel_count,
           spark_meta,
+          creator_id,
           created_at,
-          updated_at,
-          creator:profiles!channels_creator_id_fkey(display_name)
+          updated_at
         `
       )
       .eq('work_type', 'spark')
@@ -133,19 +203,20 @@ export async function getPublicSparkList() {
       query = query.eq('is_adult_only', false)
     }
 
-    const { data, error } = await query
+    const { data, error } = await withPublicDataTimeout(query) as SparkQueryResult
 
     if (error) {
       throw new Error(`Failed to load spark feed: ${error.message}`)
     }
 
-    return ((data ?? []) as SparkChannelQueryRow[]).map(mapSparkRow)
+    const rows = await attachSparkCreators((data ?? []) as SparkChannelQueryRow[])
+    return rows.map(mapSparkRow)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
       throw error
     }
 
@@ -174,9 +245,9 @@ export async function getPublicSparkById(id: string) {
           spark_format,
           spark_panel_count,
           spark_meta,
+          creator_id,
           created_at,
-          updated_at,
-          creator:profiles!channels_creator_id_fkey(display_name)
+          updated_at
         `
       )
       .eq('id', id)
@@ -187,7 +258,7 @@ export async function getPublicSparkById(id: string) {
       query = query.eq('is_adult_only', false)
     }
 
-    const { data, error } = await query.maybeSingle()
+    const { data, error } = await withPublicDataTimeout(query.maybeSingle()) as SparkQueryResult
 
     if (error) {
       throw new Error(`Failed to load spark detail: ${error.message}`)
@@ -197,13 +268,14 @@ export async function getPublicSparkById(id: string) {
       return null
     }
 
-    return mapSparkRow(data as SparkChannelQueryRow)
+    const [row] = await attachSparkCreators([data as SparkChannelQueryRow])
+    return mapSparkRow(row)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
       throw error
     }
 
