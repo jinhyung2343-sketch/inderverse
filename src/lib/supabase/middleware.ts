@@ -1,11 +1,36 @@
 import { createServerClient } from '@supabase/ssr'
+import type { User } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { Database } from './types'
 
-type AccessProfile = Pick<
-  Database['public']['Tables']['profiles']['Row'],
-  'role' | 'is_adult_verified' | 'guardian_consent_status'
-> | null
+type AccessProfile = {
+  role: Database['public']['Tables']['profiles']['Row']['role'] | null
+  is_adult_verified: boolean
+  guardian_consent_status: Database['public']['Tables']['profiles']['Row']['guardian_consent_status'] | null
+} | null
+
+function readRoleClaim(value: unknown): NonNullable<AccessProfile>['role'] {
+  return value === 'reader' || value === 'creator' || value === 'admin' ? value : null
+}
+
+function readStringClaim(value: unknown) {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function getAccessProfileFromJwt(user: User | null): AccessProfile {
+  if (!user) {
+    return null
+  }
+
+  return {
+    role: readRoleClaim(user.app_metadata?.role ?? user.user_metadata?.role),
+    is_adult_verified: user.app_metadata?.is_adult_verified === true ||
+      user.user_metadata?.is_adult_verified === true,
+    guardian_consent_status: readStringClaim(
+      user.app_metadata?.guardian_consent_status ?? user.user_metadata?.guardian_consent_status
+    ),
+  }
+}
 
 export type SessionContext = {
   response: NextResponse
@@ -45,17 +70,7 @@ export async function updateSession(request: NextRequest): Promise<SessionContex
     data: { user },
   } = await supabase.auth.getUser()
 
-  let profile: AccessProfile = null
-
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('role, is_adult_verified, guardian_consent_status')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    profile = data
-  }
+  const profile = getAccessProfileFromJwt(user ?? null)
 
   return {
     response: supabaseResponse,

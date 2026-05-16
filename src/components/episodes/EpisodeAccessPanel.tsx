@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import type { ArtworkEpisode } from '@/lib/explore'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -21,7 +21,7 @@ export function EpisodeAccessPanel({
   artworkId: string
   episode: ArtworkEpisode
 }) {
-  const [, forceRender] = useState(0)
+  const [, forceRender] = useReducer((value: number) => value + 1, 0)
   const [isPending, setIsPending] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const { user, checkSession } = useAuthStore()
@@ -32,13 +32,7 @@ export function EpisodeAccessPanel({
   }, [checkSession])
 
   useEffect(() => {
-    const unsubscribe = subscribeEpisodeAccess(() => forceRender((value) => value + 1))
-    const ticker = window.setInterval(() => forceRender((value) => value + 1), 1000)
-
-    return () => {
-      unsubscribe()
-      window.clearInterval(ticker)
-    }
+    return subscribeEpisodeAccess(forceRender)
   }, [])
 
   async function handlePurchase() {

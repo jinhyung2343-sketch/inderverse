@@ -47,6 +47,10 @@ export async function proxy(request: NextRequest) {
   })
 
   if (accessDecision.type === 'redirect') {
+    if (accessDecision.reason === 'creator_required' && userId && !profile?.role) {
+      return response
+    }
+
     return NextResponse.redirect(new URL(accessDecision.location, request.url))
   }
 
