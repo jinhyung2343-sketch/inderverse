@@ -2,7 +2,7 @@ import { ExploreClientPage } from '@/components/explore/ExploreClientPage'
 import { getPublicArtworkList } from '@/lib/server/explore'
 import { getPublicCreatorChannelList } from '@/lib/server/public-creator-channels'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 
 export default async function ExplorePage() {
   const [artworks, creators] = await Promise.all([

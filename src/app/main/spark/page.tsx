@@ -3,7 +3,7 @@ import { BRAND } from '@/lib/brand'
 import { SparkFeed } from '@/components/spark/SparkFeed'
 import { getPublicSparkList } from '@/lib/server/spark'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 
 export default async function SparkPage() {
   const sparkWorks = await getPublicSparkList()
