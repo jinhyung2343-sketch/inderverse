@@ -1,6 +1,6 @@
 import 'server-only'
 
-const PUBLIC_DATA_RETRY_DELAYS_MS = [500, 1500, 3000]
+const PUBLIC_DATA_RETRY_DELAYS_MS = [250]
 
 function wait(ms: number) {
   return new Promise((resolve) => {

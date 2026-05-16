@@ -25,7 +25,7 @@ type PublicCreatorChannelQueryResult = {
   data: unknown
   error: { message: string } | null
 }
-const PUBLIC_DATA_TIMEOUT_MS = 15000
+const PUBLIC_DATA_TIMEOUT_MS = 3000
 
 function mapCreatorChannelSummary(
   channel: PublicCreatorChannelRow,

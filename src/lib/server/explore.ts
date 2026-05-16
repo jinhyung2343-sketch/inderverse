@@ -89,7 +89,7 @@ const PUBLIC_CHANNEL_STATUSES: Database['public']['Enums']['channel_status'][] =
   'publishing',
   'completed',
 ]
-const PUBLIC_DATA_TIMEOUT_MS = 15000
+const PUBLIC_DATA_TIMEOUT_MS = 3000
 
 const KNOWN_CATEGORIES = categories.filter((category) => category !== '전체')
 const publicArtworkIdByChannelId = new Map(
