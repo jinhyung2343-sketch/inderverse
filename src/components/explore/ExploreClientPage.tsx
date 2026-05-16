@@ -1,6 +1,6 @@
 'use client'
 
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useState, useSyncExternalStore } from 'react'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import Link from 'next/link'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
@@ -16,6 +16,19 @@ import { getWorkTypeLabel } from '@/lib/work'
 
 const workTypeFilters = ['전체 형식', 'webtoon', 'novel'] as const
 type ExploreView = 'works' | 'creators'
+
+function subscribeToLocationChange(onStoreChange: () => void) {
+  window.addEventListener('popstate', onStoreChange)
+  return () => window.removeEventListener('popstate', onStoreChange)
+}
+
+function getLocationExploreView(): ExploreView {
+  return new URLSearchParams(window.location.search).get('view') === 'creators' ? 'creators' : 'works'
+}
+
+function getServerExploreView(): ExploreView {
+  return 'works'
+}
 
 function CreatorChannelCard({ creator }: { creator: PublicCreatorChannelSummary }) {
   return (
@@ -67,7 +80,15 @@ export function ExploreClientPage({
   initialCreators: PublicCreatorChannelSummary[]
   initialView?: ExploreView
 }) {
-  const [activeView, setActiveView] = useState<ExploreView>(initialView)
+  const routeView = useSyncExternalStore(
+    subscribeToLocationChange,
+    getLocationExploreView,
+    getServerExploreView
+  )
+  const [selectedView, setSelectedView] = useState<ExploreView | null>(
+    initialView === 'works' ? null : initialView
+  )
+  const activeView = selectedView ?? routeView
   const [activeCategory, setActiveCategory] = useState('전체')
   const [activeFilter, setActiveFilter] = useState('추천')
   const [activeWorkType, setActiveWorkType] = useState<(typeof workTypeFilters)[number]>('전체 형식')
@@ -140,7 +161,7 @@ export function ExploreClientPage({
                 <button
                   key={view}
                   type="button"
-                  onClick={() => setActiveView(view)}
+                  onClick={() => setSelectedView(view)}
                   className={`h-10 rounded-full px-5 text-sm transition ${
                     activeView === view ? 'bg-white text-black' : 'text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
                   }`}
@@ -272,7 +293,7 @@ export function ExploreClientPage({
               </div>
               <button
                 type="button"
-                onClick={() => setActiveView('creators')}
+                onClick={() => setSelectedView('creators')}
                 className="inline-flex w-fit rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
               >
                 작가 더 보기

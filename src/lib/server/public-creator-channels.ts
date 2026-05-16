@@ -4,6 +4,7 @@ import { unstable_cache } from 'next/cache'
 import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { parseCreatorChannelExternalLinks } from '@/lib/server/creator-channels'
 import { getPublicArtworkList } from '@/lib/server/explore'
+import { withPublicDataRetry } from '@/lib/server/public-data-retry'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { PublicCreatorChannelSummary } from '@/lib/public-creator'
 import type { Json } from '@/lib/supabase/types'
@@ -24,7 +25,7 @@ type PublicCreatorChannelQueryResult = {
   data: unknown
   error: { message: string } | null
 }
-const PUBLIC_DATA_TIMEOUT_MS = 450
+const PUBLIC_DATA_TIMEOUT_MS = 15000
 
 function mapCreatorChannelSummary(
   channel: PublicCreatorChannelRow,
@@ -75,11 +76,16 @@ function withPublicDataTimeout<T>(promise: PromiseLike<T>) {
 
 async function loadPublicCreatorChannelRows() {
   const admin = createAdminClient()
-  const { data, error } = await withPublicDataTimeout(admin
-    .from('creator_channels')
-    .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
-    .eq('status', 'active')
-    .order('updated_at', { ascending: false })) as PublicCreatorChannelQueryResult
+  const { data, error } = await withPublicDataTimeout(
+    withPublicDataRetry(
+      () => admin
+        .from('creator_channels')
+        .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
+        .eq('status', 'active')
+        .order('updated_at', { ascending: false }),
+      isRecoverablePublicDataError
+    )
+  ) as PublicCreatorChannelQueryResult
 
   if (error) {
     throw new Error(`Failed to load public creator channels: ${error.message}`)
@@ -100,12 +106,17 @@ const getCachedPublicCreatorChannelRows = unstable_cache(
 const getCachedPublicCreatorChannelRowBySlug = unstable_cache(
   async (slug: string) => {
     const admin = createAdminClient()
-    const { data, error } = await withPublicDataTimeout(admin
-      .from('creator_channels')
-      .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
-      .eq('slug', slug)
-      .eq('status', 'active')
-      .maybeSingle()) as PublicCreatorChannelQueryResult
+    const { data, error } = await withPublicDataTimeout(
+      withPublicDataRetry(
+        () => admin
+          .from('creator_channels')
+          .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
+          .eq('slug', slug)
+          .eq('status', 'active')
+          .maybeSingle(),
+        isRecoverablePublicDataError
+      )
+    ) as PublicCreatorChannelQueryResult
 
     if (error) {
       throw new Error(`Failed to load public creator channel: ${error.message}`)

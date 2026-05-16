@@ -9,6 +9,8 @@ import { getPublicArtworkById, getPublicArtworkList, getRelatedArtworks } from '
 import { getSavedArtworkIds } from '@/lib/server/library'
 import { getWorkTypeLabel } from '@/lib/work'
 
+export const revalidate = 60
+
 const sectionLinks = [
   { id: 'overview', label: '작품 소개' },
   { id: 'episodes', label: '회차 목록' },

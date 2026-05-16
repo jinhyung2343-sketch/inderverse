@@ -10,7 +10,7 @@ import {
 import { artworks as fallbackArtworks, getArtworkById as getFallbackArtworkById } from '@/lib/mock/explore-data'
 import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getViewerSession } from '@/lib/server/viewer-session'
+import { withPublicDataRetry } from '@/lib/server/public-data-retry'
 import type { Database } from '@/lib/supabase/types'
 
 type ChannelRow = Pick<
@@ -89,7 +89,7 @@ const PUBLIC_CHANNEL_STATUSES: Database['public']['Enums']['channel_status'][] =
   'publishing',
   'completed',
 ]
-const PUBLIC_DATA_TIMEOUT_MS = 450
+const PUBLIC_DATA_TIMEOUT_MS = 15000
 
 const KNOWN_CATEGORIES = categories.filter((category) => category !== '전체')
 const publicArtworkIdByChannelId = new Map(
@@ -121,6 +121,7 @@ function isExploreSchemaUnavailable(error: { code?: string; message?: string } |
     message.includes('invalid input value for enum work_type') ||
     message.includes('Could not find') ||
     message.includes('body_text') ||
+    message.includes('optimized_image_url') ||
     message.includes('novel')
   )
 }
@@ -344,18 +345,22 @@ async function loadPublicChannels({
     created_at,
     updated_at
   `
-  let query = admin
-    .from('channels')
-    .select(selectColumns)
-    .in('work_type', ['webtoon', 'novel'])
-    .in('status', PUBLIC_CHANNEL_STATUSES)
-    .order('updated_at', { ascending: false })
+  const runQuery = () => {
+    let query = admin
+      .from('channels')
+      .select(selectColumns)
+      .in('work_type', ['webtoon', 'novel'])
+      .in('status', PUBLIC_CHANNEL_STATUSES)
+      .order('updated_at', { ascending: false })
 
-  if (!isAdultVerified) {
-    query = query.eq('is_adult_only', false)
+    if (!isAdultVerified) {
+      query = query.eq('is_adult_only', false)
+    }
+
+    return query
   }
 
-  const result = await query
+  const result = await withPublicDataRetry(runQuery, isRecoverablePublicDataError)
 
   if (!result.error) {
     return attachPublicChannelCreators((result.data ?? []) as ChannelRow[])
@@ -367,18 +372,22 @@ async function loadPublicChannels({
 
   console.warn('Novel explore schema is not available yet. Falling back to webtoon-only explore.')
 
-  let fallbackQuery = admin
-    .from('channels')
-    .select(selectColumns)
-    .eq('work_type', 'webtoon')
-    .in('status', PUBLIC_CHANNEL_STATUSES)
-    .order('updated_at', { ascending: false })
+  const runFallbackQuery = () => {
+    let fallbackQuery = admin
+      .from('channels')
+      .select(selectColumns)
+      .eq('work_type', 'webtoon')
+      .in('status', PUBLIC_CHANNEL_STATUSES)
+      .order('updated_at', { ascending: false })
 
-  if (!isAdultVerified) {
-    fallbackQuery = fallbackQuery.eq('is_adult_only', false)
+    if (!isAdultVerified) {
+      fallbackQuery = fallbackQuery.eq('is_adult_only', false)
+    }
+
+    return fallbackQuery
   }
 
-  const fallbackResult = await fallbackQuery
+  const fallbackResult = await withPublicDataRetry(runFallbackQuery, isRecoverablePublicDataError)
 
   if (fallbackResult.error) {
     throw new Error(`Failed to load explore channels: ${fallbackResult.error.message}`)
@@ -500,6 +509,44 @@ async function loadPublicEpisodes({
   }))
 }
 
+async function loadPublicEpisodeImages(episodeIds: string[]) {
+  if (episodeIds.length === 0) {
+    return []
+  }
+
+  const admin = createAdminClient()
+  const result = await admin
+    .from('episode_images')
+    .select('episode_id, image_url, optimized_image_url, sort_order')
+    .in('episode_id', episodeIds)
+    .order('sort_order', { ascending: true })
+
+  if (!result.error) {
+    return (result.data ?? []) as EpisodeImageRow[]
+  }
+
+  if (!isExploreSchemaUnavailable(result.error)) {
+    throw new Error(`Failed to load explore episode images: ${result.error.message}`)
+  }
+
+  console.warn('Optimized episode image schema is not available yet. Falling back to legacy image URLs.')
+
+  const fallbackResult = await admin
+    .from('episode_images')
+    .select('episode_id, image_url, sort_order')
+    .in('episode_id', episodeIds)
+    .order('sort_order', { ascending: true })
+
+  if (fallbackResult.error) {
+    throw new Error(`Failed to load explore episode images: ${fallbackResult.error.message}`)
+  }
+
+  return ((fallbackResult.data ?? []) as Omit<EpisodeImageRow, 'optimized_image_url'>[]).map((image) => ({
+    ...image,
+    optimized_image_url: null,
+  }))
+}
+
 async function loadPublicArtworkBundles(isAdultVerified: boolean) {
   const admin = createAdminClient()
   const channelRows = await loadPublicChannels({ isAdultVerified })
@@ -515,13 +562,7 @@ async function loadPublicArtworkBundles(isAdultVerified: boolean) {
   const [channelTagsResult, tagsResult, imagesResult] = await Promise.all([
     admin.from('channel_tags').select('channel_id, tag_id').in('channel_id', channelIds),
     admin.from('tags').select('id, name, category, is_adult_only'),
-    episodeIds.length > 0
-      ? admin
-          .from('episode_images')
-          .select('episode_id, image_url, optimized_image_url, sort_order')
-          .in('episode_id', episodeIds)
-          .order('sort_order', { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
+    loadPublicEpisodeImages(episodeIds),
   ])
 
   if (channelTagsResult.error) {
@@ -532,13 +573,9 @@ async function loadPublicArtworkBundles(isAdultVerified: boolean) {
     throw new Error(`Failed to load explore tags: ${tagsResult.error.message}`)
   }
 
-  if (imagesResult.error) {
-    throw new Error(`Failed to load explore episode images: ${imagesResult.error.message}`)
-  }
-
   const channelTagRows = (channelTagsResult.data ?? []) as ChannelTagRow[]
   const tagRows = (tagsResult.data ?? []) as TagRow[]
-  const imageRows = (imagesResult.data ?? []) as EpisodeImageRow[]
+  const imageRows = imagesResult
 
   const tagsById = new Map(tagRows.map((tag) => [tag.id, tag]))
   const tagsByChannelId = new Map<string, TagRow[]>()
@@ -604,10 +641,13 @@ const getCachedPublicArtworkList = unstable_cache(
   }
 )
 
-export async function getPublicArtworkList() {
+export async function getPublicArtworkList({
+  includeAdultContent = false,
+}: {
+  includeAdultContent?: boolean
+} = {}) {
   try {
-    const { isAdultVerified } = await getViewerSession()
-    return getCachedPublicArtworkList(isAdultVerified)
+    return await getCachedPublicArtworkList(includeAdultContent)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error
@@ -622,9 +662,14 @@ export async function getPublicArtworkList() {
   }
 }
 
-export async function getPublicArtworkById(id: string) {
+export async function getPublicArtworkById(
+  id: string,
+  options?: {
+    includeAdultContent?: boolean
+  }
+) {
   try {
-    const artworks = await getPublicArtworkList()
+    const artworks = await getPublicArtworkList(options)
     const artwork = artworks.find((entry) => entry.id === id || entry.backendChannelId === id)
 
     if (!artwork) {

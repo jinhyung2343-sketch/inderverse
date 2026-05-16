@@ -6,6 +6,7 @@ import { parseRatingChecklist } from '@/lib/content-rating'
 import { getSparkRecordById, sparkRecords as fallbackSparkRecords } from '@/lib/mock/spark-data'
 import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { createClient } from '@/lib/supabase/server'
+import { withPublicDataRetry } from '@/lib/server/public-data-retry'
 import { getViewerSession } from '@/lib/server/viewer-session'
 import type { SparkRecord, SparkStatus } from '@/lib/spark'
 import { getSparkPanelCount, parseSparkMeta } from '@/lib/spark'
@@ -63,7 +64,7 @@ const EMPTY_SPARK_ENGAGEMENT: SparkEngagementSummary = {
   viewerHasSaved: false,
   viewerCanSave: false,
 }
-const PUBLIC_DATA_TIMEOUT_MS = 450
+const PUBLIC_DATA_TIMEOUT_MS = 15000
 
 function isNextRuntimeSignal(error: unknown) {
   return (
@@ -174,36 +175,42 @@ function getPublicStatuses(): SparkStatus[] {
 
 async function loadPublicSparkList(isAdultVerified: boolean) {
   const admin = createAdminClient()
-  let query = admin
-    .from('channels')
-    .select(
-      `
-        id,
-        title,
-        description,
-        cover_image_url,
-        age_rating,
-        is_adult_only,
-        rating_checklist,
-        status,
-        spark_caption,
-        spark_format,
-        spark_panel_count,
-        spark_meta,
-        creator_id,
-        created_at,
-        updated_at
-      `
-    )
-    .eq('work_type', 'spark')
-    .in('status', getPublicStatuses())
-    .order('updated_at', { ascending: false })
+  const runQuery = () => {
+    let query = admin
+      .from('channels')
+      .select(
+        `
+          id,
+          title,
+          description,
+          cover_image_url,
+          age_rating,
+          is_adult_only,
+          rating_checklist,
+          status,
+          spark_caption,
+          spark_format,
+          spark_panel_count,
+          spark_meta,
+          creator_id,
+          created_at,
+          updated_at
+        `
+      )
+      .eq('work_type', 'spark')
+      .in('status', getPublicStatuses())
+      .order('updated_at', { ascending: false })
 
-  if (!isAdultVerified) {
-    query = query.eq('is_adult_only', false)
+    if (!isAdultVerified) {
+      query = query.eq('is_adult_only', false)
+    }
+
+    return query
   }
 
-  const { data, error } = await withPublicDataTimeout(query) as SparkQueryResult
+  const { data, error } = await withPublicDataTimeout(
+    withPublicDataRetry(runQuery, isRecoverablePublicDataError)
+  ) as SparkQueryResult
 
   if (error) {
     throw new Error(`Failed to load spark feed: ${error.message}`)
@@ -222,10 +229,13 @@ const getCachedPublicSparkList = unstable_cache(
   }
 )
 
-export async function getPublicSparkList() {
+export async function getPublicSparkList({
+  includeAdultContent = false,
+}: {
+  includeAdultContent?: boolean
+} = {}) {
   try {
-    const { isAdultVerified } = await getViewerSession()
-    return getCachedPublicSparkList(isAdultVerified)
+    return await getCachedPublicSparkList(includeAdultContent)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error

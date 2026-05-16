@@ -6,6 +6,8 @@ import { SparkEngagementPanel } from '@/components/spark/SparkEngagementPanel'
 import { getPublicSparkDetailContext } from '@/lib/server/spark'
 import { getSparkAccentClassName, getSparkFormatLabel } from '@/lib/spark'
 
+export const revalidate = 60
+
 function formatDate(value: string) {
   const date = new Date(value)
 

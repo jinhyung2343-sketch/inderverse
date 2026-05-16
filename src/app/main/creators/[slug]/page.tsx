@@ -5,6 +5,8 @@ import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import { getPublicCreatorChannelPage } from '@/lib/server/public-creator-channels'
 import { getWorkTypeLabel } from '@/lib/work'
 
+export const revalidate = 60
+
 export default async function PublicCreatorChannelPage({
   params,
 }: {
