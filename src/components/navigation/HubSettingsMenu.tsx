@@ -125,6 +125,8 @@ export function SettingsPageClient() {
     signOut,
   } = useAuthStore()
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
+  const [withdrawalError, setWithdrawalError] = useState('')
   const [confirmDialog, setConfirmDialog] = useState<SettingsConfirmDialog>(null)
 
   useEffect(() => {
@@ -151,11 +153,40 @@ export function SettingsPageClient() {
     }
   }, [isSigningOut, router, signOut])
 
-  const closeConfirmDialog = useCallback(() => {
-    if (!isSigningOut) {
-      setConfirmDialog(null)
+  const handleWithdrawal = useCallback(async () => {
+    if (isWithdrawing) {
+      return
     }
-  }, [isSigningOut])
+
+    setIsWithdrawing(true)
+    setWithdrawalError('')
+
+    try {
+      const response = await fetch('/api/auth/withdrawal', {
+        method: 'POST',
+      })
+      const result = await response.json().catch(() => null) as { error?: string } | null
+
+      if (!response.ok) {
+        setWithdrawalError(result?.error ?? '회원 탈퇴를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        return
+      }
+
+      await signOut()
+      setConfirmDialog(null)
+      router.push('/')
+      router.refresh()
+    } finally {
+      setIsWithdrawing(false)
+    }
+  }, [isWithdrawing, router, signOut])
+
+  const closeConfirmDialog = useCallback(() => {
+    if (!isSigningOut && !isWithdrawing) {
+      setConfirmDialog(null)
+      setWithdrawalError('')
+    }
+  }, [isSigningOut, isWithdrawing])
 
   const sections = useMemo<SettingsSection[]>(() => {
     const authNextPath = encodeURIComponent('/main')
@@ -185,9 +216,10 @@ export function SettingsPageClient() {
               },
               {
                 kind: 'action',
-                label: '회원 탈퇴',
-                description: '결제, 정산, 작성 콘텐츠 확인 절차가 필요한 메뉴입니다.',
+                label: isWithdrawing ? '탈퇴 처리 중...' : '회원 탈퇴',
+                description: '계정과 연결된 이용 기록을 삭제하고 접속을 종료합니다.',
                 action: () => setConfirmDialog('withdrawal'),
+                disabled: isWithdrawing,
                 tone: 'danger',
               },
             ]
@@ -264,7 +296,7 @@ export function SettingsPageClient() {
         ],
       },
     ]
-  }, [isCreator, isLoggedIn, isSigningOut])
+  }, [isCreator, isLoggedIn, isSigningOut, isWithdrawing])
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-5 py-8 text-white md:px-8">
@@ -348,23 +380,30 @@ export function SettingsPageClient() {
                   회원 탈퇴를 진행하시겠습니까?
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  회원 탈퇴가 완료되면 계정 정보, 라이브러리 기록, 작가 채널, 작품 데이터, 정산 관련 정보에 영향을 줄 수 있습니다.
-                  결제와 정산, 작성 콘텐츠 확인 절차가 필요하므로 현재는 자동 탈퇴 대신 안내 단계로 제공됩니다.
+                  회원 탈퇴가 완료되면 계정 정보, 라이브러리 기록, 작가 채널, 작품 데이터가 삭제되거나 접근할 수 없게 됩니다.
+                  결제, 정산, 분쟁 대응에 필요한 일부 기록은 관련 법령과 정책에 따라 별도로 보관될 수 있습니다.
                 </p>
+                {withdrawalError ? (
+                  <p className="mt-4 rounded-lg border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
+                    {withdrawalError}
+                  </p>
+                ) : null}
                 <div className="mt-6 grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={closeConfirmDialog}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
+                    disabled={isWithdrawing}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     취소
                   </button>
                   <button
                     type="button"
-                    onClick={closeConfirmDialog}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-rose-300/30 bg-rose-500/15 px-4 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/25"
+                    onClick={handleWithdrawal}
+                    disabled={isWithdrawing}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-rose-300/30 bg-rose-500/15 px-4 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    안내 확인
+                    {isWithdrawing ? '탈퇴 처리 중...' : '회원 탈퇴'}
                   </button>
                 </div>
               </>

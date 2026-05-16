@@ -45,8 +45,9 @@ export function SignInPageClient({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const normalizedEmail = email.trim().toLowerCase()
 
-    if (!email.trim() || !password) {
+    if (!normalizedEmail || !password) {
       setErrorMessage('이메일과 비밀번호를 입력해 주세요.')
       return
     }
@@ -57,7 +58,7 @@ export function SignInPageClient({
 
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: normalizedEmail,
       password,
     })
 

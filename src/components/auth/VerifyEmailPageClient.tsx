@@ -1,19 +1,52 @@
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/client'
 
+type EmailLinkOtpType = 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change' | 'email'
+
+const emailLinkOtpTypes = new Set<EmailLinkOtpType>([
+  'signup',
+  'invite',
+  'magiclink',
+  'recovery',
+  'email_change',
+  'email',
+])
+
+function readHashParam(key: string) {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash
+  const params = new URLSearchParams(hash)
+  return params.get(key)
+}
+
+async function requestWelcomeEmail() {
+  try {
+    await fetch('/api/email/welcome', { method: 'POST' })
+  } catch (welcomeEmailError) {
+    console.warn('Unable to request welcome email:', welcomeEmailError)
+  }
+}
+
 export function VerifyEmailPageClient({
   email,
   nextPath,
+  authError,
 }: {
   email: string | null
   nextPath: string | null
+  authError: string | null
 }) {
   const router = useRouter()
   const [verificationEmail, setVerificationEmail] = useState(email ?? '')
@@ -21,15 +54,95 @@ export function VerifyEmailPageClient({
   const [message, setMessage] = useState(
     email ? '가입 메일함으로 보낸 인증코드를 입력해 주세요.' : ''
   )
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState(
+    authError
+      ? '인증 링크가 만료되었거나 허용되지 않았습니다. 아래에서 인증코드를 다시 받아 진행해 주세요.'
+      : ''
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
+  const [isLinkVerifying, setIsLinkVerifying] = useState(false)
   const redirectPath = sanitizeInternalPath(nextPath, '/main')
   const encodedNextPath = encodeURIComponent(redirectPath)
   const signInHref = `/auth/sign-in?next=${encodedNextPath}`
 
   const normalizedEmail = verificationEmail.trim().toLowerCase()
   const trimmedCode = verificationCode.trim()
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function verifyEmailLink() {
+      const searchParams = new URLSearchParams(window.location.search)
+      const code = searchParams.get('code')
+      const tokenHash = searchParams.get('token_hash')
+      const rawType = searchParams.get('type')
+      const hashAccessToken = readHashParam('access_token')
+      const hashRefreshToken = readHashParam('refresh_token')
+      const hasLinkVerificationParams = Boolean(code || tokenHash || (hashAccessToken && hashRefreshToken))
+
+      if (!hasLinkVerificationParams) {
+        return
+      }
+
+      setIsLinkVerifying(true)
+      setErrorMessage('')
+      setMessage('메일 인증 링크를 확인하는 중입니다.')
+
+      const supabase = createClient()
+      let verifyError: { message?: string } | null = null
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        verifyError = error
+      } else if (tokenHash) {
+        const linkType: EmailLinkOtpType =
+          rawType && emailLinkOtpTypes.has(rawType as EmailLinkOtpType)
+            ? (rawType as EmailLinkOtpType)
+            : 'signup'
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: linkType,
+        })
+        verifyError = error
+      } else if (hashAccessToken && hashRefreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: hashAccessToken,
+          refresh_token: hashRefreshToken,
+        })
+        verifyError = error
+      }
+
+      if (!isMounted) {
+        return
+      }
+
+      setIsLinkVerifying(false)
+
+      if (verifyError) {
+        setMessage('')
+        setErrorMessage('인증 링크가 만료되었거나 허용되지 않았습니다. 아래에서 인증코드를 다시 받아 진행해 주세요.')
+        return
+      }
+
+      await requestWelcomeEmail()
+
+      if (!isMounted) {
+        return
+      }
+
+      setErrorMessage('')
+      setMessage('이메일 인증이 완료되었습니다.')
+      router.replace(redirectPath)
+      router.refresh()
+    }
+
+    void verifyEmailLink()
+
+    return () => {
+      isMounted = false
+    }
+  }, [redirectPath, router])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -48,11 +161,20 @@ export function VerifyEmailPageClient({
     setErrorMessage('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.verifyOtp({
+    let { error } = await supabase.auth.verifyOtp({
       email: normalizedEmail,
       token: trimmedCode,
-      type: 'email',
+      type: 'signup',
     })
+
+    if (error) {
+      const result = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: trimmedCode,
+        type: 'email',
+      })
+      error = result.error
+    }
 
     setIsSubmitting(false)
 
@@ -61,11 +183,7 @@ export function VerifyEmailPageClient({
       return
     }
 
-    try {
-      await fetch('/api/email/welcome', { method: 'POST' })
-    } catch (welcomeEmailError) {
-      console.warn('Unable to request welcome email:', welcomeEmailError)
-    }
+    await requestWelcomeEmail()
 
     setMessage('이메일 인증이 완료되었습니다.')
     router.replace(redirectPath)
@@ -83,7 +201,7 @@ export function VerifyEmailPageClient({
     setMessage('')
 
     const supabase = createClient()
-    const emailRedirectTo = `${window.location.origin}/auth/verify-email?next=${encodedNextPath}`
+    const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodedNextPath}`
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: normalizedEmail,
@@ -119,6 +237,7 @@ export function VerifyEmailPageClient({
             <h1 className="text-3xl font-bold tracking-tight">이메일 인증</h1>
             <p className="text-sm leading-6 text-zinc-400 md:text-base">
               {BRAND.name} 가입을 완료하려면 메일로 받은 6자리 인증코드를 입력해 주세요.
+              메일의 확인 버튼을 눌러 들어온 경우에는 자동으로 인증을 마무리합니다.
             </p>
           </div>
 
@@ -162,16 +281,16 @@ export function VerifyEmailPageClient({
 
             <button
               type="submit"
-              disabled={isSubmitting || isResending}
+              disabled={isSubmitting || isResending || isLinkVerifying}
               className="w-full rounded-2xl bg-white px-4 py-4 font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? '인증 중...' : '인증하고 시작하기'}
+              {isLinkVerifying ? '메일 링크 확인 중...' : isSubmitting ? '인증 중...' : '인증하고 시작하기'}
             </button>
 
             <button
               type="button"
               onClick={handleResend}
-              disabled={isSubmitting || isResending}
+              disabled={isSubmitting || isResending || isLinkVerifying}
               className="w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isResending ? '다시 보내는 중...' : '인증코드 다시 받기'}

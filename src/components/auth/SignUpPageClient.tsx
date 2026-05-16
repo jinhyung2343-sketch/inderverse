@@ -7,20 +7,12 @@ import { PolicyViewerModal } from '@/components/auth/PolicyViewerModal'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
-import { createClient } from '@/lib/supabase/client'
 import {
-  buildGuardianProfileMetadata,
-  buildMinorGuardianConsentRecord,
-  storePendingMinorGuardianConsent,
   type MinorGuardianConsentFields,
 } from '@/lib/minor-guardian-consent'
 import {
-  buildUserTermsConsentMetadata,
-  buildUserTermsConsentRecord,
   getInitialSignUpConsentValues,
   hasAcceptedAllRequiredSignUpConsents,
-  storePendingUserTermsConsent,
-  USER_TERMS_CONSENT_CONFLICT_KEY,
   type SignUpConsentValues,
 } from '@/lib/user-consent-log'
 import {
@@ -206,67 +198,31 @@ export function SignUpPageClient({
     setIsSubmitting(true)
     setErrorMessage('')
 
-    const supabase = createClient()
     const normalizedEmail = email.trim().toLowerCase()
-    const guardianRequestedAt = ageConsentMode === 'guardian' ? new Date().toISOString() : null
-    const ageBand = ageConsentMode === 'guardian' ? 'under_14' : '14_or_over'
-    const guardianConsentStatus = ageConsentMode === 'guardian' ? 'pending' : 'not_required'
     const afterVerifyPath = ageConsentMode === 'guardian' ? '/main/guardian-consent' : redirectPath
-    const emailRedirectTo =
-      typeof window === 'undefined'
-        ? undefined
-        : `${window.location.origin}/auth/verify-email?next=${encodeURIComponent(afterVerifyPath)}`
-    const { data, error } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: {
-        emailRedirectTo,
-        data: {
-          display_name: displayName.trim(),
-          ...buildUserTermsConsentMetadata(consents),
-          ...buildGuardianProfileMetadata({
-            ageBand,
-            guardianConsentStatus,
-            requestedAt: guardianRequestedAt,
-          }),
-        },
+
+    const response = await fetch('/api/auth/sign-up', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
       },
+      body: JSON.stringify({
+        displayName: displayName.trim(),
+        email: normalizedEmail,
+        password,
+        consents,
+        ageConsentMode,
+        guardianFields,
+        nextPath: redirectPath,
+      }),
     })
 
-    if (error) {
+    const result = await response.json().catch(() => null) as { error?: string } | null
+
+    if (!response.ok) {
       setIsSubmitting(false)
-      setErrorMessage(error.message)
+      setErrorMessage(result?.error ?? '회원가입을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.')
       return
-    }
-
-    if (!data.user) {
-      setIsSubmitting(false)
-      setErrorMessage('회원가입 정보를 확인하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.')
-      return
-    }
-
-    const consentRecord = buildUserTermsConsentRecord(data.user.id, consents)
-    const { error: consentError } = await supabase
-      .from('user_terms_consents')
-      .upsert(consentRecord, { onConflict: USER_TERMS_CONSENT_CONFLICT_KEY })
-
-    if (consentError) {
-      storePendingUserTermsConsent(consentRecord)
-    }
-
-    if (ageConsentMode === 'guardian' && guardianRequestedAt) {
-      const guardianRecord = buildMinorGuardianConsentRecord(
-        data.user.id,
-        guardianFields,
-        guardianRequestedAt
-      )
-      const { error: guardianConsentError } = await supabase
-        .from('minor_guardian_consents')
-        .upsert(guardianRecord, { onConflict: 'user_id' })
-
-      if (guardianConsentError) {
-        storePendingMinorGuardianConsent(guardianRecord)
-      }
     }
 
     setIsSubmitting(false)

@@ -28,8 +28,9 @@ export default function LandingPage() {
         className="z-10 w-full flex justify-center pb-24 md:pb-32 animate-slide-up opacity-0" 
         style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
       >
-        <Link 
-          href="/join-prompt"
+        <Link
+          href="/main"
+          prefetch
           className="group relative inline-flex items-center justify-center px-12 py-4 font-medium text-white transition-all duration-700 ease-out"
         >
           {/* Base Button Background with Glassmorphism & Glow */}
