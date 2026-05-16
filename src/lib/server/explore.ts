@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import { artworkBackendMap } from '@/lib/mock/explore-backend-map'
 import {
   categories,
@@ -8,6 +8,7 @@ import {
   type ExploreArtwork,
 } from '@/lib/explore'
 import { artworks as fallbackArtworks, getArtworkById as getFallbackArtworkById } from '@/lib/mock/explore-data'
+import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getViewerSession } from '@/lib/server/viewer-session'
 import type { Database } from '@/lib/supabase/types'
@@ -269,6 +270,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
 
   return {
     id: publicArtworkId,
+    backendChannelId: bundle.channel.id,
     workType: bundle.channel.work_type === 'novel' ? 'novel' : 'webtoon',
     title,
     authorName:
@@ -498,8 +500,7 @@ async function loadPublicEpisodes({
   }))
 }
 
-const getPublicArtworkBundles = cache(async () => {
-  const { isAdultVerified } = await getViewerSession()
+async function loadPublicArtworkBundles(isAdultVerified: boolean) {
   const admin = createAdminClient()
   const channelRows = await loadPublicChannels({ isAdultVerified })
   const channelIds = channelRows.map((channel) => channel.id)
@@ -589,12 +590,24 @@ const getPublicArtworkBundles = cache(async () => {
     episodeImagesByEpisodeId: imageUrlsByEpisodeId,
     tags: tagsByChannelId.get(channel.id) ?? [],
   }))
-})
+}
+
+const getCachedPublicArtworkList = unstable_cache(
+  async (isAdultVerified: boolean) => {
+    const bundles = await withPublicDataTimeout(loadPublicArtworkBundles(isAdultVerified))
+    return bundles.map(mapBackendArtwork)
+  },
+  ['public-artwork-list-v2'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_CACHE_TAGS.artworks, PUBLIC_CACHE_TAGS.creators, PUBLIC_CACHE_TAGS.navigation],
+  }
+)
 
 export async function getPublicArtworkList() {
   try {
-    const bundles = await withPublicDataTimeout(getPublicArtworkBundles())
-    return bundles.map(mapBackendArtwork)
+    const { isAdultVerified } = await getViewerSession()
+    return getCachedPublicArtworkList(isAdultVerified)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error
@@ -611,17 +624,14 @@ export async function getPublicArtworkList() {
 
 export async function getPublicArtworkById(id: string) {
   try {
-    const bundles = await withPublicDataTimeout(getPublicArtworkBundles())
-    const bundle = bundles.find((entry) => {
-      const publicArtworkId = publicArtworkIdByChannelId.get(entry.channel.id) ?? entry.channel.id
-      return entry.channel.id === id || publicArtworkId === id
-    })
+    const artworks = await getPublicArtworkList()
+    const artwork = artworks.find((entry) => entry.id === id || entry.backendChannelId === id)
 
-    if (!bundle) {
+    if (!artwork) {
       return null
     }
 
-    return mapBackendArtwork(bundle)
+    return artwork
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error

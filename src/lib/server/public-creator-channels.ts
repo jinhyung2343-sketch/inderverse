@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { unstable_cache } from 'next/cache'
+import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { parseCreatorChannelExternalLinks } from '@/lib/server/creator-channels'
 import { getPublicArtworkList } from '@/lib/server/explore'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -71,20 +73,56 @@ function withPublicDataTimeout<T>(promise: PromiseLike<T>) {
   ])
 }
 
-export async function getPublicCreatorChannelList() {
-  try {
+async function loadPublicCreatorChannelRows() {
+  const admin = createAdminClient()
+  const { data, error } = await withPublicDataTimeout(admin
+    .from('creator_channels')
+    .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })) as PublicCreatorChannelQueryResult
+
+  if (error) {
+    throw new Error(`Failed to load public creator channels: ${error.message}`)
+  }
+
+  return (data ?? []) as PublicCreatorChannelRow[]
+}
+
+const getCachedPublicCreatorChannelRows = unstable_cache(
+  loadPublicCreatorChannelRows,
+  ['public-creator-channel-rows-v2'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_CACHE_TAGS.creators, PUBLIC_CACHE_TAGS.navigation],
+  }
+)
+
+const getCachedPublicCreatorChannelRowBySlug = unstable_cache(
+  async (slug: string) => {
     const admin = createAdminClient()
     const { data, error } = await withPublicDataTimeout(admin
       .from('creator_channels')
       .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
+      .eq('slug', slug)
       .eq('status', 'active')
-      .order('updated_at', { ascending: false })) as PublicCreatorChannelQueryResult
+      .maybeSingle()) as PublicCreatorChannelQueryResult
 
     if (error) {
-      throw new Error(`Failed to load public creator channels: ${error.message}`)
+      throw new Error(`Failed to load public creator channel: ${error.message}`)
     }
 
-    const channels = (data ?? []) as PublicCreatorChannelRow[]
+    return data ? data as PublicCreatorChannelRow : null
+  },
+  ['public-creator-channel-row-by-slug-v2'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_CACHE_TAGS.creators, PUBLIC_CACHE_TAGS.navigation],
+  }
+)
+
+export async function getPublicCreatorChannelList() {
+  try {
+    const channels = await getCachedPublicCreatorChannelRows()
     const artworks = await getPublicArtworkList()
     const artworkCounts = new Map<string, { total: number; webtoon: number; novel: number; latestTitle: string | null }>()
 
@@ -136,23 +174,12 @@ export async function getPublicCreatorChannelPage(slug: string) {
   }
 
   try {
-    const admin = createAdminClient()
-    const { data, error } = await withPublicDataTimeout(admin
-      .from('creator_channels')
-      .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status, updated_at')
-      .eq('slug', slug)
-      .eq('status', 'active')
-      .maybeSingle()) as PublicCreatorChannelQueryResult
+    const channel = await getCachedPublicCreatorChannelRowBySlug(slug)
 
-    if (error) {
-      throw new Error(`Failed to load public creator channel: ${error.message}`)
-    }
-
-    if (!data) {
+    if (!channel) {
       return null
     }
 
-    const channel = data as PublicCreatorChannelRow
     const artworks = await getPublicArtworkList()
     const creatorArtworks = artworks.filter((artwork) => artwork.creatorSlug === channel.slug)
 

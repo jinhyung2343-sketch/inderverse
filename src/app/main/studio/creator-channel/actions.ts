@@ -1,7 +1,8 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
 import { createClient } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
@@ -140,6 +141,8 @@ export async function updateCreatorChannelSettings(
     revalidatePath('/main/studio')
     revalidatePath('/main/studio/channels')
     revalidatePath('/main/studio/creator-channel')
+    revalidateTag(PUBLIC_CACHE_TAGS.creators, 'max')
+    revalidateTag(PUBLIC_CACHE_TAGS.navigation, 'max')
 
     return { error: null, success: '작가 채널 설정을 저장했습니다.' }
   } catch (error) {

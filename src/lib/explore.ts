@@ -17,6 +17,7 @@ export interface ArtworkEpisode {
 
 export interface ExploreArtwork {
   id: string
+  backendChannelId?: string
   workType?: 'webtoon' | 'novel'
   title: string
   authorName: string

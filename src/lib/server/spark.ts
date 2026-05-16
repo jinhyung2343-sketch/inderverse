@@ -1,8 +1,10 @@
 import 'server-only'
 
+import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseRatingChecklist } from '@/lib/content-rating'
 import { getSparkRecordById, sparkRecords as fallbackSparkRecords } from '@/lib/mock/spark-data'
+import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { createClient } from '@/lib/supabase/server'
 import { getViewerSession } from '@/lib/server/viewer-session'
 import type { SparkRecord, SparkStatus } from '@/lib/spark'
@@ -170,47 +172,60 @@ function getPublicStatuses(): SparkStatus[] {
   return ['publishing', 'completed']
 }
 
+async function loadPublicSparkList(isAdultVerified: boolean) {
+  const admin = createAdminClient()
+  let query = admin
+    .from('channels')
+    .select(
+      `
+        id,
+        title,
+        description,
+        cover_image_url,
+        age_rating,
+        is_adult_only,
+        rating_checklist,
+        status,
+        spark_caption,
+        spark_format,
+        spark_panel_count,
+        spark_meta,
+        creator_id,
+        created_at,
+        updated_at
+      `
+    )
+    .eq('work_type', 'spark')
+    .in('status', getPublicStatuses())
+    .order('updated_at', { ascending: false })
+
+  if (!isAdultVerified) {
+    query = query.eq('is_adult_only', false)
+  }
+
+  const { data, error } = await withPublicDataTimeout(query) as SparkQueryResult
+
+  if (error) {
+    throw new Error(`Failed to load spark feed: ${error.message}`)
+  }
+
+  const rows = await attachSparkCreators((data ?? []) as SparkChannelQueryRow[])
+  return rows.map(mapSparkRow)
+}
+
+const getCachedPublicSparkList = unstable_cache(
+  async (isAdultVerified: boolean) => loadPublicSparkList(isAdultVerified),
+  ['public-spark-list-v2'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_CACHE_TAGS.navigation, PUBLIC_CACHE_TAGS.sparks],
+  }
+)
+
 export async function getPublicSparkList() {
   try {
     const { isAdultVerified } = await getViewerSession()
-    const admin = createAdminClient()
-    let query = admin
-      .from('channels')
-      .select(
-        `
-          id,
-          title,
-          description,
-          cover_image_url,
-          age_rating,
-          is_adult_only,
-          rating_checklist,
-          status,
-          spark_caption,
-          spark_format,
-          spark_panel_count,
-          spark_meta,
-          creator_id,
-          created_at,
-          updated_at
-        `
-      )
-      .eq('work_type', 'spark')
-      .in('status', getPublicStatuses())
-      .order('updated_at', { ascending: false })
-
-    if (!isAdultVerified) {
-      query = query.eq('is_adult_only', false)
-    }
-
-    const { data, error } = await withPublicDataTimeout(query) as SparkQueryResult
-
-    if (error) {
-      throw new Error(`Failed to load spark feed: ${error.message}`)
-    }
-
-    const rows = await attachSparkCreators((data ?? []) as SparkChannelQueryRow[])
-    return rows.map(mapSparkRow)
+    return getCachedPublicSparkList(isAdultVerified)
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error
@@ -227,49 +242,8 @@ export async function getPublicSparkList() {
 
 export async function getPublicSparkById(id: string) {
   try {
-    const { isAdultVerified } = await getViewerSession()
-    const admin = createAdminClient()
-    let query = admin
-      .from('channels')
-      .select(
-        `
-          id,
-          title,
-          description,
-          cover_image_url,
-          age_rating,
-          is_adult_only,
-          rating_checklist,
-          status,
-          spark_caption,
-          spark_format,
-          spark_panel_count,
-          spark_meta,
-          creator_id,
-          created_at,
-          updated_at
-        `
-      )
-      .eq('id', id)
-      .eq('work_type', 'spark')
-      .in('status', getPublicStatuses())
-
-    if (!isAdultVerified) {
-      query = query.eq('is_adult_only', false)
-    }
-
-    const { data, error } = await withPublicDataTimeout(query.maybeSingle()) as SparkQueryResult
-
-    if (error) {
-      throw new Error(`Failed to load spark detail: ${error.message}`)
-    }
-
-    if (!data) {
-      return null
-    }
-
-    const [row] = await attachSparkCreators([data as SparkChannelQueryRow])
-    return mapSparkRow(row)
+    const sparks = await getPublicSparkList()
+    return sparks.find((spark) => spark.id === id) ?? null
   } catch (error) {
     if (isNextRuntimeSignal(error)) {
       throw error

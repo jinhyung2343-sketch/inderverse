@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { BRAND } from '@/lib/brand'
 import {
@@ -18,6 +18,7 @@ import {
   uploadSparkPanelFile,
 } from '@/lib/gcs/upload'
 import { mapWithConcurrency } from '@/lib/server/concurrency'
+import { PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
@@ -44,6 +45,13 @@ import type { Database, Json } from '@/lib/supabase/types'
 type UserRole = Database['public']['Enums']['user_role']
 
 const WEBTOON_EPISODE_CREATE_UPLOAD_CONCURRENCY = 2
+
+function revalidatePublicContentCache() {
+  revalidateTag(PUBLIC_CACHE_TAGS.artworks, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.creators, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.navigation, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.sparks, 'max')
+}
 
 function readText(formData: FormData, key: string) {
   const value = formData.get(key)
@@ -856,6 +864,7 @@ export async function createSparkChannel(formData: FormData) {
 
   revalidatePath('/main/spark')
   revalidatePath('/main/studio/channels')
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/spark/${data.id}/rating`)
 }
 
@@ -885,6 +894,7 @@ export async function updateSparkChannel(formData: FormData) {
   revalidatePath('/main/spark')
   revalidatePath(`/main/spark/${channelId}`)
   revalidatePath('/main/studio/channels')
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/spark/${channelId}/edit`)
 }
 
@@ -945,6 +955,7 @@ export async function createWebtoonChannel(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/channels')
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/webtoon/${data.id}/rating`)
 }
 
@@ -984,6 +995,7 @@ export async function updateChannelContentRating(formData: FormData) {
   revalidatePath('/main/studio/channels')
   revalidatePath(`/main/studio/channels/${workType}/${channelId}/edit`)
   revalidatePath(`/main/studio/channels/${workType}/${channelId}/rating`)
+  revalidatePublicContentCache()
 
   if (workType === 'spark') {
     revalidatePath(`/main/spark/${channelId}`)
@@ -1058,6 +1070,7 @@ export async function updateWebtoonChannel(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath('/main/studio/channels')
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/webtoon/${channelId}/edit`)
 }
 
@@ -1109,6 +1122,7 @@ export async function createNovelChannel(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/channels')
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/novel/${data.id}/rating`)
 }
 
@@ -1159,6 +1173,7 @@ export async function updateNovelChannel(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath('/main/studio/channels')
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/novel/${channelId}/edit`)
 }
 
@@ -1209,6 +1224,7 @@ export async function createNovelEpisode(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/studio/channels/novel/${channelId}/edit`)
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/novel/${channelId}/episodes/${episode.id}/edit`)
 }
 
@@ -1274,6 +1290,7 @@ export async function updateNovelEpisode(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/explore/${channelId}/episodes/${episodeId}`)
   revalidatePath(`/main/studio/channels/novel/${channelId}/edit`)
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/novel/${channelId}/episodes/${episodeId}/edit`)
 }
 
@@ -1392,6 +1409,7 @@ export async function createWebtoonEpisode(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episode.id}/edit?saved=1`)
 }
 
@@ -1477,5 +1495,6 @@ export async function updateWebtoonEpisode(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/explore/${channelId}/episodes/${episodeId}`)
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
+  revalidatePublicContentCache()
   redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episodeId}/edit?saved=1`)
 }
