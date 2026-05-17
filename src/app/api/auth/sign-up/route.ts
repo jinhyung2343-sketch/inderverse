@@ -97,9 +97,9 @@ export async function POST(request: NextRequest) {
     '/main'
   )
 
-  if (!displayName || !email || password.length < 6) {
+  if (!displayName || !email || password.length < 8) {
     return NextResponse.json(
-      { error: '닉네임, 이메일, 비밀번호 6자 이상을 확인해주세요.' },
+      { error: '닉네임, 이메일, 비밀번호 8자 이상을 확인해주세요.' },
       { status: 400 }
     )
   }
@@ -188,7 +188,6 @@ export async function POST(request: NextRequest) {
     }
 
     const confirmationEmail = buildSignupConfirmationEmail({
-      actionLink: data.properties.action_link,
       displayName,
       otp: data.properties.email_otp,
     })

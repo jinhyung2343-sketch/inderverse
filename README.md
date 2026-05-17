@@ -38,11 +38,11 @@ Supabase 로컬 스택을 사용한다면 프로젝트 루트의 `supabase/` 디
 로컬 Supabase에서도 가입한 이메일로 비밀번호 재설정 인증코드를 실제 발송하려면 SMTP 환경 변수를 `.env.local` 또는 `supabase/.env.local`에 설정한 뒤 Supabase 로컬 스택을 재시작해야 합니다.
 
 ```env
-SUPABASE_AUTH_SMTP_HOST=smtp.resend.com
-SUPABASE_AUTH_SMTP_USER=resend
-SUPABASE_AUTH_SMTP_PASS=your-resend-api-key
-SUPABASE_AUTH_SMTP_ADMIN_EMAIL=no-reply@your-verified-domain.com
-SUPABASE_AUTH_SMTP_SENDER_NAME=Inderverse
+INDERVERSE_SMTP_HOST=smtp.resend.com
+INDERVERSE_SMTP_USER=resend
+INDERVERSE_SMTP_PASS=your-resend-api-key
+INDERVERSE_SMTP_FROM_EMAIL=no-reply@your-verified-domain.com
+INDERVERSE_SMTP_FROM_NAME=Inderverse
 ```
 
 ```bash
@@ -60,11 +60,11 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SITE_URL=
-SUPABASE_AUTH_SMTP_HOST=
-SUPABASE_AUTH_SMTP_USER=
-SUPABASE_AUTH_SMTP_PASS=
-SUPABASE_AUTH_SMTP_ADMIN_EMAIL=
-SUPABASE_AUTH_SMTP_SENDER_NAME=
+INDERVERSE_SMTP_HOST=
+INDERVERSE_SMTP_USER=
+INDERVERSE_SMTP_PASS=
+INDERVERSE_SMTP_FROM_EMAIL=
+INDERVERSE_SMTP_FROM_NAME=
 ```
 
 Supabase Auth URL Configuration에는 운영 도메인을 Site URL로 설정하고, Additional Redirect URLs에 아래 경로를 허용해야 합니다.

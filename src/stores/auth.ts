@@ -117,6 +117,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     const supabase = createClient()
+    await fetch('/api/auth/sign-out', {
+      method: 'POST',
+      cache: 'no-store',
+    }).catch(() => null)
     await supabase.auth.signOut()
     set({
       user: null,

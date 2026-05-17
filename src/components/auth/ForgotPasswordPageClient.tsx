@@ -10,6 +10,30 @@ import { createClient } from '@/lib/supabase/client'
 
 type ResetStep = 'request-code' | 'verify-code'
 
+function isSamePasswordError(error: { code?: string; message: string }) {
+  const normalizedMessage = error.message.toLowerCase()
+
+  return error.code === 'same_password' || normalizedMessage.includes('same password')
+}
+
+function getPasswordUpdateErrorMessage(errorMessage: string) {
+  const normalizedMessage = errorMessage.toLowerCase()
+
+  if (normalizedMessage.includes('session')) {
+    return '인증 세션이 만료되었습니다. 인증코드를 다시 요청한 뒤 바로 비밀번호를 변경해 주세요.'
+  }
+
+  if (
+    normalizedMessage.includes('password') ||
+    normalizedMessage.includes('weak') ||
+    normalizedMessage.includes('short')
+  ) {
+    return '새 비밀번호 조건을 충족하지 못했습니다. 8자 이상으로 다시 입력해 주세요.'
+  }
+
+  return '비밀번호를 저장하지 못했습니다. 입력한 새 비밀번호를 확인한 뒤 다시 시도해 주세요.'
+}
+
 export function ForgotPasswordPageClient({
   nextPath,
 }: {
@@ -30,7 +54,7 @@ export function ForgotPasswordPageClient({
   const backHref = `/auth/sign-in?next=${encodedNextPath}`
 
   const requestResetCode = async () => {
-    const trimmedEmail = email.trim()
+    const trimmedEmail = email.trim().toLowerCase()
 
     if (!trimmedEmail) {
       setErrorMessage('인증코드를 받을 이메일을 입력해 주세요.')
@@ -41,16 +65,24 @@ export function ForgotPasswordPageClient({
     setErrorMessage('')
     setMessage('')
 
-    const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/reset-password?next=${encodedNextPath}`
-    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-      redirectTo,
+    const response = await fetch('/api/auth/password-reset-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: trimmedEmail,
+        nextPath: redirectPath,
+      }),
     })
 
     setIsSubmitting(false)
 
-    if (error) {
-      setErrorMessage('인증코드 요청 중 문제가 발생했습니다. 이메일 형식을 확인한 뒤 다시 시도해 주세요.')
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as { error?: string } | null
+      setErrorMessage(
+        result?.error ?? '인증코드 요청 중 문제가 발생했습니다. 이메일 형식을 확인한 뒤 다시 시도해 주세요.'
+      )
       return
     }
 
@@ -80,8 +112,8 @@ export function ForgotPasswordPageClient({
       return
     }
 
-    if (password.length < 6) {
-      setErrorMessage('새 비밀번호는 6자 이상으로 입력해 주세요.')
+    if (password.length < 8) {
+      setErrorMessage('새 비밀번호는 8자 이상으로 입력해 주세요.')
       return
     }
 
@@ -94,7 +126,7 @@ export function ForgotPasswordPageClient({
     setErrorMessage('')
 
     const supabase = createClient()
-    const { error: verifyError } = await supabase.auth.verifyOtp({
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
       email: requestedEmail,
       token: trimmedCode,
       type: 'recovery',
@@ -106,12 +138,55 @@ export function ForgotPasswordPageClient({
       return
     }
 
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    if (verifyData.session) {
+      await supabase.auth.setSession({
+        access_token: verifyData.session.access_token,
+        refresh_token: verifyData.session.refresh_token,
+      })
+    }
+
+    const { error: existingPasswordError } = await supabase.auth.signInWithPassword({
+      email: requestedEmail,
+      password,
+    })
+
+    if (!existingPasswordError) {
+      setIsSubmitting(false)
+      setErrorMessage('')
+      setMessage('입력한 비밀번호가 기존 비밀번호와 일치합니다. 비밀번호 변경 없이 로그인합니다.')
+      window.setTimeout(() => {
+        router.replace(redirectPath)
+        router.refresh()
+      }, 900)
+      return
+    }
+
+    if (verifyData.session) {
+      await supabase.auth.setSession({
+        access_token: verifyData.session.access_token,
+        refresh_token: verifyData.session.refresh_token,
+      })
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      password,
+      nonce: trimmedCode,
+    })
 
     setIsSubmitting(false)
 
     if (updateError) {
-      setErrorMessage('비밀번호를 저장하지 못했습니다. 인증코드를 다시 요청해 주세요.')
+      if (isSamePasswordError(updateError)) {
+        setErrorMessage('')
+        setMessage('입력한 비밀번호가 기존 비밀번호와 같습니다. 비밀번호 변경 없이 로그인 상태로 이어갑니다.')
+        window.setTimeout(() => {
+          router.replace(redirectPath)
+          router.refresh()
+        }, 900)
+        return
+      }
+
+      setErrorMessage(getPasswordUpdateErrorMessage(updateError.message))
       return
     }
 
@@ -188,7 +263,7 @@ export function ForgotPasswordPageClient({
                   value={verificationCode}
                   onChange={(event) => setVerificationCode(event.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="6자리 코드"
+                  placeholder="메일로 받은 코드"
                   autoComplete="one-time-code"
                 />
               </label>
@@ -200,7 +275,7 @@ export function ForgotPasswordPageClient({
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="6자 이상"
+                  placeholder="8자 이상 권장"
                   autoComplete="new-password"
                 />
               </label>

@@ -213,7 +213,12 @@ export default async function StudioChannelsPage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="space-y-6 border-b border-white/10 pb-6">
           <div className="flex items-center justify-between gap-4">
-            <PageBackLink href="/main/studio/creator-channel" ariaLabel="내 채널 운영으로 돌아가기" />
+            <PageBackLink
+              href="/main/studio/creator-channel"
+              ariaLabel="내 채널 운영으로 돌아가기"
+              label="내 채널 운영"
+              showLabel
+            />
             <Link
               href="/main/studio/creator-channel"
               className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
@@ -253,9 +258,17 @@ export default async function StudioChannelsPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Creator Identity</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight">어떤 창작자로 시작할까요?</h2>
             </div>
-            <p className="max-w-xl text-sm leading-6 text-zinc-400">
-              선택은 이번 작품의 시작점입니다. 나중에 한 채널 안에서 여러 형식을 운영할 수 있도록 확장합니다.
-            </p>
+            <div className="flex flex-col gap-3 md:items-end">
+              <Link
+                href="/main/studio/creator-channel"
+                className="inline-flex min-h-11 items-center rounded-full border border-white/15 bg-white px-5 py-3 text-sm font-semibold text-black shadow-lg shadow-black/25 transition hover:bg-zinc-200"
+              >
+                내 채널 운영으로 돌아가기
+              </Link>
+              <p className="max-w-xl text-sm leading-6 text-zinc-400 md:text-right">
+                선택은 이번 작품의 시작점입니다. 나중에 한 채널 안에서 여러 형식을 운영할 수 있도록 확장합니다.
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

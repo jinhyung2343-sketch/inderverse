@@ -178,8 +178,8 @@ export function SignUpPageClient({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!displayName.trim() || !email.trim() || password.length < 6) {
-      setErrorMessage('닉네임, 이메일, 비밀번호 6자 이상을 확인해주세요.')
+    if (!displayName.trim() || !email.trim() || password.length < 8) {
+      setErrorMessage('닉네임, 이메일, 비밀번호 8자 이상을 확인해주세요.')
       return
     }
 
@@ -297,7 +297,7 @@ export function SignUpPageClient({
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                    placeholder="6자 이상"
+                    placeholder="8자 이상"
                     autoComplete="new-password"
                   />
                 </label>

@@ -4,6 +4,8 @@ import { updateSession } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
+  const shouldDisableRouteCache =
+    pathname === '/' || pathname === '/join-prompt' || pathname.startsWith('/auth/')
   const guestAccessDecision = getRouteAccessDecision({
     pathname,
     search,
@@ -25,7 +27,7 @@ export async function proxy(request: NextRequest) {
 
     const response = NextResponse.next({ request })
 
-    if (pathname === '/') {
+    if (shouldDisableRouteCache) {
       response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
     }
 
@@ -34,7 +36,7 @@ export async function proxy(request: NextRequest) {
 
   const { response, userId, profile } = await updateSession(request)
 
-  if (pathname === '/') {
+  if (shouldDisableRouteCache) {
     response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
   }
 

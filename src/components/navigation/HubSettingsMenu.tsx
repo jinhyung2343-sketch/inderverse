@@ -5,6 +5,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { useAuthStore } from '@/stores/auth'
+import type { Database } from '@/lib/supabase/types'
+
+type SettingsProfile = Pick<
+  Database['public']['Tables']['profiles']['Row'],
+  'role' | 'is_adult_verified' | 'guardian_consent_status' | 'display_name'
+> | null
+
+export type InitialSettingsAuth = {
+  isLoggedIn: boolean
+  userNickname: string
+  profile: SettingsProfile
+}
 
 type SettingsItem =
   | {
@@ -115,7 +127,11 @@ export function HubSettingsButton() {
   )
 }
 
-export function SettingsPageClient() {
+export function SettingsPageClient({
+  initialAuth,
+}: {
+  initialAuth: InitialSettingsAuth
+}) {
   const router = useRouter()
   const {
     checkSession,
@@ -128,13 +144,28 @@ export function SettingsPageClient() {
   const [isWithdrawing, setIsWithdrawing] = useState(false)
   const [withdrawalError, setWithdrawalError] = useState('')
   const [confirmDialog, setConfirmDialog] = useState<SettingsConfirmDialog>(null)
+  const [isUsingInitialAuth, setIsUsingInitialAuth] = useState(true)
 
   useEffect(() => {
-    checkSession()
+    let isMounted = true
+
+    checkSession().finally(() => {
+      if (isMounted) {
+        setIsUsingInitialAuth(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
   }, [checkSession])
 
-  const isCreator = isLoggedIn && (profile?.role === 'creator' || profile?.role === 'admin')
-  const displayNickname = isLoggedIn ? userNickname : 'Guest'
+  const resolvedIsLoggedIn = isUsingInitialAuth ? initialAuth.isLoggedIn : isLoggedIn
+  const resolvedProfile = isUsingInitialAuth ? initialAuth.profile : profile
+  const resolvedUserNickname = isUsingInitialAuth ? initialAuth.userNickname : userNickname
+  const isCreator =
+    resolvedIsLoggedIn && (resolvedProfile?.role === 'creator' || resolvedProfile?.role === 'admin')
+  const displayNickname = resolvedIsLoggedIn ? resolvedUserNickname : 'Guest'
 
   const handleSignOut = useCallback(async () => {
     if (isSigningOut) {
@@ -194,7 +225,7 @@ export function SettingsPageClient() {
     return [
       {
         title: '계정',
-        items: isLoggedIn
+        items: resolvedIsLoggedIn
           ? [
               {
                 kind: 'pending',
@@ -296,7 +327,7 @@ export function SettingsPageClient() {
         ],
       },
     ]
-  }, [isCreator, isLoggedIn, isSigningOut, isWithdrawing])
+  }, [isCreator, resolvedIsLoggedIn, isSigningOut, isWithdrawing])
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-5 py-8 text-white md:px-8">

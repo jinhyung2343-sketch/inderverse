@@ -9,40 +9,23 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;')
 }
 
-export function buildSignupConfirmationEmail({
-  actionLink,
-  displayName,
-  otp,
-}: {
-  actionLink?: string
-  displayName: string
-  otp: string
-}) {
-  const safeActionLink = actionLink ? escapeHtml(actionLink) : null
-  const safeDisplayName = escapeHtml(displayName || '회원')
+export function buildPasswordResetEmail({ otp }: { otp: string }) {
   const safeOtp = escapeHtml(otp)
 
   return {
-    subject: '인더버스 이메일 인증 코드',
+    subject: '인더버스 비밀번호 재설정 인증 코드',
     text: [
-      `${displayName || '회원'}님, 인더버스 가입을 완료하려면 아래 인증코드를 입력해 주세요.`,
+      '인더버스 비밀번호를 다시 설정하려면 아래 인증코드를 입력해 주세요.',
       '',
-      safeOtp,
+      otp,
       '',
-      ...(actionLink
-        ? [
-            '또는 아래 링크를 열어 이메일 인증을 완료할 수 있습니다.',
-            actionLink,
-            '',
-          ]
-        : []),
       '본인이 요청하지 않았다면 이 메일을 무시해도 됩니다.',
     ].join('\n'),
     html: `<!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <title>인더버스 이메일 인증 코드</title>
+    <title>인더버스 비밀번호 재설정 인증 코드</title>
   </head>
   <body style="margin:0;background:#050505;color:#f4f4f5;font-family:Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050505;padding:32px 16px;">
@@ -55,23 +38,14 @@ export function buildSignupConfirmationEmail({
                   Inderverse
                 </p>
                 <h1 style="margin:0 0 16px;color:#ffffff;font-size:24px;line-height:1.35;">
-                  이메일 인증 코드
+                  비밀번호 재설정 인증 코드
                 </h1>
                 <p style="margin:0 0 24px;color:#d4d4d8;font-size:15px;line-height:1.7;">
-                  ${safeDisplayName}님, 인더버스 가입을 완료하려면 아래 인증코드를 앱 화면에 입력해 주세요.
+                  인더버스 비밀번호를 다시 설정하려면 아래 인증코드를 앱 화면에 입력해 주세요.
                 </p>
                 <p style="margin:0 0 24px;border-radius:18px;background:#ffffff;color:#050505;font-size:32px;font-weight:700;letter-spacing:0.22em;padding:18px 20px;text-align:center;">
                   ${safeOtp}
                 </p>
-                ${
-                  safeActionLink
-                    ? `<p style="margin:0 0 24px;text-align:center;">
-                  <a href="${safeActionLink}" style="display:inline-block;border-radius:999px;background:#f4f4f5;color:#050505;font-size:14px;font-weight:700;padding:14px 22px;text-decoration:none;">
-                    이메일 인증 완료하기
-                  </a>
-                </p>`
-                    : ''
-                }
                 <p style="margin:0;color:#a1a1aa;font-size:13px;line-height:1.7;">
                   본인이 요청하지 않았다면 이 메일을 무시해도 됩니다. 인증코드는 제한 시간 이후 만료됩니다.
                 </p>

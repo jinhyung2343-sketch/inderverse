@@ -1,5 +1,51 @@
-import { SettingsPageClient } from '@/components/navigation/HubSettingsMenu'
+import { SettingsPageClient, type InitialSettingsAuth } from '@/components/navigation/HubSettingsMenu'
+import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 
-export default function SettingsPage() {
-  return <SettingsPageClient />
+function getGuestInitialAuth(): InitialSettingsAuth {
+  return {
+    isLoggedIn: false,
+    userNickname: 'Guest',
+    profile: null,
+  }
+}
+
+export default async function SettingsPage() {
+  const cookieStore = await cookies()
+  const hasAuthCookie = cookieStore
+    .getAll()
+    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
+
+  if (!hasAuthCookie) {
+    return <SettingsPageClient initialAuth={getGuestInitialAuth()} />
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  let initialAuth = getGuestInitialAuth()
+
+  if (user && !error) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_adult_verified, guardian_consent_status, display_name')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const fallbackNickname =
+      (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name) ||
+      user.email?.split('@')[0] ||
+      '유저'
+
+    initialAuth = {
+      isLoggedIn: true,
+      userNickname: profile?.display_name || fallbackNickname,
+      profile,
+    }
+  }
+
+  return <SettingsPageClient initialAuth={initialAuth} />
 }

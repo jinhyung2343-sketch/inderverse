@@ -135,12 +135,18 @@ function buildRawMessage({
 }
 
 export async function sendSmtpMail(message: MailMessage) {
-  const host = process.env.SUPABASE_AUTH_SMTP_HOST
-  const port = Number(process.env.SUPABASE_AUTH_SMTP_PORT ?? 587)
-  const user = process.env.SUPABASE_AUTH_SMTP_USER
-  const pass = process.env.SUPABASE_AUTH_SMTP_PASS
-  const fromEmail = process.env.SUPABASE_AUTH_SMTP_ADMIN_EMAIL
-  const fromName = process.env.SUPABASE_AUTH_SMTP_SENDER_NAME ?? 'Inderverse'
+  const host = process.env.INDERVERSE_SMTP_HOST ?? process.env.SUPABASE_AUTH_SMTP_HOST
+  const port = Number(
+    process.env.INDERVERSE_SMTP_PORT ?? process.env.SUPABASE_AUTH_SMTP_PORT ?? 587
+  )
+  const user = process.env.INDERVERSE_SMTP_USER ?? process.env.SUPABASE_AUTH_SMTP_USER
+  const pass = process.env.INDERVERSE_SMTP_PASS ?? process.env.SUPABASE_AUTH_SMTP_PASS
+  const fromEmail =
+    process.env.INDERVERSE_SMTP_FROM_EMAIL ?? process.env.SUPABASE_AUTH_SMTP_ADMIN_EMAIL
+  const fromName =
+    process.env.INDERVERSE_SMTP_FROM_NAME ??
+    process.env.SUPABASE_AUTH_SMTP_SENDER_NAME ??
+    'Inderverse'
 
   if (!host || !user || !pass || !fromEmail || !Number.isFinite(port)) {
     throw new Error('SMTP 환경 변수가 설정되지 않았습니다.')

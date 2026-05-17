@@ -3,10 +3,12 @@ import Link from 'next/link'
 export function PageBackLink({
   href,
   ariaLabel = '뒤로 가기',
+  label,
   showLabel = false,
 }: {
   href: string
   ariaLabel?: string
+  label?: string
   showLabel?: boolean
 }) {
   return (
@@ -16,6 +18,7 @@ export function PageBackLink({
         showLabel ? 'w-auto px-4 text-sm font-semibold' : 'w-11'
       }`}
       aria-label={ariaLabel}
+      title={ariaLabel}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -31,7 +34,7 @@ export function PageBackLink({
       >
         <path d="M19 12H5M12 19l-7-7 7-7" />
       </svg>
-      {showLabel ? <span>{ariaLabel}</span> : null}
+      {showLabel ? <span>{label ?? ariaLabel}</span> : null}
     </Link>
   )
 }

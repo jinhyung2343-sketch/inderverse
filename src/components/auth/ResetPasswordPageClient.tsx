@@ -19,6 +19,30 @@ function readHashParam(key: string) {
   return params.get(key)
 }
 
+function isSamePasswordError(error: { code?: string; message: string }) {
+  const normalizedMessage = error.message.toLowerCase()
+
+  return error.code === 'same_password' || normalizedMessage.includes('same password')
+}
+
+function getPasswordUpdateErrorMessage(errorMessage: string) {
+  const normalizedMessage = errorMessage.toLowerCase()
+
+  if (normalizedMessage.includes('session')) {
+    return '재설정 세션이 만료되었습니다. 인증코드를 다시 요청한 뒤 바로 비밀번호를 변경해 주세요.'
+  }
+
+  if (
+    normalizedMessage.includes('password') ||
+    normalizedMessage.includes('weak') ||
+    normalizedMessage.includes('short')
+  ) {
+    return '새 비밀번호 조건을 충족하지 못했습니다. 8자 이상으로 다시 입력해 주세요.'
+  }
+
+  return '비밀번호를 저장하지 못했습니다. 입력한 새 비밀번호를 확인한 뒤 다시 시도해 주세요.'
+}
+
 export function ResetPasswordPageClient({
   nextPath,
 }: {
@@ -34,6 +58,10 @@ export function ResetPasswordPageClient({
   const redirectPath = sanitizeInternalPath(nextPath, '/main')
   const encodedNextPath = encodeURIComponent(redirectPath)
   const signInHref = `/auth/sign-in?next=${encodedNextPath}`
+  const shouldShowResetLink =
+    errorMessage.includes('세션') ||
+    errorMessage.includes('링크') ||
+    errorMessage.includes('재설정 메일')
 
   useEffect(() => {
     let isMounted = true
@@ -99,8 +127,8 @@ export function ResetPasswordPageClient({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (password.length < 6) {
-      setErrorMessage('새 비밀번호는 6자 이상으로 입력해 주세요.')
+    if (password.length < 8) {
+      setErrorMessage('새 비밀번호는 8자 이상으로 입력해 주세요.')
       return
     }
 
@@ -118,7 +146,17 @@ export function ResetPasswordPageClient({
     setIsSubmitting(false)
 
     if (error) {
-      setErrorMessage('비밀번호를 저장하지 못했습니다. 재설정 링크를 다시 요청해 주세요.')
+      if (isSamePasswordError(error)) {
+        setErrorMessage('')
+        setStatusMessage('입력한 비밀번호가 기존 비밀번호와 같습니다. 비밀번호 변경 없이 로그인 상태로 이어갑니다.')
+        window.setTimeout(() => {
+          router.replace(redirectPath)
+          router.refresh()
+        }, 900)
+        return
+      }
+
+      setErrorMessage(getPasswordUpdateErrorMessage(error.message))
       return
     }
 
@@ -162,7 +200,7 @@ export function ResetPasswordPageClient({
                 onChange={(event) => setPassword(event.target.value)}
                 disabled={!isReady}
                 className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-60"
-                placeholder="6자 이상"
+                placeholder="8자 이상"
                 autoComplete="new-password"
               />
             </label>
@@ -183,12 +221,14 @@ export function ResetPasswordPageClient({
             {errorMessage ? (
               <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
                 <p>{errorMessage}</p>
-                <Link
-                  href={`/auth/forgot-password?next=${encodedNextPath}`}
-                  className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200"
-                >
-                  재설정 메일 다시 받기
-                </Link>
+                {shouldShowResetLink ? (
+                  <Link
+                    href={`/auth/forgot-password?next=${encodedNextPath}`}
+                    className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200"
+                  >
+                    재설정 메일 다시 받기
+                  </Link>
+                ) : null}
               </div>
             ) : null}
 

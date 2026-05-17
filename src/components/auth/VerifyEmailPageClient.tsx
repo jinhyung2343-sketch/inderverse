@@ -176,6 +176,15 @@ export function VerifyEmailPageClient({
       error = result.error
     }
 
+    if (error) {
+      const result = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: trimmedCode,
+        type: 'magiclink',
+      })
+      error = result.error
+    }
+
     setIsSubmitting(false)
 
     if (error) {
@@ -200,20 +209,24 @@ export function VerifyEmailPageClient({
     setErrorMessage('')
     setMessage('')
 
-    const supabase = createClient()
-    const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodedNextPath}`
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: normalizedEmail,
-      options: {
-        emailRedirectTo,
+    const response = await fetch('/api/auth/resend-signup-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        email: normalizedEmail,
+        nextPath: redirectPath,
+      }),
     })
 
     setIsResending(false)
 
-    if (error) {
-      setErrorMessage('인증코드를 다시 보내지 못했습니다. 이메일을 확인한 뒤 잠시 후 다시 시도해 주세요.')
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as { error?: string } | null
+      setErrorMessage(
+        result?.error ?? '인증코드를 다시 보내지 못했습니다. 이메일을 확인한 뒤 잠시 후 다시 시도해 주세요.'
+      )
       return
     }
 
@@ -236,7 +249,7 @@ export function VerifyEmailPageClient({
           <div className="mb-8 space-y-3">
             <h1 className="text-3xl font-bold tracking-tight">이메일 인증</h1>
             <p className="text-sm leading-6 text-zinc-400 md:text-base">
-              {BRAND.name} 가입을 완료하려면 메일로 받은 6자리 인증코드를 입력해 주세요.
+              {BRAND.name} 가입을 완료하려면 메일로 받은 인증코드를 입력해 주세요.
               메일의 확인 버튼을 눌러 들어온 경우에는 자동으로 인증을 마무리합니다.
             </p>
           </div>
@@ -262,7 +275,7 @@ export function VerifyEmailPageClient({
                 value={verificationCode}
                 onChange={(event) => setVerificationCode(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                placeholder="6자리 코드"
+                placeholder="메일로 받은 코드"
                 autoComplete="one-time-code"
               />
             </label>
