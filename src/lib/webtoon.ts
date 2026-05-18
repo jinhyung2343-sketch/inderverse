@@ -3,8 +3,9 @@ import { getAgeRatingLabel as getSharedAgeRatingLabel } from '@/lib/content-rati
 import type { ChannelAgeRating, RatingChecklist } from '@/lib/content-rating'
 
 export type WebtoonStatus = Database['public']['Enums']['channel_status']
-export type WebtoonEpisodePricing = Database['public']['Enums']['episode_pricing']
+export type WebtoonEpisodePricing = 'free' | 'paid'
 export type WebtoonEpisodeStatus = Database['public']['Enums']['episode_status']
+export type WorkScale = 'short' | 'medium' | 'long'
 
 export interface WebtoonEpisodeImageRecord {
   imageUrl: string
@@ -49,7 +50,10 @@ export interface CreatorWebtoonRecord {
   isCommentEnabled: boolean
   commentPolicyNote: string | null
   status: WebtoonStatus
-  waitFreeHours: number
+  totalEpisodes: number
+  workScale: WorkScale
+  teaserPercentage: number
+  isFreeArchive: boolean
   serializationDays: number[]
   category: string
   tags: string[]
@@ -99,7 +103,9 @@ export interface WebtoonDraftInput {
   isCommentEnabled: boolean
   commentPolicyNote: string | null
   status: WebtoonStatus
-  waitFreeHours: number
+  workScale: WorkScale
+  teaserPercentage: number
+  isFreeArchive: boolean
   serializationDays: number[]
   category: string
   tags: string[]
@@ -180,11 +186,22 @@ export function getEpisodePricingLabel(pricingType: WebtoonEpisodePricing) {
     case 'free':
       return '무료'
     case 'paid':
-      return '유료'
-    case 'wait_free':
-      return '기다리면 무료'
+      return '구독 공개'
     default:
       return pricingType
+  }
+}
+
+export function getWorkScaleLabel(workScale: WorkScale) {
+  switch (workScale) {
+    case 'short':
+      return '단편'
+    case 'medium':
+      return '중편'
+    case 'long':
+      return '장편'
+    default:
+      return workScale
   }
 }
 

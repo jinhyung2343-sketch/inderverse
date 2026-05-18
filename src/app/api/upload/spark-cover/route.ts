@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 
 const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'] as const
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()

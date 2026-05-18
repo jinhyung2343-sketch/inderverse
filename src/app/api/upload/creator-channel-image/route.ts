@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/server'
 
 const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'] as const
 
+export const runtime = 'nodejs'
+
 function isImageRole(value: unknown): value is 'avatar' | 'cover' {
   return value === 'avatar' || value === 'cover'
 }

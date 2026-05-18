@@ -88,6 +88,27 @@ async function loadViewerAccountGroup(userId: string) {
   return data ? toViewerAccountGroup(data as AccountGroupMembershipRow) : null
 }
 
+async function loadAccountGroupCreatedBy(userId: string) {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('account_groups')
+    .select('id, display_name, status, updated_at')
+    .eq('created_by_profile_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    if (isSchemaUnavailableError(error.message)) {
+      throw new AccountGroupsSchemaUnavailableError()
+    }
+
+    throw new Error(error.message || '계정 그룹을 확인하지 못했습니다.')
+  }
+
+  return data
+}
+
 export async function ensureViewerAccountGroup(userId: string) {
   const existingGroup = await loadViewerAccountGroup(userId)
 
@@ -107,7 +128,8 @@ export async function ensureViewerAccountGroup(userId: string) {
   }
 
   const displayName = profile?.display_name?.trim() || '유저'
-  const { data: accountGroup, error: groupError } = await admin
+  let accountGroup: AccountGroup | null = null
+  const { data: createdAccountGroup, error: groupError } = await admin
     .from('account_groups')
     .insert({
       display_name: `${displayName} 계정 그룹`,
@@ -121,13 +143,21 @@ export async function ensureViewerAccountGroup(userId: string) {
       throw new AccountGroupsSchemaUnavailableError()
     }
 
-    const reloadedGroup = await loadViewerAccountGroup(userId)
+    accountGroup = await loadAccountGroupCreatedBy(userId)
 
-    if (reloadedGroup) {
-      return reloadedGroup
+    if (!accountGroup) {
+      const reloadedGroup = await loadViewerAccountGroup(userId)
+
+      if (reloadedGroup) {
+        return reloadedGroup
+      }
     }
 
-    throw new Error(groupError.message || '계정 그룹을 만들지 못했습니다.')
+    if (!accountGroup) {
+      throw new Error(groupError.message || '계정 그룹을 만들지 못했습니다.')
+    }
+  } else {
+    accountGroup = createdAccountGroup
   }
 
   const { data: member, error: memberError } = await admin

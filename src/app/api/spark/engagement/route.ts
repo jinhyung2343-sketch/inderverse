@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getSparkEngagementSummary } from '@/lib/server/spark'
 
+export const runtime = 'nodejs'
+
 async function canAccessSparkChannel(channelId: string, userId: string | null) {
   const admin = createAdminClient()
   const { data: channel, error } = await admin
@@ -87,12 +89,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Login required to react to sparks' }, { status: 401 })
       }
 
-      await admin.from('spark_reactions').insert({
-        channel_id: sparkId,
-        user_id: user.id,
-        reaction_type: 'applause',
-        anon_id: typeof anonId === 'string' ? anonId : null,
-      })
+      const { error } = await admin
+        .from('spark_reactions')
+        .upsert(
+          {
+            channel_id: sparkId,
+            user_id: user.id,
+            reaction_type: 'applause',
+            anon_id: typeof anonId === 'string' ? anonId : null,
+          },
+          {
+            ignoreDuplicates: true,
+            onConflict: 'channel_id,user_id,reaction_type',
+          }
+        )
+
+      if (error) {
+        throw error
+      }
     }
 
     if (action === 'toggle_save') {

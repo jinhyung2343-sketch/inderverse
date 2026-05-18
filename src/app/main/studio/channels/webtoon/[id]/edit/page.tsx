@@ -6,7 +6,6 @@ import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
 import {
   getAgeRatingLabel,
-  getEpisodePricingLabel,
   getEpisodeStatusLabel,
   getWebtoonStatusLabel,
 } from '@/lib/webtoon'
@@ -90,18 +89,16 @@ export default async function EditWebtoonPage({
                         {episode.episodeNumber}화. {episode.title}
                       </h3>
                       <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        이미지 {episode.images.length}장 · {getEpisodePricingLabel(episode.pricingType)}
+                        이미지 {episode.images.length}장 · {episode.episodeNumber}화
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
                         {getEpisodeStatusLabel(episode.status)}
                       </span>
-                      {episode.pricingType !== 'free' ? (
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                          {episode.coinPrice} 코인
-                        </span>
-                      ) : null}
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                        맛보기/구독 규칙 적용
+                      </span>
                     </div>
                   </div>
                 </Link>

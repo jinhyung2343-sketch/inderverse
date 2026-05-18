@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { resolveEpisodeReference } from '@/lib/server/episode-reference'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()

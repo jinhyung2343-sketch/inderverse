@@ -1,11 +1,12 @@
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import { categories } from '@/lib/explore'
 import type { CreatorNovelRecord } from '@/lib/novel'
-import { getNovelStatusLabel } from '@/lib/novel'
+import { getNovelStatusLabel, getNovelWorkScaleLabel } from '@/lib/novel'
 import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
 
 const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
+const workScaleOptions = ['short', 'medium', 'long'] as const
 
 export function NovelEditorForm({
   action,
@@ -131,16 +132,43 @@ export function NovelEditorForm({
               />
             </label>
 
-            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
-              <span>기다리면 무료 간격 (시간)</span>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>작품 규모</span>
+                <select
+                  name="workScale"
+                  defaultValue={initialValue?.workScale ?? 'medium'}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                >
+                  {workScaleOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {getNovelWorkScaleLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>맛보기 공개 비율 (%)</span>
+                <input
+                  type="number"
+                  min={3}
+                  max={20}
+                  name="teaserPercentage"
+                  defaultValue={initialValue?.teaserPercentage ?? 10}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
               <input
-                type="number"
-                min={0}
-                max={168}
-                name="waitFreeHours"
-                defaultValue={initialValue?.waitFreeHours ?? 24}
-                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                type="checkbox"
+                name="isFreeArchive"
+                defaultChecked={initialValue?.isFreeArchive ?? false}
+                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
               />
+              <span>이 작품 전체를 무료 아카이브로 공개합니다.</span>
             </label>
           </div>
 

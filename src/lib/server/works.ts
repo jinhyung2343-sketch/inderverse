@@ -63,6 +63,27 @@ export async function getCreatorWorkList(options?: { workTypes?: WorkType[] }) {
 }
 
 export async function getCreatorWorkById(id: string) {
-  const works = await getCreatorWorkList()
-  return works.find((work) => work.id === id) ?? null
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select(
+      'id, creator_id, creator_channel_id, work_type, title, description, cover_image_url, status, is_adult_only, updated_at'
+    )
+    .eq('id', id)
+    .eq('creator_id', user.id)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load creator work: ${error.message}`)
+  }
+
+  return data ? mapWorkRow(data as WorkRow) : null
 }

@@ -3,7 +3,7 @@ import type { Database } from '@/lib/supabase/types'
 
 type EpisodeRow = Pick<
   Database['public']['Tables']['episodes']['Row'],
-  'id' | 'channel_id' | 'pricing_type'
+  'id' | 'channel_id' | 'pricing_type' | 'status'
 >
 
 interface EpisodeReferenceInput {
@@ -23,7 +23,7 @@ export async function resolveEpisodeReference(
   if (typeof input.episodeId === 'string' && input.episodeId.trim().length > 0) {
     let query = adminClient
       .from('episodes')
-      .select('id, channel_id, pricing_type')
+      .select('id, channel_id, pricing_type, status')
       .eq('id', input.episodeId)
 
     if (typeof input.channelId === 'string' && input.channelId.trim().length > 0) {
@@ -43,7 +43,7 @@ export async function resolveEpisodeReference(
 
     const { data } = await adminClient
       .from('episodes')
-      .select('id, channel_id, pricing_type')
+      .select('id, channel_id, pricing_type, status')
       .eq('channel_id', input.channelId)
       .eq('episode_number', episodeNumber)
       .single()

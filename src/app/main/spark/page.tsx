@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { SparkFeed } from '@/components/spark/SparkFeed'
@@ -6,6 +7,7 @@ import { getPublicSparkList } from '@/lib/server/spark'
 export const revalidate = 120
 
 export default async function SparkPage() {
+  await connection()
   const sparkWorks = await getPublicSparkList()
 
   return (

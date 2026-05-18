@@ -6,7 +6,6 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getCreatorNovelById } from '@/lib/server/novel-studio'
 import {
   getAgeRatingLabel,
-  getNovelEpisodePricingLabel,
   getNovelEpisodeStatusLabel,
   getNovelStatusLabel,
 } from '@/lib/novel'
@@ -88,18 +87,16 @@ export default async function EditNovelPage({
                         {episode.episodeNumber}화. {episode.title}
                       </h3>
                       <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        본문 {episode.bodyText.replace(/\s/g, '').length.toLocaleString('ko-KR')}자 · {getNovelEpisodePricingLabel(episode.pricingType)}
+                        본문 {episode.bodyText.replace(/\s/g, '').length.toLocaleString('ko-KR')}자
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
                         {getNovelEpisodeStatusLabel(episode.status)}
                       </span>
-                      {episode.pricingType !== 'free' ? (
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                          {episode.coinPrice} 코인
-                        </span>
-                      ) : null}
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                        맛보기/구독 규칙 적용
+                      </span>
                     </div>
                   </div>
                 </Link>

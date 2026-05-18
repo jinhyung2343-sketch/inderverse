@@ -1,7 +1,8 @@
 import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
-import { getPublicArtworkById } from '@/lib/server/explore'
+import { getPublicArtworkList } from '@/lib/server/explore'
+import type { ExploreArtwork } from '@/lib/explore'
 
 export async function getSavedArtworkIds() {
   const supabase = await createClient()
@@ -34,10 +35,27 @@ export async function getSavedArtworkIds() {
 
 export async function getSavedArtworks() {
   const savedArtworkIds = await getSavedArtworkIds()
+  const artworks = await getPublicArtworkList()
+  const artworkBySavedId = new Map<string, ExploreArtwork>()
 
-  const artworks = await Promise.all(
-    savedArtworkIds.map((artworkId) => getPublicArtworkById(artworkId))
-  )
+  artworks.forEach((artwork) => {
+    artworkBySavedId.set(artwork.id, artwork)
 
-  return artworks.filter((artwork): artwork is NonNullable<typeof artwork> => artwork !== null)
+    if (artwork.backendChannelId) {
+      artworkBySavedId.set(artwork.backendChannelId, artwork)
+    }
+  })
+
+  const seenArtworkIds = new Set<string>()
+
+  return savedArtworkIds.flatMap((artworkId) => {
+    const artwork = artworkBySavedId.get(artworkId)
+
+    if (!artwork || seenArtworkIds.has(artwork.id)) {
+      return []
+    }
+
+    seenArtworkIds.add(artwork.id)
+    return [artwork]
+  })
 }

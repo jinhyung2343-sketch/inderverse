@@ -6,6 +6,7 @@ import {
   getPayoutMethodLabel,
   getSerializationDayLabel,
   getWebtoonStatusLabel,
+  getWorkScaleLabel,
 } from '@/lib/webtoon'
 import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
 
@@ -13,6 +14,7 @@ const weekdayOptions = [0, 1, 2, 3, 4, 5, 6] as const
 const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
 const payoutMethodOptions = ['bank_transfer', 'paypal'] as const
+const workScaleOptions = ['short', 'medium', 'long'] as const
 
 export function WebtoonEditorForm({
   action,
@@ -159,16 +161,43 @@ export function WebtoonEditorForm({
               </div>
             </div>
 
-            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
-              <span>기다리면 무료 간격 (시간)</span>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>작품 규모</span>
+                <select
+                  name="workScale"
+                  defaultValue={initialValue?.workScale ?? 'medium'}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                >
+                  {workScaleOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {getWorkScaleLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm text-zinc-300">
+                <span>맛보기 공개 비율 (%)</span>
+                <input
+                  type="number"
+                  min={3}
+                  max={20}
+                  name="teaserPercentage"
+                  defaultValue={initialValue?.teaserPercentage ?? 10}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
               <input
-                type="number"
-                min={0}
-                max={168}
-                name="waitFreeHours"
-                defaultValue={initialValue?.waitFreeHours ?? 24}
-                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                type="checkbox"
+                name="isFreeArchive"
+                defaultChecked={initialValue?.isFreeArchive ?? false}
+                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
               />
+              <span>이 작품 전체를 무료 아카이브로 공개합니다.</span>
             </label>
           </div>
 
@@ -211,19 +240,19 @@ export function WebtoonEditorForm({
 
         <div className="space-y-6">
           <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-bold text-white">현재 공개 운용 기준</h2>
+            <h2 className="text-xl font-bold text-white">맛보기/구독 공개 기준</h2>
             <div className="mt-5 grid gap-3 text-sm text-zinc-300">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <span className="font-semibold text-white">초안</span>
-                <p className="mt-1 text-zinc-400">탐색 화면에 노출되지 않고, 작가 스튜디오에서만 정리하는 준비 단계입니다.</p>
+                <span className="font-semibold text-white">맛보기 공개</span>
+                <p className="mt-1 text-zinc-400">총 회차 수와 설정한 비율을 기준으로 최소 1화가 무료 공개됩니다.</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <span className="font-semibold text-white">공개 중</span>
-                <p className="mt-1 text-zinc-400">`/main/explore`와 공개 상세 페이지에 채널이 노출됩니다.</p>
+                <span className="font-semibold text-white">구독 공개</span>
+                <p className="mt-1 text-zinc-400">맛보기 이후 회차는 구독자에게만 열립니다.</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <span className="font-semibold text-white">완결</span>
-                <p className="mt-1 text-zinc-400">정주행 가능한 완결작으로 보이며, 탐색 필터에서 완결 영역으로 분류됩니다.</p>
+                <span className="font-semibold text-white">무료 아카이브</span>
+                <p className="mt-1 text-zinc-400">체크하면 맛보기 비율과 무관하게 모든 공개 회차를 누구나 볼 수 있습니다.</p>
               </div>
             </div>
           </div>

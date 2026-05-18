@@ -2,7 +2,7 @@ import type { Database } from '@/lib/supabase/types'
 
 export type WorkType = Database['public']['Enums']['work_type']
 export type WorkStatus = Database['public']['Enums']['channel_status']
-export type WorkItemPricing = Database['public']['Enums']['episode_pricing']
+export type WorkItemPricing = 'free' | 'paid'
 export type WorkItemStatus = Database['public']['Enums']['episode_status']
 
 export const WORK_TYPES = [

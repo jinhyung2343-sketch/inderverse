@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
 import { ExploreClientPage } from '@/components/explore/ExploreClientPage'
 import { getPublicArtworkList } from '@/lib/server/explore'
 import { getPublicCreatorChannelList } from '@/lib/server/public-creator-channels'
@@ -5,6 +6,7 @@ import { getPublicCreatorChannelList } from '@/lib/server/public-creator-channel
 export const revalidate = 120
 
 export default async function ExplorePage() {
+  await connection()
   const [artworks, creators] = await Promise.all([
     getPublicArtworkList(),
     getPublicCreatorChannelList(),

@@ -3,6 +3,8 @@ import { getPublicArtworkById } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -27,18 +29,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })
     }
 
+    const storedArtworkId = artwork.backendChannelId ?? artwork.id
+    const lookupArtworkIds = Array.from(new Set([artworkId, artwork.id, storedArtworkId]))
+
     const { data: existingSave } = await supabase
       .from('artwork_saves')
       .select('id')
       .eq('user_id', user.id)
-      .eq('artwork_id', artworkId)
+      .in('artwork_id', lookupArtworkIds)
+      .limit(1)
       .maybeSingle()
 
     if (existingSave) {
       const { error } = await supabase
         .from('artwork_saves')
         .delete()
-        .eq('id', existingSave.id)
+        .eq('user_id', user.id)
+        .in('artwork_id', lookupArtworkIds)
 
       if (error) {
         throw error
@@ -48,7 +55,7 @@ export async function POST(req: NextRequest) {
         .from('artwork_saves')
         .insert({
           user_id: user.id,
-          artwork_id: artworkId,
+          artwork_id: storedArtworkId,
         })
 
       if (error) {
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        saved: savedArtworkIds.includes(artworkId),
+        saved: savedArtworkIds.includes(storedArtworkId),
         savedArtworkIds,
       },
       { status: 200 }

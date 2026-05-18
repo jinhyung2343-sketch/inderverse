@@ -10,6 +10,10 @@ type ChannelRow = Pick<
   | 'age_rating'
   | 'comment_policy_note'
   | 'id'
+  | 'total_episodes'
+  | 'work_scale'
+  | 'teaser_percentage'
+  | 'is_free_archive'
   | 'title'
   | 'description'
   | 'cover_image_url'
@@ -17,7 +21,6 @@ type ChannelRow = Pick<
   | 'is_comment_enabled'
   | 'rating_checklist'
   | 'status'
-  | 'wait_free_hours'
   | 'updated_at'
 >
 
@@ -77,7 +80,7 @@ async function getCreatorNovelRows() {
   const { data, error } = await supabase
     .from('channels')
     .select(
-      'id, title, description, cover_image_url, age_rating, rating_checklist, is_adult_only, is_comment_enabled, comment_policy_note, status, wait_free_hours, updated_at'
+      'id, title, description, cover_image_url, age_rating, rating_checklist, is_adult_only, is_comment_enabled, comment_policy_note, status, total_episodes, work_scale, teaser_percentage, is_free_archive, updated_at'
     )
     .eq('creator_id', user.id)
     .eq('work_type', 'novel')
@@ -93,6 +96,25 @@ async function getCreatorNovelRows() {
   }
 
   return (data ?? []) as ChannelRow[]
+}
+
+async function getCurrentCreatorDisplayName() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return '작가'
+  }
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  return data?.display_name?.trim() || user.email?.split('@')[0] || '작가'
 }
 
 async function getSupportingRows(channelIds: string[]) {
@@ -222,6 +244,7 @@ export async function getCreatorNovelById(id: string): Promise<CreatorNovelRecor
   const { episodes, channelTags, tags } = await getSupportingRows([id])
   const tagsByChannelId = buildTagMap(channelTags, tags)
   const channelTagsForChannel = tagsByChannelId.get(id) ?? []
+  const creatorName = await getCurrentCreatorDisplayName()
 
   return {
     id: channel.id,
@@ -234,10 +257,13 @@ export async function getCreatorNovelById(id: string): Promise<CreatorNovelRecor
     isCommentEnabled: channel.is_comment_enabled,
     commentPolicyNote: channel.comment_policy_note?.trim() || null,
     status: channel.status,
-    waitFreeHours: channel.wait_free_hours,
+    totalEpisodes: channel.total_episodes,
+    workScale: channel.work_scale as CreatorNovelRecord['workScale'],
+    teaserPercentage: channel.teaser_percentage,
+    isFreeArchive: channel.is_free_archive,
     category: getCategory(channelTagsForChannel),
     tags: channelTagsForChannel.map((tag) => tag.name),
-    creatorName: '작가',
+    creatorName,
     updatedAt: channel.updated_at,
     episodes: mapEpisodes(id, episodes),
   }

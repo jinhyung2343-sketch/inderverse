@@ -9,6 +9,8 @@ import {
 import { getVerificationProvider } from '@/lib/age-verification/providers'
 import { AgeVerificationProvider } from '@/lib/age-verification/types'
 
+export const runtime = 'nodejs'
+
 function isProvider(value: unknown): value is AgeVerificationProvider {
   return value === 'pass' || value === 'phone' || value === 'manual'
 }
@@ -24,13 +26,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json()
-  const provider = body.provider
-  const verificationState = body.verificationState
-  const approved = body.approved === true
-  const ciHash = typeof body.ciHash === 'string' ? body.ciHash : undefined
+  let body: unknown
+
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  const requestBody = body as Record<string, unknown>
+  const provider = requestBody.provider
+  const verificationState = requestBody.verificationState
+  const approved = requestBody.approved === true
+  const ciHash = typeof requestBody.ciHash === 'string' ? requestBody.ciHash : undefined
   const providerSignature =
-    typeof body.providerSignature === 'string' ? body.providerSignature : req.headers.get('x-provider-signature') ?? undefined
+    typeof requestBody.providerSignature === 'string'
+      ? requestBody.providerSignature
+      : req.headers.get('x-provider-signature') ?? undefined
 
   if (!isProvider(provider)) {
     return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })

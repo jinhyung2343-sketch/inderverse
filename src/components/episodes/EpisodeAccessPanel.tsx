@@ -6,13 +6,11 @@ import type { ArtworkEpisode } from '@/lib/explore'
 import { useAuthStore } from '@/stores/auth'
 import {
   getEffectiveEpisodeAccess,
+  unlockEpisodeLocally,
   subscribeEpisodeAccess,
 } from '@/lib/mock/episode-access-client'
-import { WaitFreeCountdown } from '@/components/episodes/WaitFreeCountdown'
 import { LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy'
 import { getUserScope } from '@/lib/mock/user-scope-client'
-import { hasServerEpisodeLink } from '@/lib/mock/episode-backend-link'
-import { tryPurchaseEpisode, tryWaitFreeUnlock } from '@/lib/mock/episode-api-client'
 
 export function EpisodeAccessPanel({
   artworkId,
@@ -24,7 +22,7 @@ export function EpisodeAccessPanel({
   const [, forceRender] = useReducer((value: number) => value + 1, 0)
   const [isPending, setIsPending] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
-  const { user, checkSession } = useAuthStore()
+  const { user, isSubscribed, checkSession } = useAuthStore()
   const scope = getUserScope(user?.id)
 
   useEffect(() => {
@@ -35,61 +33,34 @@ export function EpisodeAccessPanel({
     return subscribeEpisodeAccess(forceRender)
   }, [])
 
-  async function handlePurchase() {
+  function handleSubscribePrompt() {
     if (!user) {
       setActionMessage(LOGIN_REQUIRED_MESSAGE)
       return
     }
 
     setIsPending(true)
-
-    try {
-      const result = await tryPurchaseEpisode({
-        scope,
-        userId: user?.id,
-        artworkId,
-        episode,
-      })
-
-      setActionMessage(result.message)
-    } finally {
+    window.setTimeout(() => {
+      setActionMessage('구독 결제 연결 전까지는 스토어에서 구독 안내를 확인할 수 있습니다.')
       setIsPending(false)
-    }
+    }, 250)
   }
 
-  async function handleWaitFree() {
-    if (!user) {
-      setActionMessage(LOGIN_REQUIRED_MESSAGE)
-      return
-    }
-
-    setIsPending(true)
-
-    try {
-      const result = await tryWaitFreeUnlock({
-        scope,
-        userId: user?.id,
-        artworkId,
-        episode,
-      })
-
-      setActionMessage(result.message)
-    } finally {
-      setIsPending(false)
-    }
+  function handleLocalSubscriberPreview() {
+    unlockEpisodeLocally(scope, artworkId, episode.id)
+    setActionMessage('구독자 접근권한으로 회차를 열었습니다.')
   }
 
   const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
-  const canRead = effective.accessState === 'free' || effective.accessState === 'purchased'
-  const isServerReady = hasServerEpisodeLink(episode)
+  const canRead = effective.accessState === 'free' || (effective.accessState === 'locked' && isSubscribed)
   const isNovel = episode.workType === 'novel'
 
   if (canRead) {
     return (
-      <article className={`rounded-[32px] border ${effective.accessState === 'purchased' ? 'border-violet-400/15' : 'border-white/10'} bg-white/5 p-6 backdrop-blur-xl md:p-8`}>
-        {effective.accessState === 'purchased' ? (
+      <article className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
+        {effective.accessState === 'locked' && isSubscribed ? (
           <div className="mb-5 inline-flex rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
-            구매 완료
+            구독자 공개
           </div>
         ) : null}
         {isNovel ? (
@@ -140,67 +111,32 @@ export function EpisodeAccessPanel({
     return (
       <section className="rounded-[32px] border border-amber-400/15 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">Episode Locked</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight">이 회차는 잠금 상태입니다</h2>
+        <h2 className="mt-3 text-3xl font-black tracking-tight">이 회차는 구독자 공개입니다</h2>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-          지금은 프로토타입 단계라 실제 코인 차감 대신 로컬 해금으로 연결합니다. 이후 이 버튼은 서버 결제 API로 바로 교체할 수 있게 분리해두었습니다.
+          작가가 정한 맛보기 구간을 지난 회차입니다. 구독자는 이어서 읽을 수 있고, 비구독자는 구독 안내로 이동합니다.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => void handlePurchase()}
+            onClick={handleSubscribePrompt}
             disabled={isPending}
             className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
           >
-            {isPending ? '처리 중...' : '코인으로 해금'}
+            {isPending ? '확인 중...' : user ? '구독하고 이어보기' : '로그인하고 구독하기'}
           </button>
           <Link href="/main/store" className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10">
-            충전하기
+            구독 안내 보기
           </Link>
+          {isSubscribed ? (
+            <button
+              type="button"
+              onClick={handleLocalSubscriberPreview}
+              className="rounded-full border border-violet-400/20 bg-violet-500/10 px-5 py-3 text-sm text-violet-100 transition hover:bg-violet-500/15"
+            >
+              구독자 권한으로 열기
+            </button>
+          ) : null}
         </div>
-        <p className="mt-4 text-sm leading-6 text-zinc-400">
-          {isServerReady
-            ? '이 회차는 서버 결제 API 연결 준비가 된 상태입니다.'
-            : '이 회차는 아직 목업 매핑 단계라 프로토타입 흐름으로 동작합니다.'}
-        </p>
-        {actionMessage ? <p className="mt-4 text-sm leading-6 text-zinc-400">{actionMessage}</p> : null}
-      </section>
-    )
-  }
-
-  if (effective.accessState === 'wait_free') {
-    return (
-      <section className="rounded-[32px] border border-sky-400/15 bg-white/5 p-6 backdrop-blur-xl md:p-8">
-        <p className="text-xs uppercase tracking-[0.3em] text-sky-200/80">Wait Free</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight">이 회차는 기다리면 무료입니다</h2>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-          기다리면 무료 흐름이 실제로 움직이도록 연결해두었습니다. 대기를 시작하면 카운트다운이 줄어들고, 종료되면 이 화면에서 바로 읽을 수 있게 바뀝니다.
-        </p>
-        <div className="mt-5 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-4 py-2 text-sm text-sky-100">
-          <WaitFreeCountdown hours={episode.waitFreeHours ?? 0} />
-        </div>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => void handleWaitFree()}
-            disabled={isPending}
-            className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-          >
-            {isPending ? '처리 중...' : '대기 시작'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handlePurchase()}
-            disabled={isPending}
-            className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-          >
-            {isPending ? '처리 중...' : '바로 구매하기'}
-          </button>
-        </div>
-        <p className="mt-4 text-sm leading-6 text-zinc-400">
-          {isServerReady
-            ? '이 회차는 서버 기준 기다리면 무료 해금까지 이어질 수 있습니다.'
-            : '이 회차는 아직 목업 매핑 단계라 프로토타입 대기 흐름으로 동작합니다.'}
-        </p>
         {actionMessage ? <p className="mt-4 text-sm leading-6 text-zinc-400">{actionMessage}</p> : null}
       </section>
     )

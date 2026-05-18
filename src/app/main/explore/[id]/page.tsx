@@ -30,7 +30,8 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
   const relatedArtworks = await getRelatedArtworks(artwork, 4)
   const backendCoverage = getArtworkBackendCoverage(artwork)
   const savedArtworkIds = await getSavedArtworkIds()
-  const isSaved = savedArtworkIds.includes(artwork.id)
+  const savedArtworkId = artwork.backendChannelId ?? artwork.id
+  const isSaved = savedArtworkIds.includes(savedArtworkId) || savedArtworkIds.includes(artwork.id)
   const firstEpisode = artwork.episodes[0] ?? null
 
   const fallbackRelated = feed.filter((item) => item.id !== artwork.id).slice(0, 4)

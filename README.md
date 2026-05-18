@@ -80,7 +80,9 @@ Vercel Preview 배포에서 인증 링크를 테스트한다면 Supabase Additio
 ## Notes
 
 - PASS/휴대폰 본인인증은 실제 외부 연동 전 단계의 확장 가능한 API 골격까지 연결되어 있습니다.
+- 코인 충전은 서버 측 PG 결제 검증이 구현될 때까지 production 기능이 아닙니다. 현재 상태와 해제 조건은 `docs/architecture/monetization-roadmap.md`를 기준으로 관리합니다.
 - 플랫폼 내 일반 정산 수익 분배는 `작가 70% / 회사 30%`로 고정합니다.
 - 성인 인증 이력은 `age_verifications`, 노출 제한은 `profiles.is_adult_verified` 및 콘텐츠 플래그로 관리합니다.
+- Vercel Cron 인증은 공식 `CRON_SECRET` Bearer 헤더 포맷과 맞춰져 있습니다. Storage cleanup 및 webtoon image processing 내부 작업은 `Authorization: Bearer ${CRON_SECRET}` 또는 전용 내부 secret으로 보호합니다.
 - 복수 계정 허용 정책과 향후 서버 확장 메모는 `docs/policies/multi-account-policy.md`에 정리되어 있습니다.
 - 서버 기반 계정 그룹 설계는 `docs/architecture/server-account-groups.md`와 `supabase/migrations/044_account_groups.sql`을 기준으로 확장합니다.

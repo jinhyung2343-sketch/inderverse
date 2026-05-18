@@ -1,5 +1,5 @@
 export type ArtworkStatus = 'publishing' | 'completed'
-export type EpisodeAccessState = 'free' | 'locked' | 'wait_free' | 'purchased' | 'coming_soon'
+export type EpisodeAccessState = 'free' | 'locked' | 'coming_soon'
 
 export interface ArtworkEpisode {
   id: string
@@ -9,7 +9,6 @@ export interface ArtworkEpisode {
   title: string
   accessState: EpisodeAccessState
   accessLabel: string
-  waitFreeHours?: number
   preview: string
   body: string[]
   imageUrls?: string[]
@@ -34,12 +33,17 @@ export interface ExploreArtwork {
   summary: string
   intro: string
   commentPreview: string
+  totalEpisodes?: number
+  workScale?: 'short' | 'medium' | 'long'
+  teaserPercentage?: number
+  maxFreeEpisode?: number
+  isFreeArchive?: boolean
   episodes: ArtworkEpisode[]
 }
 
 export const categories = ['전체', '드라마', '판타지', '로맨스', '액션', 'SF', '무협', '스릴러', '공포', '코믹', 'BL', 'GL']
 
-export const quickFilters = ['추천', '최신', '인기', '완결', '기다리면 무료']
+export const quickFilters = ['추천', '최신', '인기', '완결', '맛보기 공개']
 
 export const categoryTags: Record<string, string[]> = {
   전체: ['에디터 픽', '세계관 중심', '입문 추천', '강한 몰입감'],

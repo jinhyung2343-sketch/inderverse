@@ -23,7 +23,10 @@ type ChannelRow = Pick<
   | 'is_adult_only'
   | 'is_comment_enabled'
   | 'status'
-  | 'wait_free_hours'
+  | 'total_episodes'
+  | 'work_scale'
+  | 'teaser_percentage'
+  | 'is_free_archive'
   | 'work_type'
   | 'creator_id'
   | 'creator_channel_id'
@@ -47,7 +50,6 @@ type EpisodeRow = Pick<
   | 'episode_number'
   | 'title'
   | 'body_text'
-  | 'pricing_type'
   | 'status'
   | 'published_at'
   | 'is_adult_only'
@@ -165,24 +167,14 @@ function mapEpisodeAccessState(episode: EpisodeRow) {
     }
   }
 
-  if (episode.pricing_type === 'wait_free') {
-    return {
-      accessState: 'wait_free' as const,
-      accessLabel: '기다리면 무료',
-    }
-  }
-
-  if (episode.pricing_type === 'paid') {
-    return {
-      accessState: 'locked' as const,
-      accessLabel: '잠금',
-    }
-  }
-
   return {
-    accessState: 'free' as const,
-    accessLabel: '무료',
+    accessState: 'locked' as const,
+    accessLabel: '구독 공개',
   }
+}
+
+function getMaxFreeEpisode(totalEpisodes: number, teaserPercentage: number) {
+  return Math.max(1, Math.floor((Math.max(0, totalEpisodes) * teaserPercentage) / 100))
 }
 
 function deriveCategory(tags: TagRow[]) {
@@ -203,8 +195,8 @@ function deriveFilterTags(channel: ChannelRow, episodes: EpisodeRow[]) {
     tags.add('최신')
   }
 
-  if (episodes.some((episode) => episode.pricing_type === 'wait_free') || channel.wait_free_hours > 0) {
-    tags.add('기다리면 무료')
+  if (channel.is_free_archive || channel.teaser_percentage > 0) {
+    tags.add('맛보기 공개')
   }
 
   if (episodes.filter((episode) => episode.status === 'published').length >= 3) {
@@ -262,6 +254,10 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
   const title = bundle.channel.title.trim() || '제목 미정'
   const orderedEpisodes = [...bundle.episodes]
     .sort((left, right) => left.episode_number - right.episode_number)
+  const totalEpisodes = bundle.channel.total_episodes || orderedEpisodes.length
+  const maxFreeEpisode = bundle.channel.is_free_archive
+    ? totalEpisodes
+    : getMaxFreeEpisode(totalEpisodes, bundle.channel.teaser_percentage)
   const summary =
     bundle.channel.description?.trim() ||
     '아직 작품 소개가 입력되지 않은 채널입니다.'
@@ -293,9 +289,23 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
     commentPreview:
       bundle.channel.comment_policy_note?.trim() ||
       buildGenericCommentPreview(title),
+    totalEpisodes,
+    workScale:
+      bundle.channel.work_scale === 'short' ||
+      bundle.channel.work_scale === 'medium' ||
+      bundle.channel.work_scale === 'long'
+        ? bundle.channel.work_scale
+        : 'medium',
+    teaserPercentage: bundle.channel.teaser_percentage,
+    maxFreeEpisode,
+    isFreeArchive: bundle.channel.is_free_archive,
     episodes: orderedEpisodes.map((episode) => {
       const imageUrls = bundle.episodeImagesByEpisodeId.get(episode.id) ?? []
-      const access = mapEpisodeAccessState(episode)
+      const access =
+        episode.status === 'published' &&
+        (bundle.channel.is_free_archive || episode.episode_number <= maxFreeEpisode)
+          ? { accessState: 'free' as const, accessLabel: '맛보기 공개' }
+          : mapEpisodeAccessState(episode)
 
       return {
         id: getEpisodePublicId(episode.episode_number),
@@ -305,10 +315,6 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
         title: episode.title,
         accessState: access.accessState,
         accessLabel: access.accessLabel,
-        waitFreeHours:
-          access.accessState === 'wait_free'
-            ? bundle.channel.wait_free_hours
-            : undefined,
         preview:
           bundle.channel.work_type === 'novel'
             ? buildNovelEpisodePreview(episode.body_text?.trim() || '', episode.title)
@@ -338,7 +344,10 @@ async function loadPublicChannels({
     is_comment_enabled,
     comment_policy_note,
     status,
-    wait_free_hours,
+    total_episodes,
+    work_scale,
+    teaser_percentage,
+    is_free_archive,
     work_type,
     creator_id,
     creator_channel_id,
@@ -464,7 +473,7 @@ async function loadPublicEpisodes({
   let episodeQuery = admin
     .from('episodes')
     .select(
-      'id, channel_id, episode_number, title, body_text, pricing_type, status, published_at, is_adult_only'
+      'id, channel_id, episode_number, title, body_text, status, published_at, is_adult_only'
     )
     .in('channel_id', channelIds)
     .order('episode_number', { ascending: true })
@@ -488,7 +497,7 @@ async function loadPublicEpisodes({
   let fallbackQuery = admin
     .from('episodes')
     .select(
-      'id, channel_id, episode_number, title, pricing_type, status, published_at, is_adult_only'
+      'id, channel_id, episode_number, title, status, published_at, is_adult_only'
     )
     .in('channel_id', channelIds)
     .order('episode_number', { ascending: true })
@@ -653,7 +662,7 @@ export async function getPublicArtworkList({
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 
@@ -682,7 +691,7 @@ export async function getPublicArtworkById(
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 

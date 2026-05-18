@@ -189,7 +189,7 @@ function isWebtoonStatus(value: string): value is Database['public']['Enums']['c
 }
 
 function isEpisodePricing(value: string): value is WebtoonEpisodePricing {
-  return value === 'free' || value === 'paid' || value === 'wait_free'
+  return value === 'free' || value === 'paid'
 }
 
 function isEpisodeStatus(value: string): value is WebtoonEpisodeStatus {
@@ -218,7 +218,11 @@ function readJsonText(value: unknown) {
 }
 
 function isNovelEpisodePricing(value: string): value is NovelEpisodePricing {
-  return value === 'free' || value === 'paid' || value === 'wait_free'
+  return value === 'free' || value === 'paid'
+}
+
+function isWorkScale(value: string): value is 'short' | 'medium' | 'long' {
+  return value === 'short' || value === 'medium' || value === 'long'
 }
 
 function isNovelEpisodeStatus(value: string): value is NovelEpisodeStatus {
@@ -561,7 +565,6 @@ function buildSparkChannelPayload(
     spark_caption: input.caption,
     spark_meta: buildSparkMeta(input),
     serialization_days: [],
-    wait_free_hours: 0,
   }
 }
 
@@ -570,7 +573,8 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   const description = readText(formData, 'description')
   const category = readText(formData, 'category')
   const statusValue = readText(formData, 'status')
-  const waitFreeHours = readInteger(formData, 'waitFreeHours', 24)
+  const workScaleValue = readText(formData, 'workScale') || 'medium'
+  const teaserPercentage = readInteger(formData, 'teaserPercentage', 10)
   const creatorSharePct = readInteger(formData, 'creatorSharePct', BRAND.creatorSharePct)
   const minPayoutAmount = readInteger(formData, 'minPayoutAmount', 10000)
   const payoutMethodValue = readText(formData, 'payoutMethod')
@@ -586,8 +590,12 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     throw new Error('유효하지 않은 작품 상태입니다.')
   }
 
-  if (waitFreeHours < 0 || waitFreeHours > 168) {
-    throw new Error('기다리면 무료 시간은 0시간에서 168시간 사이여야 합니다.')
+  if (!isWorkScale(workScaleValue)) {
+    throw new Error('유효하지 않은 작품 규모입니다.')
+  }
+
+  if (teaserPercentage < 3 || teaserPercentage > 20) {
+    throw new Error('맛보기 비율은 3%에서 20% 사이여야 합니다.')
   }
 
   if (creatorSharePct !== BRAND.creatorSharePct) {
@@ -621,7 +629,9 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     isCommentEnabled: readBoolean(formData, 'isCommentEnabled'),
     commentPolicyNote: readOptionalText(formData, 'commentPolicyNote'),
     status: statusValue,
-    waitFreeHours,
+    workScale: workScaleValue,
+    teaserPercentage,
+    isFreeArchive: readBoolean(formData, 'isFreeArchive'),
     serializationDays: readSerializationDays(formData),
     category,
     tags: sanitizeWebtoonTags(readText(formData, 'tags')),
@@ -658,7 +668,9 @@ function buildWebtoonChannelPayload(
     status: input.status,
     work_type: 'webtoon' as const,
     serialization_days: input.serializationDays,
-    wait_free_hours: input.waitFreeHours,
+    work_scale: input.workScale,
+    teaser_percentage: input.teaserPercentage,
+    is_free_archive: input.isFreeArchive,
   }
 }
 
@@ -667,7 +679,8 @@ function parseNovelDraft(formData: FormData): NovelDraftInput {
   const description = readText(formData, 'description')
   const category = readText(formData, 'category')
   const statusValue = readText(formData, 'status')
-  const waitFreeHours = readInteger(formData, 'waitFreeHours', 24)
+  const workScaleValue = readText(formData, 'workScale') || 'medium'
+  const teaserPercentage = readInteger(formData, 'teaserPercentage', 10)
 
   if (!title || !description || !category) {
     throw new Error('필수 항목이 비어 있습니다.')
@@ -677,8 +690,12 @@ function parseNovelDraft(formData: FormData): NovelDraftInput {
     throw new Error('유효하지 않은 작품 상태입니다.')
   }
 
-  if (waitFreeHours < 0 || waitFreeHours > 168) {
-    throw new Error('기다리면 무료 시간은 0시간에서 168시간 사이여야 합니다.')
+  if (!isWorkScale(workScaleValue)) {
+    throw new Error('유효하지 않은 작품 규모입니다.')
+  }
+
+  if (teaserPercentage < 3 || teaserPercentage > 20) {
+    throw new Error('맛보기 비율은 3%에서 20% 사이여야 합니다.')
   }
 
   const contentRating = parseChannelContentRating(formData)
@@ -693,7 +710,9 @@ function parseNovelDraft(formData: FormData): NovelDraftInput {
     isCommentEnabled: readBoolean(formData, 'isCommentEnabled'),
     commentPolicyNote: readOptionalText(formData, 'commentPolicyNote'),
     status: statusValue,
-    waitFreeHours,
+    workScale: workScaleValue,
+    teaserPercentage,
+    isFreeArchive: readBoolean(formData, 'isFreeArchive'),
     category,
     tags: sanitizeNovelTags(readText(formData, 'tags')),
   }
@@ -718,7 +737,9 @@ function buildNovelChannelPayload(
     status: input.status,
     work_type: 'novel' as const,
     serialization_days: [],
-    wait_free_hours: input.waitFreeHours,
+    work_scale: input.workScale,
+    teaser_percentage: input.teaserPercentage,
+    is_free_archive: input.isFreeArchive,
   }
 }
 
@@ -726,7 +747,7 @@ function parseNovelEpisodeDraft(formData: FormData): NovelEpisodeDraftInput {
   const title = readText(formData, 'title')
   const episodeNumber = readInteger(formData, 'episodeNumber')
   const bodyText = readText(formData, 'bodyText')
-  const pricingTypeValue = readText(formData, 'pricingType')
+  const pricingTypeValue = readText(formData, 'pricingType') || 'paid'
   const statusValue = readText(formData, 'status')
 
   if (!title || episodeNumber <= 0) {
@@ -762,7 +783,7 @@ function parseNovelEpisodeDraft(formData: FormData): NovelEpisodeDraftInput {
 function parseWebtoonEpisodeDraft(formData: FormData): WebtoonEpisodeDraftInput {
   const title = readText(formData, 'title')
   const episodeNumber = readInteger(formData, 'episodeNumber')
-  const pricingTypeValue = readText(formData, 'pricingType')
+  const pricingTypeValue = readText(formData, 'pricingType') || 'paid'
   const statusValue = readText(formData, 'status')
   const imagesJson = readText(formData, 'imagesJson')
   const pendingEpisodeImageFiles = readImageFiles(formData, 'pendingEpisodeImageFiles')

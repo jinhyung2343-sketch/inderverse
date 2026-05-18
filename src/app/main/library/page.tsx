@@ -30,7 +30,7 @@ export default async function LibraryPage() {
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Library</p>
             <h1 className="text-4xl font-black tracking-tight">내 라이브러리</h1>
             <p className="text-zinc-400">
-              구매 이력, 기다리면 무료 해금, 성인 인증 후 접근 가능한 작품까지 한 화면에서 이어보는 개인 서재 영역입니다.
+              저장한 작품, 구독 공개 회차, 성인 인증 후 접근 가능한 작품까지 한 화면에서 이어보는 개인 서재 영역입니다.
             </p>
           </div>
         </header>

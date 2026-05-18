@@ -2,10 +2,9 @@
 
 import { EpisodeImagesField } from '@/components/webtoon/EpisodeImagesField'
 import type { CreatorWebtoonEpisodeRecord } from '@/lib/webtoon'
-import { getEpisodePricingLabel, getEpisodeStatusLabel } from '@/lib/webtoon'
+import { getEpisodeStatusLabel } from '@/lib/webtoon'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-const pricingOptions = ['free', 'paid', 'wait_free'] as const
 const statusOptions = ['draft', 'published', 'hidden'] as const
 
 interface EpisodeFormDraft {
@@ -209,6 +208,8 @@ export function WebtoonEpisodeEditorForm({
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.05fr_1.95fr]">
+        <input type="hidden" name="pricingType" value="paid" />
+        <input type="hidden" name="coinPrice" value="0" />
         <div className="space-y-6">
           <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h2 className="text-xl font-bold text-white">회차 정보</h2>
@@ -232,32 +233,6 @@ export function WebtoonEpisodeEditorForm({
                   name="episodeNumber"
                   required
                   defaultValue={initialValue?.episodeNumber ?? 1}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>가격 정책</span>
-                <select
-                  name="pricingType"
-                  defaultValue={initialValue?.pricingType ?? 'free'}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                >
-                  {pricingOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {getEpisodePricingLabel(option)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>코인 가격</span>
-                <input
-                  type="number"
-                  min={0}
-                  name="coinPrice"
-                  defaultValue={initialValue?.coinPrice ?? 7}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 />
               </label>

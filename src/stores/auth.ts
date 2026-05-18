@@ -69,6 +69,7 @@ interface AuthState {
   profile: Profile | null;
   isLoading: boolean;
   isAdultVerified: boolean;
+  isSubscribed: boolean;
   guardianConsentStatus: string | null;
   // 프로토타입용 mock 상태
   isLoggedIn: boolean;
@@ -86,6 +87,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   profile: null,
   isLoading: true,
   isAdultVerified: false,
+  isSubscribed: false,
   guardianConsentStatus: null,
   isLoggedIn: false,
   userNickname: 'Guest',
@@ -138,8 +140,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        const storedAccounts = session
-          ? rememberAccountSession({ profile, session, user })
+        const verifiedSession = session?.user.id === user.id ? session : null
+        const storedAccounts = verifiedSession
+          ? rememberAccountSession({ profile, session: verifiedSession, user })
           : readStoredAccounts()
 
         const fallbackNickname =
@@ -152,6 +155,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           profile,
           isLoading: false,
           isAdultVerified: profile?.is_adult_verified ?? false,
+          isSubscribed: profile?.is_subscribed ?? false,
           guardianConsentStatus: profile?.guardian_consent_status ?? null,
           isLoggedIn: true,
           userNickname: profile?.display_name || fallbackNickname,
@@ -165,6 +169,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           profile: null,
           isLoading: false,
           isAdultVerified: false,
+          isSubscribed: false,
           guardianConsentStatus: null,
           isLoggedIn: false,
           userNickname: 'Guest',
@@ -223,6 +228,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       user: null,
       profile: null,
       isAdultVerified: false,
+      isSubscribed: false,
       guardianConsentStatus: null,
       isLoggedIn: false,
       userNickname: 'Guest',

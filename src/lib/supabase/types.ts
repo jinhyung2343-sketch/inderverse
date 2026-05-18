@@ -339,6 +339,7 @@ export type Database = {
           id: string
           is_adult_only: boolean
           is_comment_enabled: boolean
+          is_free_archive: boolean
           spark_caption: string | null
           spark_format: Database["public"]["Enums"]["spark_format"] | null
           spark_meta: Json
@@ -347,8 +348,10 @@ export type Database = {
           status: Database["public"]["Enums"]["channel_status"]
           rating_checklist: Json
           title: string
+          teaser_percentage: number
+          total_episodes: number
           updated_at: string
-          wait_free_hours: number
+          work_scale: string
           work_type: Database["public"]["Enums"]["work_type"]
         }
         Insert: {
@@ -362,6 +365,7 @@ export type Database = {
           id?: string
           is_adult_only?: boolean
           is_comment_enabled?: boolean
+          is_free_archive?: boolean
           spark_caption?: string | null
           spark_format?: Database["public"]["Enums"]["spark_format"] | null
           spark_meta?: Json
@@ -370,8 +374,10 @@ export type Database = {
           status?: Database["public"]["Enums"]["channel_status"]
           rating_checklist?: Json
           title: string
+          teaser_percentage?: number
+          total_episodes?: number
           updated_at?: string
-          wait_free_hours?: number
+          work_scale?: string
           work_type?: Database["public"]["Enums"]["work_type"]
         }
         Update: {
@@ -385,6 +391,7 @@ export type Database = {
           id?: string
           is_adult_only?: boolean
           is_comment_enabled?: boolean
+          is_free_archive?: boolean
           spark_caption?: string | null
           spark_format?: Database["public"]["Enums"]["spark_format"] | null
           spark_meta?: Json
@@ -393,8 +400,10 @@ export type Database = {
           status?: Database["public"]["Enums"]["channel_status"]
           rating_checklist?: Json
           title?: string
+          teaser_percentage?: number
+          total_episodes?: number
           updated_at?: string
-          wait_free_hours?: number
+          work_scale?: string
           work_type?: Database["public"]["Enums"]["work_type"]
         }
         Relationships: [
@@ -1174,6 +1183,7 @@ export type Database = {
           guardian_consent_status: string
           id: string
           is_adult_verified: boolean
+          is_subscribed: boolean
           phone_verified_at: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -1187,6 +1197,7 @@ export type Database = {
           guardian_consent_status?: string
           id: string
           is_adult_verified?: boolean
+          is_subscribed?: boolean
           phone_verified_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1200,6 +1211,7 @@ export type Database = {
           guardian_consent_status?: string
           id?: string
           is_adult_verified?: boolean
+          is_subscribed?: boolean
           phone_verified_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1382,60 +1394,19 @@ export type Database = {
         }
         Relationships: []
       }
-      wait_free_unlocks: {
-        Row: {
-          channel_id: string
-          episode_id: string
-          id: string
-          next_unlock_available_at: string
-          unlocked_at: string
-          user_id: string
-        }
-        Insert: {
-          channel_id: string
-          episode_id: string
-          id?: string
-          next_unlock_available_at: string
-          unlocked_at?: string
-          user_id: string
-        }
-        Update: {
-          channel_id?: string
-          episode_id?: string
-          id?: string
-          next_unlock_available_at?: string
-          unlocked_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wait_free_unlocks_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wait_free_unlocks_episode_id_fkey"
-            columns: ["episode_id"]
-            isOneToOne: false
-            referencedRelation: "episodes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wait_free_unlocks_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      check_dynamic_access: {
+        Args: {
+          p_episode_id: string
+          p_user_id: string | null
+          p_webtoon_id: string
+        }
+        Returns: Json
+      }
       charge_coins: {
         Args: {
           p_amount: number
@@ -1526,7 +1497,7 @@ export type Database = {
       channel_status: "draft" | "publishing" | "completed" | "suspended"
       coin_tx_type: "charge" | "use" | "refund" | "expire" | "bonus"
       coin_type: "paid" | "free"
-      episode_pricing: "free" | "paid" | "wait_free"
+      episode_pricing: "free" | "paid"
       episode_status: "draft" | "published" | "hidden"
       payout_method: "bank_transfer" | "paypal"
       spark_format: "single_cut" | "four_cut"
@@ -1676,7 +1647,7 @@ export const Constants = {
       channel_status: ["draft", "publishing", "completed", "suspended"],
       coin_tx_type: ["charge", "use", "refund", "expire", "bonus"],
       coin_type: ["paid", "free"],
-      episode_pricing: ["free", "paid", "wait_free"],
+      episode_pricing: ["free", "paid"],
       episode_status: ["draft", "published", "hidden"],
       payout_method: ["bank_transfer", "paypal"],
       spark_format: ["single_cut", "four_cut"],

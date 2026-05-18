@@ -99,14 +99,25 @@ export function ResetPasswordPageClient({
       }
 
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
       if (!isMounted) {
         return
       }
 
-      if (!session) {
+      if (userError || !user) {
+        setStatusMessage('')
+        setErrorMessage('재설정 세션을 확인하지 못했습니다. 메일의 재설정 링크로 다시 들어와 주세요.')
+        return
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session || session.user.id !== user.id) {
         setStatusMessage('')
         setErrorMessage('재설정 세션을 찾지 못했습니다. 메일의 재설정 링크로 다시 들어와 주세요.')
         return

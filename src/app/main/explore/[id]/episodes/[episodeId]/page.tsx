@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { EpisodeAccessPanel } from '@/components/episodes/EpisodeAccessPanel'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getEpisodeById } from '@/lib/explore'
+import { checkEpisodeDynamicAccess } from '@/lib/server/dynamic-access'
 import { getPublicArtworkById } from '@/lib/server/explore'
 import { getWorkTypeLabel } from '@/lib/work'
 
@@ -25,6 +26,24 @@ export default async function EpisodeReaderPage({
   if (!episode) {
     notFound()
   }
+
+  const accessDecision = episode.backendEpisodeId && episode.backendChannelId
+    ? await checkEpisodeDynamicAccess({
+        channelId: episode.backendChannelId,
+        episodeId: episode.backendEpisodeId,
+      })
+    : null
+  const readableEpisode = accessDecision
+    ? {
+        ...episode,
+        accessState: accessDecision.allowed ? 'free' as const : 'locked' as const,
+        accessLabel: accessDecision.allowed
+          ? accessDecision.reason === 'subscriber'
+            ? '구독 공개'
+            : '맛보기 공개'
+          : '구독 필요',
+      }
+    : episode
 
   const currentIndex = artwork.episodes.findIndex((item) => item.id === episode.id)
   const previousEpisode = currentIndex > 0 ? artwork.episodes[currentIndex - 1] : null
@@ -60,7 +79,7 @@ export default async function EpisodeReaderPage({
           </div>
         </header>
 
-        <EpisodeAccessPanel artworkId={artwork.id} episode={episode} />
+        <EpisodeAccessPanel artworkId={artwork.id} episode={readableEpisode} />
 
         <nav className="grid gap-3 rounded-[32px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:grid-cols-3">
           <div className="flex items-center">

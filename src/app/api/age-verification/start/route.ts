@@ -4,6 +4,8 @@ import { getVerificationProvider } from '@/lib/age-verification/providers'
 import { createVerificationState } from '@/lib/age-verification/service'
 import { AgeVerificationProvider } from '@/lib/age-verification/types'
 
+export const runtime = 'nodejs'
+
 function isProvider(value: unknown): value is AgeVerificationProvider {
   return value === 'pass' || value === 'phone' || value === 'manual'
 }

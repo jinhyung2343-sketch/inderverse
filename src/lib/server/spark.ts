@@ -241,7 +241,7 @@ export async function getPublicSparkList({
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 
@@ -259,7 +259,7 @@ export async function getPublicSparkById(id: string) {
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production' && !isRecoverablePublicDataError(error)) {
+    if (process.env.NODE_ENV === 'production') {
       throw error
     }
 

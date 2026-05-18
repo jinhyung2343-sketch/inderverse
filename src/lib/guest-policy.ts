@@ -14,7 +14,7 @@ export type RouteAccessContext = {
 
 export type RouteAccessDecision =
   | { type: 'allow' }
-  | { type: 'redirect'; location: string; reason: 'login_required' | 'guardian_pending' | 'creator_required' | 'admin_required' }
+  | { type: 'redirect'; location: string; reason: 'login_required' | 'guardian_pending' | 'creator_required' | 'admin_required' | 'already_logged_in' }
 
 const guestAllowedMainMenuIds = ['explore', 'spark', 'community', 'library', 'store', 'studio']
 const loginRequiredMainPaths = ['/main/store/checkout']
@@ -55,6 +55,7 @@ export function getRouteAccessDecision({
   }
 
   const isGuardianConsentPage = pathname === '/main/guardian-consent'
+  const isJoinPromptPage = pathname === '/join-prompt'
   const isCreatorAgreementPage = pathname === '/main/studio/creator-agreement'
   const isLoginRequiredPage = loginRequiredMainPaths.some((path) =>
     matchesPathOrChild(pathname, path)
@@ -64,6 +65,10 @@ export function getRouteAccessDecision({
   const isCreator = userRole === 'creator' || userRole === 'admin'
   const isAdmin = userRole === 'admin'
   const isGuardianPending = guardianConsentStatus === 'pending'
+
+  if (isJoinPromptPage && isLoggedIn) {
+    return { type: 'redirect', location: '/main', reason: 'already_logged_in' }
+  }
 
   if ((isLoginRequiredPage || isCreatorPage || isAdminPage) && !isLoggedIn) {
     return {

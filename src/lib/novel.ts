@@ -3,8 +3,9 @@ import type { ChannelAgeRating, RatingChecklist } from '@/lib/content-rating'
 import { getAgeRatingLabel as getSharedAgeRatingLabel } from '@/lib/content-rating'
 
 export type NovelStatus = Database['public']['Enums']['channel_status']
-export type NovelEpisodePricing = Database['public']['Enums']['episode_pricing']
+export type NovelEpisodePricing = 'free' | 'paid'
 export type NovelEpisodeStatus = Database['public']['Enums']['episode_status']
+export type WorkScale = 'short' | 'medium' | 'long'
 
 export interface CreatorNovelEpisodeRecord {
   id: string
@@ -29,7 +30,10 @@ export interface CreatorNovelRecord {
   isCommentEnabled: boolean
   commentPolicyNote: string | null
   status: NovelStatus
-  waitFreeHours: number
+  totalEpisodes: number
+  workScale: WorkScale
+  teaserPercentage: number
+  isFreeArchive: boolean
   category: string
   tags: string[]
   creatorName: string
@@ -59,7 +63,9 @@ export interface NovelDraftInput {
   isCommentEnabled: boolean
   commentPolicyNote: string | null
   status: NovelStatus
-  waitFreeHours: number
+  workScale: WorkScale
+  teaserPercentage: number
+  isFreeArchive: boolean
   category: string
   tags: string[]
 }
@@ -119,11 +125,22 @@ export function getNovelEpisodePricingLabel(pricingType: NovelEpisodePricing) {
     case 'free':
       return '무료'
     case 'paid':
-      return '유료'
-    case 'wait_free':
-      return '기다리면 무료'
+      return '구독 공개'
     default:
       return pricingType
+  }
+}
+
+export function getNovelWorkScaleLabel(workScale: WorkScale) {
+  switch (workScale) {
+    case 'short':
+      return '단편'
+    case 'medium':
+      return '중편'
+    case 'long':
+      return '장편'
+    default:
+      return workScale
   }
 }
 
