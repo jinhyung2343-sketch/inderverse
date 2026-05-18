@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 function getGuestInitialAuth(): InitialSettingsAuth {
   return {
     isLoggedIn: false,
+    userId: null,
     userNickname: 'Guest',
     profile: null,
   }
@@ -42,6 +43,7 @@ export default async function SettingsPage() {
 
     initialAuth = {
       isLoggedIn: true,
+      userId: user.id,
       userNickname: profile?.display_name || fallbackNickname,
       profile,
     }

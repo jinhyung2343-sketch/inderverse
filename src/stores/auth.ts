@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import { createClient } from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+import type { User } from '@supabase/supabase-js'
+import {
+  forgetStoredAccount,
+  readStoredAccounts,
+  rememberAccountSession,
+  type StoredInderverseAccount,
+} from '@/lib/auth/account-registry'
 import { Database } from '@/lib/supabase/types'
 import {
   clearPendingUserTermsConsent,
@@ -16,6 +22,48 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 
 let sessionCheckPromise: Promise<void> | null = null
 
+function syncViewerAccountGroup() {
+  return fetch('/api/auth/account-groups', {
+    method: 'GET',
+    cache: 'no-store',
+  }).catch(() => null)
+}
+
+function recordViewerAccountSwitch(fromUserId: string | null, toUserId: string) {
+  return fetch('/api/auth/account-groups/switch', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ fromUserId, toUserId }),
+  }).catch(() => null)
+}
+
+async function syncLinkedStoredAccounts(currentUserId: string, accounts: StoredInderverseAccount[]) {
+  const linkableAccounts = accounts.filter((account) => account.userId !== currentUserId)
+
+  if (linkableAccounts.length === 0) {
+    return
+  }
+
+  await Promise.allSettled(
+    linkableAccounts.map((account) =>
+      fetch('/api/auth/account-groups/link/confirm', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetAccessToken: account.accessToken,
+          targetUserId: account.userId,
+        }),
+      })
+    )
+  )
+}
+
 interface AuthState {
   user: User | null;
   profile: Profile | null;
@@ -25,7 +73,11 @@ interface AuthState {
   // 프로토타입용 mock 상태
   isLoggedIn: boolean;
   userNickname: string;
+  storedAccounts: StoredInderverseAccount[];
   checkSession: () => Promise<void>;
+  refreshStoredAccounts: () => void;
+  switchAccount: (userId: string) => Promise<void>;
+  forgetAccount: (userId: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -37,6 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   guardianConsentStatus: null,
   isLoggedIn: false,
   userNickname: 'Guest',
+  storedAccounts: [],
   
   checkSession: async () => {
     if (sessionCheckPromise) {
@@ -82,6 +135,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           .select('*')
           .eq('id', user.id)
           .single()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const storedAccounts = session
+          ? rememberAccountSession({ profile, session, user })
+          : readStoredAccounts()
 
         const fallbackNickname =
           user.user_metadata?.display_name ||
@@ -96,7 +155,10 @@ export const useAuthStore = create<AuthState>((set) => ({
           guardianConsentStatus: profile?.guardian_consent_status ?? null,
           isLoggedIn: true,
           userNickname: profile?.display_name || fallbackNickname,
+          storedAccounts,
         })
+        await syncViewerAccountGroup()
+        await syncLinkedStoredAccounts(user.id, storedAccounts)
       } else {
         set({
           user: null,
@@ -106,6 +168,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           guardianConsentStatus: null,
           isLoggedIn: false,
           userNickname: 'Guest',
+          storedAccounts: readStoredAccounts(),
         })
       }
     })().finally(() => {
@@ -113,6 +176,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     })
 
     return sessionCheckPromise
+  },
+
+  refreshStoredAccounts: () => {
+    set({ storedAccounts: readStoredAccounts() })
+  },
+
+  switchAccount: async (userId: string) => {
+    const previousUserId = useAuthStore.getState().user?.id ?? null
+    const account = readStoredAccounts().find((storedAccount) => storedAccount.userId === userId)
+
+    if (!account) {
+      throw new Error('저장된 계정을 찾지 못했습니다.')
+    }
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.setSession({
+      access_token: account.accessToken,
+      refresh_token: account.refreshToken,
+    })
+
+    if (error) {
+      const storedAccounts = forgetStoredAccount(userId)
+      set({ storedAccounts })
+      throw new Error('계정 세션이 만료되었습니다. 다시 로그인해 주세요.')
+    }
+
+    sessionCheckPromise = null
+    await useAuthStore.getState().checkSession()
+    await recordViewerAccountSwitch(previousUserId, userId)
+  },
+
+  forgetAccount: async (userId: string) => {
+    const storedAccounts = forgetStoredAccount(userId)
+    set({ storedAccounts })
   },
 
   signOut: async () => {
@@ -129,6 +226,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       guardianConsentStatus: null,
       isLoggedIn: false,
       userNickname: 'Guest',
+      storedAccounts: readStoredAccounts(),
     })
   }
 }))

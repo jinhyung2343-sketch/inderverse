@@ -14,6 +14,7 @@ type SettingsProfile = Pick<
 
 export type InitialSettingsAuth = {
   isLoggedIn: boolean
+  userId: string | null
   userNickname: string
   profile: SettingsProfile
 }
@@ -50,6 +51,18 @@ interface SettingsSection {
 }
 
 type SettingsConfirmDialog = 'sign-out' | 'withdrawal' | null
+
+function getAccountRoleLabel(role: string | null | undefined) {
+  if (role === 'creator') {
+    return '작가 계정'
+  }
+
+  if (role === 'admin') {
+    return '관리자 계정'
+  }
+
+  return '일반 계정'
+}
 
 function GearIcon() {
   return (
@@ -137,6 +150,11 @@ export function SettingsPageClient({
     checkSession,
     isLoggedIn,
     profile,
+    refreshStoredAccounts,
+    storedAccounts,
+    switchAccount,
+    forgetAccount,
+    user,
     userNickname,
     signOut,
   } = useAuthStore()
@@ -145,10 +163,13 @@ export function SettingsPageClient({
   const [withdrawalError, setWithdrawalError] = useState('')
   const [confirmDialog, setConfirmDialog] = useState<SettingsConfirmDialog>(null)
   const [isUsingInitialAuth, setIsUsingInitialAuth] = useState(true)
+  const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null)
+  const [accountSwitchError, setAccountSwitchError] = useState('')
 
   useEffect(() => {
     let isMounted = true
 
+    refreshStoredAccounts()
     checkSession().finally(() => {
       if (isMounted) {
         setIsUsingInitialAuth(false)
@@ -158,9 +179,10 @@ export function SettingsPageClient({
     return () => {
       isMounted = false
     }
-  }, [checkSession])
+  }, [checkSession, refreshStoredAccounts])
 
   const resolvedIsLoggedIn = isUsingInitialAuth ? initialAuth.isLoggedIn : isLoggedIn
+  const resolvedUserId = isUsingInitialAuth ? initialAuth.userId : user?.id ?? null
   const resolvedProfile = isUsingInitialAuth ? initialAuth.profile : profile
   const resolvedUserNickname = isUsingInitialAuth ? initialAuth.userNickname : userNickname
   const isCreator =
@@ -183,6 +205,31 @@ export function SettingsPageClient({
       setConfirmDialog(null)
     }
   }, [isSigningOut, router, signOut])
+
+  const handleSwitchAccount = useCallback(async (userId: string) => {
+    if (switchingAccountId) {
+      return
+    }
+
+    setSwitchingAccountId(userId)
+    setAccountSwitchError('')
+
+    try {
+      await switchAccount(userId)
+      router.refresh()
+    } catch (error) {
+      setAccountSwitchError(
+        error instanceof Error ? error.message : '계정을 전환하지 못했습니다. 다시 로그인해 주세요.'
+      )
+    } finally {
+      setSwitchingAccountId(null)
+    }
+  }, [router, switchAccount, switchingAccountId])
+
+  const handleForgetAccount = useCallback(async (userId: string) => {
+    await forgetAccount(userId)
+    setAccountSwitchError('')
+  }, [forgetAccount])
 
   const handleWithdrawal = useCallback(async () => {
     if (isWithdrawing) {
@@ -342,6 +389,85 @@ export function SettingsPageClient({
           <p className="text-sm leading-7 text-zinc-400 md:text-base">
             {displayNickname} 계정의 접속, 알림, 작가 활동, 지원 메뉴를 관리합니다.
           </p>
+        </section>
+
+        <section className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500">
+                등록 계정
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                이 브라우저에서 로그인한 계정을 보관하고, 같은 운영 주체의 계정으로 자동 연결해 접속 상태를 전환합니다.
+              </p>
+            </div>
+            <Link
+              href="/join-prompt?next=%2Fmain%2Fsettings"
+              className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10"
+            >
+              계정 추가
+            </Link>
+          </div>
+
+          {accountSwitchError ? (
+            <p className="mt-4 rounded-lg border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
+              {accountSwitchError}
+            </p>
+          ) : null}
+          <div className="mt-4 grid gap-2">
+            {storedAccounts.length > 0 ? (
+              storedAccounts.map((account) => {
+                const isActiveAccount = account.userId === resolvedUserId
+
+                return (
+                  <div
+                    key={account.userId}
+                    className="flex flex-col gap-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-white">{account.displayName}</p>
+                        <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-zinc-400">
+                          {getAccountRoleLabel(account.role)}
+                        </span>
+                        {isActiveAccount ? (
+                          <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-100">
+                            현재 접속
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">{account.email}</p>
+                    </div>
+
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchAccount(account.userId)}
+                        disabled={isActiveAccount || Boolean(switchingAccountId)}
+                        className="inline-flex min-h-10 items-center justify-center rounded-full bg-white px-4 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {switchingAccountId === account.userId ? '전환 중...' : isActiveAccount ? '사용 중' : '접속'}
+                      </button>
+                      {!isActiveAccount ? (
+                        <button
+                          type="button"
+                          onClick={() => handleForgetAccount(account.userId)}
+                          disabled={Boolean(switchingAccountId)}
+                          className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          숨기기
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-zinc-500">
+                아직 이 브라우저에 저장된 계정이 없습니다. 로그인하면 이곳에 계정이 등록됩니다.
+              </div>
+            )}
+          </div>
         </section>
 
         <div className="grid gap-5">

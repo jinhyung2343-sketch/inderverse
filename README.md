@@ -82,3 +82,5 @@ Vercel Preview 배포에서 인증 링크를 테스트한다면 Supabase Additio
 - PASS/휴대폰 본인인증은 실제 외부 연동 전 단계의 확장 가능한 API 골격까지 연결되어 있습니다.
 - 플랫폼 내 일반 정산 수익 분배는 `작가 70% / 회사 30%`로 고정합니다.
 - 성인 인증 이력은 `age_verifications`, 노출 제한은 `profiles.is_adult_verified` 및 콘텐츠 플래그로 관리합니다.
+- 복수 계정 허용 정책과 향후 서버 확장 메모는 `docs/policies/multi-account-policy.md`에 정리되어 있습니다.
+- 서버 기반 계정 그룹 설계는 `docs/architecture/server-account-groups.md`와 `supabase/migrations/044_account_groups.sql`을 기준으로 확장합니다.

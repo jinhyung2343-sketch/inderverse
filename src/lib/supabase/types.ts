@@ -34,6 +34,205 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_group_members: {
+        Row: {
+          account_group_id: string
+          created_at: string
+          id: string
+          linked_at: string
+          member_role: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_group_id: string
+          created_at?: string
+          id?: string
+          linked_at?: string
+          member_role?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_group_id?: string
+          created_at?: string
+          id?: string
+          linked_at?: string
+          member_role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_group_members_account_group_id_fkey"
+            columns: ["account_group_id"]
+            isOneToOne: false
+            referencedRelation: "account_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_group_verifications: {
+        Row: {
+          account_group_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json
+          status: string
+          subject_user_id: string | null
+          updated_at: string
+          verification_type: string
+          verified_at: string | null
+        }
+        Insert: {
+          account_group_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          status?: string
+          subject_user_id?: string | null
+          updated_at?: string
+          verification_type: string
+          verified_at?: string | null
+        }
+        Update: {
+          account_group_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          status?: string
+          subject_user_id?: string | null
+          updated_at?: string
+          verification_type?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_group_verifications_account_group_id_fkey"
+            columns: ["account_group_id"]
+            isOneToOne: false
+            referencedRelation: "account_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_group_verifications_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_groups: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string | null
+          display_name: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id?: string | null
+          display_name?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string | null
+          display_name?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_groups_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_switch_audit_logs: {
+        Row: {
+          account_group_id: string | null
+          actor_user_id: string | null
+          created_at: string
+          from_user_id: string | null
+          id: string
+          metadata: Json
+          reason: string
+          to_user_id: string | null
+        }
+        Insert: {
+          account_group_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_user_id?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string
+          to_user_id?: string | null
+        }
+        Update: {
+          account_group_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_user_id?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string
+          to_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_switch_audit_logs_account_group_id_fkey"
+            columns: ["account_group_id"]
+            isOneToOne: false
+            referencedRelation: "account_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_switch_audit_logs_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_switch_audit_logs_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_switch_audit_logs_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       age_verifications: {
         Row: {
           ci_hash: string | null
@@ -1289,6 +1488,14 @@ export type Database = {
           p_file_path: string
         }
         Returns: boolean
+      }
+      link_account_group_member: {
+        Args: {
+          p_metadata?: Json
+          p_owner_user_id: string
+          p_target_user_id: string
+        }
+        Returns: Json
       }
       purchase_episode: {
         Args: {
