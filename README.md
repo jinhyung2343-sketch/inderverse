@@ -89,6 +89,12 @@ npm run release:gate
 npm run env:secrets
 ```
 
+Vercel Production 환경변수 키 목록은 아래 명령으로 확인합니다.
+
+```bash
+npm run env:vercel
+```
+
 Supabase 운영 DB에는 모든 마이그레이션을 적용해야 합니다. 특히 `supabase/migrations/050_creator_channel_primary_bottega.sql`은 작가가 선택한 대표 Bottega 장르를 저장하는 `creator_channels.primary_work_type` 컬럼을 추가합니다.
 
 Supabase Auth URL Configuration에는 운영 도메인을 Site URL로 설정하고, Additional Redirect URLs에 아래 경로를 허용해야 합니다.
@@ -101,7 +107,7 @@ https://your-domain.com/auth/verify-email
 
 Vercel Preview 배포에서 인증 링크를 테스트한다면 Supabase Additional Redirect URLs에 Vercel preview URL 패턴도 추가해야 합니다. 운영 도메인은 와일드카드보다 정확한 경로를 우선 사용합니다.
 
-프로덕션 출시 전체 체크리스트는 `docs/deployment-production.md`, 환경변수 템플릿은 `docs/production-env.template`을 기준으로 관리합니다.
+프로덕션 출시 전체 체크리스트는 `docs/deployment-production.md`, Vercel 설정은 `docs/vercel-production-setup.md`, 환경변수 템플릿은 `docs/production-env.template`을 기준으로 관리합니다.
 
 ## Notes
 

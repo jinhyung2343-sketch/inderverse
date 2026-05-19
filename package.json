@@ -16,7 +16,8 @@
     "check:db": "node scripts/check-production-database.mjs",
     "check:release-files": "node scripts/check-release-files.mjs",
     "release:gate": "node scripts/release-gate.mjs",
-    "env:secrets": "node scripts/generate-production-secrets.mjs"
+    "env:secrets": "node scripts/generate-production-secrets.mjs",
+    "env:vercel": "node scripts/print-vercel-env-checklist.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

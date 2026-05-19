@@ -2,6 +2,8 @@
 
 This checklist is for a fixed public domain deployment that should behave like a production launch, not a temporary local demo.
 
+For Vercel-specific production setup, use `docs/vercel-production-setup.md`.
+
 ## 1. Build Gate
 
 Run these before promoting a build:
@@ -38,6 +40,12 @@ Generate long random internal secrets with:
 
 ```bash
 npm run env:secrets
+```
+
+Print the Vercel Production key checklist with:
+
+```bash
+npm run env:vercel
 ```
 
 Set these in the hosting provider:
