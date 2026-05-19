@@ -28,6 +28,7 @@
 
 ```bash
 npm run lint
+npx tsc --noEmit
 npm run build
 ```
 
@@ -53,7 +54,7 @@ npm run supabase:start:mail
 
 ## Production Auth Deployment
 
-인터넷 배포 환경에서 회원가입, 이메일 인증, 비밀번호 재설정, 회원 탈퇴가 정상 동작하려면 배포 프로젝트에 아래 환경 변수가 설정되어 있어야 합니다.
+인터넷 배포 환경에서 회원가입, 이메일 인증, 비밀번호 재설정, 회원 탈퇴, My Bottega 작가 등록 흐름이 정상 동작하려면 배포 프로젝트에 아래 환경 변수가 설정되어 있어야 합니다.
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
@@ -65,7 +66,30 @@ INDERVERSE_SMTP_USER=
 INDERVERSE_SMTP_PASS=
 INDERVERSE_SMTP_FROM_EMAIL=
 INDERVERSE_SMTP_FROM_NAME=
+GCS_PROJECT_ID=
+GCS_BUCKET_NAME=
+GCS_CLIENT_EMAIL=
+GCS_PRIVATE_KEY=
+NEXT_PUBLIC_CDN_URL=
+AGE_VERIFICATION_STATE_SECRET=
+AGE_VERIFICATION_PROVIDER_SECRET=
+CRON_SECRET=
+BANK_INFO_ENCRYPTION_SECRET=
 ```
+
+운영 배포 전에는 아래 게이트를 통과시킵니다.
+
+```bash
+npm run release:gate
+```
+
+운영 secret 초안은 아래 명령으로 생성합니다.
+
+```bash
+npm run env:secrets
+```
+
+Supabase 운영 DB에는 모든 마이그레이션을 적용해야 합니다. 특히 `supabase/migrations/050_creator_channel_primary_bottega.sql`은 작가가 선택한 대표 Bottega 장르를 저장하는 `creator_channels.primary_work_type` 컬럼을 추가합니다.
 
 Supabase Auth URL Configuration에는 운영 도메인을 Site URL로 설정하고, Additional Redirect URLs에 아래 경로를 허용해야 합니다.
 
@@ -76,6 +100,8 @@ https://your-domain.com/auth/verify-email
 ```
 
 Vercel Preview 배포에서 인증 링크를 테스트한다면 Supabase Additional Redirect URLs에 Vercel preview URL 패턴도 추가해야 합니다. 운영 도메인은 와일드카드보다 정확한 경로를 우선 사용합니다.
+
+프로덕션 출시 전체 체크리스트는 `docs/deployment-production.md`, 환경변수 템플릿은 `docs/production-env.template`을 기준으로 관리합니다.
 
 ## Notes
 

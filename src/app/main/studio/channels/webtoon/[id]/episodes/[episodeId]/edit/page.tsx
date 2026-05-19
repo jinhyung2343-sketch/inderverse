@@ -33,11 +33,11 @@ export default async function EditWebtoonEpisodePage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href={`/main/studio/channels/webtoon/${id}/edit`} ariaLabel="채널 편집으로 돌아가기" />
+        <PageBackLink href={`/main/studio/channels/webtoon/${id}/edit`} ariaLabel="툰 편집으로 돌아가기" />
 
         <header>
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon / Episode</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">My Bottega / Toon / Episode</p>
             <p className="text-sm text-zinc-400">현재 상태: {getEpisodeStatusLabel(episode.status)}</p>
           </div>
         </header>

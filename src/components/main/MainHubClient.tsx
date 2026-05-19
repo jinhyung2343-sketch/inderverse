@@ -52,8 +52,8 @@ const MENUS = [
   },
   {
     id: 'studio',
-    title: '작가 스튜디오',
-    description: '나만의 우주를 빚어내는 곳',
+    title: 'Bottega',
+    description: '작가 등록 후 창작 공방을 여는 곳',
     path: '/main/studio',
     ambientColor: 'bg-emerald-500', // 그린
     glowColor: 'group-hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]',
@@ -151,9 +151,9 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
         ? [{
           ...menu,
           id: 'creator-operations',
-          title: '내 채널 운영',
-          description: '업로드, 편집, 공개 상태를 바로 관리하기',
-          path: '/main/studio/creator-channel',
+          title: 'My Bottega',
+          description: '선택한 장르의 작업실과 공개 상태 관리하기',
+          path: '/main/studio',
           ambientColor: 'bg-emerald-500',
           glowColor: 'group-hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]',
           borderColor: 'group-hover:border-emerald-500/30'
@@ -166,8 +166,8 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
         ? []
         : [{
           ...menu,
-          title: '작가 등록',
-          description: '창작자로 전환하고 작품을 시작하기'
+          title: 'Bottega 열기',
+          description: '작가 등록 후 장르를 고르고 공방 시작하기'
         }];
     }
 
@@ -258,7 +258,7 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
               <p className="text-xs uppercase tracking-[0.3em] text-sky-100/70">Guardian Consent Pending</p>
               <h2 className="mt-3 text-2xl font-bold text-white">보호자 동의 확인이 진행 중입니다</h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-sky-50/80">
-                확인이 끝나기 전까지는 충전하기와 작가 스튜디오 기능이 잠시 제한됩니다. 현재 상태는 보호자 동의 확인 안내 화면에서 다시 볼 수 있습니다.
+                확인이 끝나기 전까지는 충전하기와 Bottega 개설 기능이 잠시 제한됩니다. 현재 상태는 보호자 동의 확인 안내 화면에서 다시 볼 수 있습니다.
               </p>
               <button
                 onClick={() => router.push('/main/guardian-consent')}

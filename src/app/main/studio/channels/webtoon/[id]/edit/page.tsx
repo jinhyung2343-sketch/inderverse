@@ -31,11 +31,11 @@ export default async function EditWebtoonPage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href="/main/studio/channels" ariaLabel="내 작품으로 돌아가기" />
+        <PageBackLink href="/main/studio/channels/webtoon" ariaLabel="Toon Bottega로 돌아가기" />
 
         <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">My Bottega / Toon</p>
             <p className="text-sm text-zinc-400">현재 상태: {getWebtoonStatusLabel(webtoon.status)}</p>
             <p className="text-sm text-zinc-500">현재 등급: {getAgeRatingLabel(webtoon.ageRating)}</p>
           </div>
@@ -52,7 +52,7 @@ export default async function EditWebtoonPage({
         <WebtoonEditorForm
           action={updateWebtoonChannelWithId}
           initialValue={webtoon}
-          heading="웹툰 채널 수정"
+          heading="연재 툰 수정"
           description="탐색 노출에 쓰이는 작품 메타데이터와 연재 운용 기준을 직접 다듬습니다."
           submitLabel="변경 저장"
           channelId={webtoon.id}

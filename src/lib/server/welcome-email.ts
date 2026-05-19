@@ -1,4 +1,5 @@
 import 'server-only'
+import { getSiteUrl } from '@/lib/env/server'
 
 import { BRAND } from '@/lib/brand'
 
@@ -69,6 +70,6 @@ export function buildWelcomeEmail({
   return {
     subject,
     text,
-    html: html.replace('{{ .SiteURL }}', process.env.NEXT_PUBLIC_SITE_URL ?? 'https://inderverse.com'),
+    html: html.replace('{{ .SiteURL }}', getSiteUrl()),
   }
 }

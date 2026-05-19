@@ -34,7 +34,7 @@ function SubmitButton({
       disabled={!canSubmit || pending}
       className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {pending ? '작가 등록을 준비하는 중...' : '동의하고 작가 등록 진행'}
+      {pending ? 'Bottega를 준비하는 중...' : '동의하고 Bottega 열기'}
     </button>
   )
 }
@@ -118,13 +118,13 @@ export function CreatorAgreementForm({
     <>
       <form action={formAction} className="grid gap-6">
         <section className="rounded-[32px] border border-emerald-400/20 bg-emerald-500/5 p-6">
-          <p className="text-sm uppercase tracking-[0.3em] text-emerald-200/80">Creator Agreement</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-emerald-200/80">Open Bottega</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white md:text-4xl">
-            {displayName}님, 작가 등록 전에 기본 동의를 확인해 주세요
+            {displayName}님, Bottega를 열기 전에 기본 동의를 확인해 주세요
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300 md:text-base">
-            작가 등록은 창작 권리, 정산 기준, 운영 책임이 함께 시작되는 단계입니다. 필요한 문서는
-            항목별로 나누어 읽을 수 있게 정리해 두었으니, 차분히 확인한 뒤 진행해 주세요.
+            Bottega는 창작 권리, 정산 기준, 운영 책임을 확인한 뒤 개인 My Bottega로 이어지는 개설 단계입니다.
+            필요한 문서는 항목별로 나누어 읽을 수 있게 정리해 두었으니, 확인한 뒤 장르별 작업실을 열어 주세요.
           </p>
           <div className="mt-4 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs tracking-[0.2em] text-zinc-400">
             버전 {CREATOR_AGREEMENT_VERSION}
@@ -134,7 +134,7 @@ export function CreatorAgreementForm({
         <section className="grid gap-5 rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Required Agreements</p>
-            <h2 className="text-2xl font-bold tracking-tight text-white">작가 등록 동의</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-white">Bottega 개설 동의</h2>
             <p className="text-sm leading-6 text-zinc-400">
               필수 항목을 분리해 보여드려요. 필요한 정책은 바로 열어보고, 확인이 끝난 항목부터 차례로
               동의할 수 있습니다.
@@ -174,7 +174,7 @@ export function CreatorAgreementForm({
 
           {!allChecked ? (
             <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              필수 동의 항목에 모두 동의해야 작가 등록을 진행할 수 있습니다.
+              필수 동의 항목에 모두 동의해야 Bottega를 열 수 있습니다.
             </p>
           ) : null}
 
@@ -187,7 +187,7 @@ export function CreatorAgreementForm({
           <div className="flex flex-wrap items-center gap-3">
             <SubmitButton canSubmit={allChecked} />
             <p className="text-sm leading-6 text-zinc-500">
-              동의 기록은 작가 등록 단계에서만 저장되며, 일반 회원가입 약관과는 별도로 관리됩니다.
+              동의 기록은 Bottega 개설 단계에서만 저장되며, 일반 회원가입 약관과는 별도로 관리됩니다.
             </p>
           </div>
         </section>

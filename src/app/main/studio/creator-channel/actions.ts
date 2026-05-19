@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 import type { CreatorChannelExternalLink } from '@/lib/work'
@@ -11,6 +12,10 @@ import type { CreatorChannelExternalLink } from '@/lib/work'
 export type CreatorChannelSettingsState = {
   error: string | null
   success: string | null
+}
+
+export type CancelCreatorRegistrationState = {
+  error: string | null
 }
 
 function readText(formData: FormData, key: string) {
@@ -131,11 +136,11 @@ export async function updateCreatorChannelSettings(
 
     if (error) {
       if (error.code === '23505') {
-        return { error: '이미 사용 중인 채널 주소입니다.', success: null }
+        return { error: '이미 사용 중인 공개 주소입니다.', success: null }
       }
 
       console.error('Unable to update creator channel settings:', error)
-      return { error: '작가 채널 저장 중 문제가 발생했습니다.', success: null }
+      return { error: '공개 프로필 저장 중 문제가 발생했습니다.', success: null }
     }
 
     revalidatePath('/main/studio')
@@ -144,13 +149,117 @@ export async function updateCreatorChannelSettings(
     revalidateTag(PUBLIC_CACHE_TAGS.creators, 'max')
     revalidateTag(PUBLIC_CACHE_TAGS.navigation, 'max')
 
-    return { error: null, success: '작가 채널 설정을 저장했습니다.' }
+    return { error: null, success: '공개 프로필 설정을 저장했습니다.' }
   } catch (error) {
     if (error instanceof Error && error.message.includes('외부 링크')) {
       return { error: error.message, success: null }
     }
 
     console.error(error)
-    return { error: '작가 채널 정보를 확인하는 중 문제가 발생했습니다.', success: null }
+    return { error: '공개 프로필 정보를 확인하는 중 문제가 발생했습니다.', success: null }
   }
+}
+
+export async function cancelCreatorRegistration(
+  _prevState: CancelCreatorRegistrationState,
+  formData: FormData
+): Promise<CancelCreatorRegistrationState> {
+  const confirmation = readText(formData, 'confirmation')
+
+  if (confirmation !== 'delete-bottega') {
+    return { error: '작가 등록 취소 확인이 필요합니다.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/join-prompt?next=/main/studio/creator-channel')
+  }
+
+  const admin = createAdminClient()
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError) {
+    return { error: '계정 정보를 확인하는 중 문제가 발생했습니다.' }
+  }
+
+  if (profile?.role === 'admin') {
+    return { error: '관리자 계정은 이 화면에서 작가 등록을 취소할 수 없습니다.' }
+  }
+
+  const { data: channels, error: channelListError } = await admin
+    .from('channels')
+    .select('id')
+    .eq('creator_id', user.id)
+
+  if (channelListError) {
+    return { error: 'Bottega 작업물을 확인하는 중 문제가 발생했습니다.' }
+  }
+
+  const channelIds = (channels ?? []).map((channel) => channel.id)
+
+  if (channelIds.length > 0) {
+    const { error: saveDeleteError } = await admin
+      .from('artwork_saves')
+      .delete()
+      .in('artwork_id', channelIds)
+
+    if (saveDeleteError) {
+      return { error: '작업물 저장 기록을 정리하는 중 문제가 발생했습니다.' }
+    }
+
+    const { error: channelDeleteError } = await admin
+      .from('channels')
+      .delete()
+      .eq('creator_id', user.id)
+
+    if (channelDeleteError) {
+      return { error: 'Bottega 작업물을 삭제하는 중 문제가 발생했습니다.' }
+    }
+  }
+
+  const { error: creatorChannelDeleteError } = await admin
+    .from('creator_channels')
+    .delete()
+    .eq('owner_id', user.id)
+
+  if (creatorChannelDeleteError) {
+    return { error: 'Bottega 공개 프로필을 삭제하는 중 문제가 발생했습니다.' }
+  }
+
+  const { error: agreementDeleteError } = await admin
+    .from('creator_agreement_consents')
+    .delete()
+    .eq('user_id', user.id)
+
+  if (agreementDeleteError) {
+    return { error: '작가 등록 동의 기록을 정리하는 중 문제가 발생했습니다.' }
+  }
+
+  const { error: roleUpdateError } = await admin
+    .from('profiles')
+    .update({ role: 'reader' })
+    .eq('id', user.id)
+
+  if (roleUpdateError) {
+    return { error: '계정을 일반 사용자로 되돌리는 중 문제가 발생했습니다.' }
+  }
+
+  revalidatePath('/main')
+  revalidatePath('/main/studio')
+  revalidatePath('/main/studio/channels')
+  revalidatePath('/main/studio/creator-channel')
+  revalidateTag(PUBLIC_CACHE_TAGS.artworks, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.creators, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.navigation, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.sparks, 'max')
+
+  redirect('/main')
 }

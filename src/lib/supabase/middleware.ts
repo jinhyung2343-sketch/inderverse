@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getPublicSupabaseEnv } from '@/lib/env/public'
 import { Database } from './types'
 
 type AccessProfile = {
@@ -42,10 +43,11 @@ export async function updateSession(request: NextRequest): Promise<SessionContex
   let supabaseResponse = NextResponse.next({
     request,
   })
+  const { url, anonKey } = getPublicSupabaseEnv()
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -70,7 +72,23 @@ export async function updateSession(request: NextRequest): Promise<SessionContex
     data: { user },
   } = await supabase.auth.getUser()
 
-  const profile = getAccessProfileFromJwt(user ?? null)
+  const { data: profileRow, error: profileError } = user
+    ? await supabase
+        .from('profiles')
+        .select('role, is_adult_verified, guardian_consent_status')
+        .eq('id', user.id)
+        .maybeSingle()
+    : { data: null, error: null }
+
+  const profile = profileRow
+    ? {
+        role: profileRow.role,
+        is_adult_verified: profileRow.is_adult_verified ?? false,
+        guardian_consent_status: profileRow.guardian_consent_status,
+      }
+    : profileError
+      ? null
+      : getAccessProfileFromJwt(user ?? null)
 
   return {
     response: supabaseResponse,

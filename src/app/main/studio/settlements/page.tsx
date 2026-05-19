@@ -202,7 +202,7 @@ export default async function StudioSettlementsPage() {
             </div>
           ) : (
             <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-400">
-              아직 만든 웹툰 채널이 없습니다. 웹툰 채널을 만들고 편집 화면에서 정산 기준을 저장하면 이곳에 반영됩니다.
+              아직 만든 연재 툰이 없습니다. Toon Bottega에서 작품을 만들고 편집 화면에서 정산 기준을 저장하면 이곳에 반영됩니다.
             </div>
           )}
         </section>

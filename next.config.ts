@@ -1,11 +1,26 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
+function getHostnameFromUrl(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return null;
+  }
+}
+
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development", // 개발 모드에서는 SW 사용 안함
 });
+
+const gcsBucketName = process.env.GCS_BUCKET_NAME || "inderverse-images";
+const cdnHostname = getHostnameFromUrl(process.env.NEXT_PUBLIC_CDN_URL) || "cdn.inderverse.com";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -24,12 +39,12 @@ const nextConfig: NextConfig = {
         // GCS 원본 버킷
         protocol: "https",
         hostname: "storage.googleapis.com",
-        pathname: "/inderverse-images/**",
+        pathname: `/${gcsBucketName}/**`,
       },
       {
         // CDN (프로덕션 배포 후 사용)
         protocol: "https",
-        hostname: "cdn.inderverse.com",
+        hostname: cdnHostname,
       },
     ],
   },

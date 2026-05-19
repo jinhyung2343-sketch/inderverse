@@ -1,0 +1,47 @@
+# Production Environment Template
+#
+# Copy these keys into the hosting provider's production environment settings.
+# Do not commit real values. Generate secret values with:
+#
+#   npm run env:secrets
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
+
+# Inderverse SMTP via Resend or another verified sender
+INDERVERSE_SMTP_HOST=smtp.resend.com
+INDERVERSE_SMTP_USER=resend
+INDERVERSE_SMTP_PASS=your-smtp-password-or-api-key
+INDERVERSE_SMTP_FROM_EMAIL=no-reply@your-verified-domain.com
+INDERVERSE_SMTP_FROM_NAME=Inderverse
+
+# Google Cloud Storage
+GCS_PROJECT_ID=your-gcp-project-id
+GCS_BUCKET_NAME=inderverse-images
+GCS_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
+GCS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour-private-key\n-----END PRIVATE KEY-----"
+
+# CDN for uploaded image delivery
+NEXT_PUBLIC_CDN_URL=https://cdn.your-domain.com
+
+# Age verification
+PASS_VERIFY_START_URL=https://pass-provider.your-domain.com/start
+PHONE_VERIFY_START_URL=https://phone-provider.your-domain.com/start
+AGE_VERIFICATION_STATE_SECRET=generated-secret
+AGE_VERIFICATION_PROVIDER_SECRET=generated-secret
+ENABLE_DEV_MANUAL_AGE_VERIFICATION=false
+
+# Coin charge must remain disabled until real payment verification exists
+ENABLE_DEV_COIN_CHARGE=false
+
+# Internal cron/job authorization
+CRON_SECRET=generated-secret
+STORAGE_CLEANUP_SECRET=generated-secret
+WEBTOON_IMAGE_PROCESSING_SECRET=generated-secret
+INTERNAL_JOB_SECRET=generated-secret
+
+# Revenue security
+BANK_INFO_ENCRYPTION_SECRET=generated-secret

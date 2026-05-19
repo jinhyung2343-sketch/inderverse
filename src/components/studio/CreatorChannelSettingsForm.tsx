@@ -20,7 +20,7 @@ function SubmitButton() {
       disabled={pending}
       className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {pending ? '저장 중...' : '작가 채널 저장'}
+      {pending ? '저장 중...' : '공개 프로필 저장'}
     </button>
   )
 }
@@ -37,10 +37,10 @@ export function CreatorChannelSettingsForm({
     <form action={formAction} className="grid gap-6">
       <section className="rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <div className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Channel Profile</p>
-          <h2 className="text-3xl font-black tracking-tight text-white md:text-4xl">채널 정보 편집</h2>
+          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Bottega Profile</p>
+          <h2 className="text-3xl font-black tracking-tight text-white md:text-4xl">공개 프로필 편집</h2>
           <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
-            독자에게 보이는 작가명, 소개, 대표 이미지, 외부 링크와 공개 상태를 관리합니다.
+            My Bottega 바깥에서 독자에게 보이는 작가명, 소개, 대표 이미지, 외부 링크와 공개 상태를 관리합니다.
           </p>
         </div>
       </section>
@@ -64,7 +64,7 @@ export function CreatorChannelSettingsForm({
               </label>
 
               <label className="grid gap-2 text-sm text-zinc-300">
-                <span>채널 주소</span>
+                <span>공개 주소</span>
                 <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 md:grid-cols-[auto_1fr] md:items-center">
                   <span className="text-sm text-zinc-500">/creator/</span>
                   <input
@@ -89,7 +89,7 @@ export function CreatorChannelSettingsForm({
                   maxLength={240}
                   defaultValue={channel.bio ?? ''}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="작가의 세계관, 창작 방향, 독자에게 전하고 싶은 소개를 적어주세요."
+                placeholder="작가의 세계관, 창작 방향, 독자에게 전하고 싶은 소개를 적어주세요."
                 />
               </label>
 
@@ -157,8 +157,8 @@ export function CreatorChannelSettingsForm({
                 imageRole="cover"
                 inputName="coverImageUrl"
                 initialValue={channel.coverImageUrl}
-                label="작가 채널 커버 이미지"
-                description="가로형 이미지를 올리면 작가 채널 상단에 쓰기 좋습니다."
+                label="공개 프로필 커버 이미지"
+                description="가로형 이미지를 올리면 공개 프로필 상단에 쓰기 좋습니다."
                 previewClassName="h-40 w-full rounded-xl object-cover"
               />
             </div>
@@ -177,7 +177,7 @@ export function CreatorChannelSettingsForm({
           ) : null}
 
           <div className="rounded-lg border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
-            채널을 비공개로 전환하면 독자용 작가 페이지에서 노출되지 않습니다.
+            공개 상태를 비공개로 전환하면 독자용 작가 페이지에서 노출되지 않습니다.
           </div>
 
           <SubmitButton />

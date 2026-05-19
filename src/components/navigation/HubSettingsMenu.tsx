@@ -337,9 +337,9 @@ export function SettingsPageClient({
           ? [
               {
                 kind: 'link',
-                label: '내 채널 운영',
-                description: '작품 업로드, 편집, 공개 상태를 관리합니다.',
-                href: '/main/studio/creator-channel',
+                label: 'My Bottega',
+                description: '선택한 장르의 작업실, 편집, 공개 상태를 관리합니다.',
+                href: '/main/studio',
               },
               {
                 kind: 'link',
@@ -347,12 +347,19 @@ export function SettingsPageClient({
                 description: '작품별 수익과 정산 상태를 확인합니다.',
                 href: '/main/studio/settlements',
               },
+              {
+                kind: 'link',
+                label: '작가 등록 취소',
+                description: 'Bottega 자료 삭제 경고를 확인하고 등록을 취소합니다.',
+                href: '/main/studio/creator-channel#creator-registration-cancel',
+                tone: 'danger',
+              },
             ]
           : [
               {
                 kind: 'link',
-                label: '작가 등록',
-                description: '창작자로 전환하고 작품 운영을 시작합니다.',
+                label: 'Bottega 열기',
+                description: '작가 등록 후 개인 공방을 시작합니다.',
                 href: '/main/studio',
               },
             ],

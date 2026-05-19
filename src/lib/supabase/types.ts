@@ -540,6 +540,7 @@ export type Database = {
           external_links: Json
           id: string
           owner_id: string
+          primary_work_type: Database["public"]["Enums"]["work_type"] | null
           slug: string
           status: string
           updated_at: string
@@ -553,6 +554,7 @@ export type Database = {
           external_links?: Json
           id?: string
           owner_id: string
+          primary_work_type?: Database["public"]["Enums"]["work_type"] | null
           slug: string
           status?: string
           updated_at?: string
@@ -566,6 +568,7 @@ export type Database = {
           external_links?: Json
           id?: string
           owner_id?: string
+          primary_work_type?: Database["public"]["Enums"]["work_type"] | null
           slug?: string
           status?: string
           updated_at?: string

@@ -24,11 +24,11 @@ export default async function WebtoonRatingPage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <PageBackLink href={`/main/studio/channels/webtoon/${webtoon.id}/edit`} ariaLabel="채널 편집으로 돌아가기" />
+        <PageBackLink href={`/main/studio/channels/webtoon/${webtoon.id}/edit`} ariaLabel="툰 편집으로 돌아가기" />
 
         <header>
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Webtoon / Rating</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">My Bottega / Toon / Rating</p>
             <p className="text-sm text-zinc-400">작품 전체 등급과 성인 인증 노출 기준을 먼저 고정합니다.</p>
           </div>
         </header>

@@ -19,7 +19,7 @@ export default async function NovelRatingPage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <PageBackLink href={`/main/studio/channels/novel/${novel.id}/edit`} ariaLabel="웹소설 편집으로 돌아가기" />
+        <PageBackLink href={`/main/studio/channels/novel/${novel.id}/edit`} ariaLabel="소설 편집으로 돌아가기" />
 
         <ContentRatingStepForm
           action={updateChannelContentRating}

@@ -31,11 +31,11 @@ export default async function EditNovelPage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href="/main/studio/channels" ariaLabel="내 작품으로 돌아가기" />
+        <PageBackLink href="/main/studio/channels/novel" ariaLabel="Novel Bottega로 돌아가기" />
 
         <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Novel</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">My Bottega / Novel</p>
             <p className="text-sm text-zinc-400">현재 상태: {getNovelStatusLabel(novel.status)}</p>
             <p className="text-sm text-zinc-500">현재 등급: {getAgeRatingLabel(novel.ageRating)}</p>
           </div>
@@ -50,7 +50,7 @@ export default async function EditNovelPage({
         <NovelEditorForm
           action={updateNovelChannelWithId}
           initialValue={novel}
-          heading="웹소설 수정"
+          heading="소설 수정"
           description="작품 메타데이터와 공개 설정을 다듬고, 아래 회차 섹션에서 본문을 이어서 관리합니다."
           submitLabel="변경 저장"
           channelId={novel.id}

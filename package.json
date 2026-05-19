@@ -11,7 +11,12 @@
     "test:unit": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:e2e:install": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright install chromium",
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright test",
-    "test:e2e:ui": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright test --ui"
+    "test:e2e:ui": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright test --ui",
+    "check:prod": "node scripts/check-production-readiness.mjs",
+    "check:db": "node scripts/check-production-database.mjs",
+    "check:release-files": "node scripts/check-release-files.mjs",
+    "release:gate": "node scripts/release-gate.mjs",
+    "env:secrets": "node scripts/generate-production-secrets.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

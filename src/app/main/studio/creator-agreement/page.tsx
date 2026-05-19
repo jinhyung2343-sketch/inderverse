@@ -25,7 +25,7 @@ export default async function CreatorAgreementPage() {
   const role = profile?.role as UserRole | undefined
 
   if (role === 'creator' || role === 'admin') {
-    redirect('/main/studio/channels')
+    redirect('/main/studio')
   }
 
   const displayName =
@@ -41,10 +41,10 @@ export default async function CreatorAgreementPage() {
 
         <header>
           <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Creator Agreement</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Bottega / Creator Agreement</p>
             <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
-              작가 등록은 창작 권리와 운영 책임이 함께 시작되는 단계입니다. 기본 동의를 확인한 뒤에만
-              채널 생성과 정산 설정으로 이어집니다.
+              작가 등록은 Bottega를 여는 첫 단계입니다. 기본 동의를 확인하면 개인 공방인 My Bottega가 생성되고,
+              장르를 고르는 즉시 그에 맞는 작업실로 이어집니다.
             </p>
           </div>
         </header>

@@ -1,0 +1,95 @@
+name: Release Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  workflow_dispatch:
+
+jobs:
+  build-gate:
+    name: Build Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check release files
+        run: npm run check:release-files
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          NEXT_PUBLIC_CDN_URL: ${{ secrets.NEXT_PUBLIC_CDN_URL }}
+
+  production-preflight:
+    name: Production Preflight
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check production env
+        run: npm run check:prod
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          INDERVERSE_SMTP_HOST: ${{ secrets.INDERVERSE_SMTP_HOST }}
+          INDERVERSE_SMTP_USER: ${{ secrets.INDERVERSE_SMTP_USER }}
+          INDERVERSE_SMTP_PASS: ${{ secrets.INDERVERSE_SMTP_PASS }}
+          INDERVERSE_SMTP_FROM_EMAIL: ${{ secrets.INDERVERSE_SMTP_FROM_EMAIL }}
+          INDERVERSE_SMTP_FROM_NAME: ${{ secrets.INDERVERSE_SMTP_FROM_NAME }}
+          GCS_PROJECT_ID: ${{ secrets.GCS_PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          NEXT_PUBLIC_CDN_URL: ${{ secrets.NEXT_PUBLIC_CDN_URL }}
+          PASS_VERIFY_START_URL: ${{ secrets.PASS_VERIFY_START_URL }}
+          PHONE_VERIFY_START_URL: ${{ secrets.PHONE_VERIFY_START_URL }}
+          AGE_VERIFICATION_STATE_SECRET: ${{ secrets.AGE_VERIFICATION_STATE_SECRET }}
+          AGE_VERIFICATION_PROVIDER_SECRET: ${{ secrets.AGE_VERIFICATION_PROVIDER_SECRET }}
+          ENABLE_DEV_MANUAL_AGE_VERIFICATION: "false"
+          ENABLE_DEV_COIN_CHARGE: "false"
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          STORAGE_CLEANUP_SECRET: ${{ secrets.STORAGE_CLEANUP_SECRET }}
+          WEBTOON_IMAGE_PROCESSING_SECRET: ${{ secrets.WEBTOON_IMAGE_PROCESSING_SECRET }}
+          INTERNAL_JOB_SECRET: ${{ secrets.INTERNAL_JOB_SECRET }}
+          BANK_INFO_ENCRYPTION_SECRET: ${{ secrets.BANK_INFO_ENCRYPTION_SECRET }}
+
+      - name: Check production database
+        run: npm run check:db
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

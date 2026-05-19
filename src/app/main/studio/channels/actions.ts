@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { BRAND } from '@/lib/brand'
+import { getBottegaHref, isReadyBottegaWorkType } from '@/lib/bottega'
 import {
   buildRatingChecklistJson,
   getAgeRatingLabel,
@@ -43,6 +44,7 @@ import { sanitizeWebtoonTags } from '@/lib/webtoon'
 import type { Database, Json } from '@/lib/supabase/types'
 
 type UserRole = Database['public']['Enums']['user_role']
+type WorkType = Database['public']['Enums']['work_type']
 
 const WEBTOON_EPISODE_CREATE_UPLOAD_CONCURRENCY = 2
 
@@ -51,6 +53,50 @@ function revalidatePublicContentCache() {
   revalidateTag(PUBLIC_CACHE_TAGS.creators, 'max')
   revalidateTag(PUBLIC_CACHE_TAGS.navigation, 'max')
   revalidateTag(PUBLIC_CACHE_TAGS.sparks, 'max')
+}
+
+export async function selectPrimaryBottega(formData: FormData) {
+  const workType = readText(formData, 'workType')
+
+  if (!isReadyBottegaWorkType(workType)) {
+    redirect('/main/studio/channels')
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/join-prompt?next=/main/studio/channels')
+  }
+
+  const creatorChannel = await ensureDefaultCreatorChannel(user.id)
+  const selectedWorkType = workType as WorkType
+  const { error } = await supabase
+    .from('creator_channels')
+    .update({
+      primary_work_type: selectedWorkType,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', creatorChannel.id)
+    .eq('owner_id', user.id)
+
+  if (error) {
+    const message = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase()
+
+    if (message.includes('primary_work_type')) {
+      console.warn('primary_work_type column is not available yet. Apply migration 050_creator_channel_primary_bottega.sql to persist Bottega selection.')
+      redirect(getBottegaHref(workType))
+    }
+
+    throw new Error(error.message || 'Bottega 장르를 저장하지 못했습니다.')
+  }
+
+  revalidatePath('/main/studio')
+  revalidatePath('/main/studio/channels')
+  revalidatePath('/main/studio/creator-channel')
+  redirect(getBottegaHref(workType))
 }
 
 function readText(formData: FormData, key: string) {
@@ -763,7 +809,7 @@ function parseNovelEpisodeDraft(formData: FormData): NovelEpisodeDraftInput {
   }
 
   if (statusValue === 'published' && bodyText.replace(/\s/g, '').length < 200) {
-    throw new Error('공개 웹소설 회차에는 최소 200자 이상의 본문이 필요합니다.')
+    throw new Error('공개 소설 회차에는 최소 200자 이상의 본문이 필요합니다.')
   }
 
   const coinPrice =
@@ -933,7 +979,7 @@ export async function createWebtoonChannel(formData: FormData) {
     .single()
 
   if (error || !data) {
-    throw new Error(error?.message || '웹툰 채널을 만들지 못했습니다.')
+    throw new Error(error?.message || '연재 툰을 만들지 못했습니다.')
   }
 
   const { error: revenueError } = await supabase
@@ -1033,7 +1079,7 @@ export async function updateWebtoonChannel(formData: FormData) {
   const channelId = readText(formData, 'channelId')
 
   if (!channelId) {
-    throw new Error('수정 대상 웹툰 채널을 찾지 못했습니다.')
+    throw new Error('수정 대상 연재 툰을 찾지 못했습니다.')
   }
 
   const input = parseWebtoonDraft(formData)
@@ -1109,7 +1155,7 @@ export async function createNovelChannel(formData: FormData) {
     .single()
 
   if (error || !data) {
-    throw new Error(error?.message || '웹소설을 만들지 못했습니다.')
+    throw new Error(error?.message || '소설을 만들지 못했습니다.')
   }
 
   const { error: revenueError } = await supabase
@@ -1153,7 +1199,7 @@ export async function updateNovelChannel(formData: FormData) {
   const channelId = readText(formData, 'channelId')
 
   if (!channelId) {
-    throw new Error('수정 대상 웹소설을 찾지 못했습니다.')
+    throw new Error('수정 대상 소설을 찾지 못했습니다.')
   }
 
   const input = parseNovelDraft(formData)
@@ -1203,7 +1249,7 @@ export async function createNovelEpisode(formData: FormData) {
   const channelId = readText(formData, 'channelId')
 
   if (!channelId) {
-    throw new Error('회차를 추가할 웹소설을 찾지 못했습니다.')
+    throw new Error('회차를 추가할 소설을 찾지 못했습니다.')
   }
 
   const input = parseNovelEpisodeDraft(formData)
@@ -1217,7 +1263,7 @@ export async function createNovelEpisode(formData: FormData) {
     .single()
 
   if (channelError || !channel) {
-    throw new Error('내 웹소설에서만 회차를 만들 수 있습니다.')
+    throw new Error('내 소설에서만 회차를 만들 수 있습니다.')
   }
 
   const publishedAt = input.status === 'published' ? new Date().toISOString() : null
@@ -1239,7 +1285,7 @@ export async function createNovelEpisode(formData: FormData) {
     .single()
 
   if (episodeError || !episode) {
-    throw new Error(episodeError?.message || '웹소설 회차를 만들지 못했습니다.')
+    throw new Error(episodeError?.message || '소설 회차를 만들지 못했습니다.')
   }
 
   revalidatePath('/main/explore')
@@ -1255,7 +1301,7 @@ export async function updateNovelEpisode(formData: FormData) {
   const episodeId = readText(formData, 'episodeId')
 
   if (!channelId || !episodeId) {
-    throw new Error('수정 대상 웹소설 회차를 찾지 못했습니다.')
+    throw new Error('수정 대상 소설 회차를 찾지 못했습니다.')
   }
 
   const input = parseNovelEpisodeDraft(formData)
@@ -1269,7 +1315,7 @@ export async function updateNovelEpisode(formData: FormData) {
     .single()
 
   if (channelError || !ownedChannel) {
-    throw new Error('내 웹소설에서만 회차를 수정할 수 있습니다.')
+    throw new Error('내 소설에서만 회차를 수정할 수 있습니다.')
   }
 
   const { data: existingEpisode, error: existingError } = await supabase
@@ -1280,7 +1326,7 @@ export async function updateNovelEpisode(formData: FormData) {
     .single()
 
   if (existingError || !existingEpisode) {
-    throw new Error('수정할 웹소설 회차를 찾지 못했습니다.')
+    throw new Error('수정할 소설 회차를 찾지 못했습니다.')
   }
 
   const publishedAt =
@@ -1335,7 +1381,7 @@ export async function createWebtoonEpisode(formData: FormData) {
     .single()
 
   if (channelError || !channel) {
-    throw new Error('내 웹툰 채널에서만 회차를 만들 수 있습니다.')
+    throw new Error('내 연재 툰에서만 회차를 만들 수 있습니다.')
   }
 
   const publishedAt = input.status === 'published' ? new Date().toISOString() : null
@@ -1454,7 +1500,7 @@ export async function updateWebtoonEpisode(formData: FormData) {
     .single()
 
   if (channelError || !ownedChannel) {
-    throw new Error('내 웹툰 채널에서만 회차를 수정할 수 있습니다.')
+    throw new Error('내 연재 툰에서만 회차를 수정할 수 있습니다.')
   }
 
   const { data: existingEpisode, error: existingError } = await supabase

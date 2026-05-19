@@ -26,6 +26,7 @@ export interface CreatorChannelRecord {
   bio: string | null
   avatarUrl: string | null
   coverImageUrl: string | null
+  primaryWorkType: Extract<WorkType, 'webtoon' | 'novel' | 'audio_drama' | 'music' | 'illustration' | 'essay' | 'other'> | null
   externalLinks: CreatorChannelExternalLink[]
   status: 'draft' | 'active' | 'suspended'
 }

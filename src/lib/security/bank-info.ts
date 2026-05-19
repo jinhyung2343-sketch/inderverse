@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
+import { getOptionalServerEnv } from '@/lib/env/server'
 
 export interface BankInfoInput {
   bankName: string
@@ -12,7 +13,7 @@ const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
 
 function getSecret() {
-  return process.env.BANK_INFO_ENCRYPTION_SECRET?.trim() || ''
+  return getOptionalServerEnv('BANK_INFO_ENCRYPTION_SECRET')
 }
 
 function getKey() {
