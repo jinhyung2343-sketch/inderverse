@@ -12,6 +12,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 
 # Inderverse SMTP via Resend or another verified sender
+# The app also accepts the SUPABASE_AUTH_SMTP_* names used by Supabase local config.
 INDERVERSE_SMTP_HOST=smtp.resend.com
 INDERVERSE_SMTP_USER=resend
 INDERVERSE_SMTP_PASS=your-smtp-password-or-api-key

@@ -49,11 +49,6 @@ const requiredEnv = [
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'NEXT_PUBLIC_SITE_URL',
-  'INDERVERSE_SMTP_HOST',
-  'INDERVERSE_SMTP_USER',
-  'INDERVERSE_SMTP_PASS',
-  'INDERVERSE_SMTP_FROM_EMAIL',
-  'INDERVERSE_SMTP_FROM_NAME',
   'GCS_PROJECT_ID',
   'GCS_BUCKET_NAME',
   'GCS_CLIENT_EMAIL',
@@ -95,15 +90,27 @@ function readEnv(name) {
   return process.env[name]?.trim() ?? ''
 }
 
-for (const name of requiredEnv) {
-  const value = readEnv(name)
+function readFirstEnv(names) {
+  return names.map((name) => readEnv(name)).find(Boolean) ?? ''
+}
 
+function validateConfiguredValue(label, value) {
   if (!value) {
-    errors.push(`${name} is missing`)
+    errors.push(`${label} is missing`)
   } else if (/^(your-|replace-with-|https:\/\/your-|no-reply@your-)/.test(value) || value.includes('example.com')) {
-    errors.push(`${name} still contains a placeholder value`)
+    errors.push(`${label} still contains a placeholder value`)
   }
 }
+
+for (const name of requiredEnv) {
+  validateConfiguredValue(name, readEnv(name))
+}
+
+validateConfiguredValue('SMTP host', readFirstEnv(['INDERVERSE_SMTP_HOST', 'SUPABASE_AUTH_SMTP_HOST']))
+validateConfiguredValue('SMTP user', readFirstEnv(['INDERVERSE_SMTP_USER', 'SUPABASE_AUTH_SMTP_USER']))
+validateConfiguredValue('SMTP password', readFirstEnv(['INDERVERSE_SMTP_PASS', 'SUPABASE_AUTH_SMTP_PASS']))
+validateConfiguredValue('SMTP from email', readFirstEnv(['INDERVERSE_SMTP_FROM_EMAIL', 'SUPABASE_AUTH_SMTP_ADMIN_EMAIL']))
+validateConfiguredValue('SMTP from name', readFirstEnv(['INDERVERSE_SMTP_FROM_NAME', 'SUPABASE_AUTH_SMTP_SENDER_NAME']))
 
 for (const name of urlEnv) {
   const value = readEnv(name)

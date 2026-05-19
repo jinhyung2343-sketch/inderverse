@@ -86,6 +86,8 @@ BANK_INFO_ENCRYPTION_SECRET=
 
 Use long random values for `AGE_VERIFICATION_STATE_SECRET`, `AGE_VERIFICATION_PROVIDER_SECRET`, `CRON_SECRET`, `STORAGE_CLEANUP_SECRET`, `WEBTOON_IMAGE_PROCESSING_SECRET`, `INTERNAL_JOB_SECRET`, and `BANK_INFO_ENCRYPTION_SECRET`.
 
+The application also accepts existing `SUPABASE_AUTH_SMTP_HOST`, `SUPABASE_AUTH_SMTP_USER`, `SUPABASE_AUTH_SMTP_PASS`, `SUPABASE_AUTH_SMTP_ADMIN_EMAIL`, and `SUPABASE_AUTH_SMTP_SENDER_NAME` values as SMTP fallbacks.
+
 Do not rotate `BANK_INFO_ENCRYPTION_SECRET` after settlement bank info is stored unless a re-encryption migration is prepared.
 
 Production must keep these disabled:
