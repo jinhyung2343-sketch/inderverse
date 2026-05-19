@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { FormEvent, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { replaceAfterAuth } from '@/lib/auth/navigation'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/client'
 
@@ -48,7 +48,6 @@ export function ResetPasswordPageClient({
 }: {
   nextPath: string | null
 }) {
-  const router = useRouter()
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [statusMessage, setStatusMessage] = useState('메일 링크를 확인하는 중입니다.')
@@ -160,10 +159,7 @@ export function ResetPasswordPageClient({
       if (isSamePasswordError(error)) {
         setErrorMessage('')
         setStatusMessage('입력한 비밀번호가 기존 비밀번호와 같습니다. 비밀번호 변경 없이 로그인 상태로 이어갑니다.')
-        window.setTimeout(() => {
-          router.replace(redirectPath)
-          router.refresh()
-        }, 900)
+        replaceAfterAuth(redirectPath, 900)
         return
       }
 
@@ -172,8 +168,7 @@ export function ResetPasswordPageClient({
     }
 
     setStatusMessage('비밀번호가 변경되었습니다. 새 비밀번호로 계속 사용할 수 있습니다.')
-    router.replace(redirectPath)
-    router.refresh()
+    replaceAfterAuth(redirectPath)
   }
 
   return (

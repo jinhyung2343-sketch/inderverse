@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { FormEvent, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { replaceAfterAuth } from '@/lib/auth/navigation'
 import { BRAND } from '@/lib/brand'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/client'
@@ -48,7 +48,6 @@ export function VerifyEmailPageClient({
   nextPath: string | null
   authError: string | null
 }) {
-  const router = useRouter()
   const [verificationEmail, setVerificationEmail] = useState(email ?? '')
   const [verificationCode, setVerificationCode] = useState('')
   const [message, setMessage] = useState(
@@ -133,8 +132,7 @@ export function VerifyEmailPageClient({
 
       setErrorMessage('')
       setMessage('이메일 인증이 완료되었습니다.')
-      router.replace(redirectPath)
-      router.refresh()
+      replaceAfterAuth(redirectPath)
     }
 
     void verifyEmailLink()
@@ -142,7 +140,7 @@ export function VerifyEmailPageClient({
     return () => {
       isMounted = false
     }
-  }, [redirectPath, router])
+  }, [redirectPath])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -195,8 +193,7 @@ export function VerifyEmailPageClient({
     await requestWelcomeEmail()
 
     setMessage('이메일 인증이 완료되었습니다.')
-    router.replace(redirectPath)
-    router.refresh()
+    replaceAfterAuth(redirectPath)
   }
 
   const handleResend = async () => {

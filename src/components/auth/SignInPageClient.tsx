@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { FormEvent, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { replaceAfterAuth } from '@/lib/auth/navigation'
 import { BRAND } from '@/lib/brand'
 import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/client'
@@ -31,7 +31,6 @@ export function SignInPageClient({
 }: {
   nextPath: string | null
 }) {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -70,8 +69,7 @@ export function SignInPageClient({
     }
 
     setIsSubmitting(false)
-    router.replace(redirectPath)
-    router.refresh()
+    replaceAfterAuth(redirectPath)
   }
 
   return (
