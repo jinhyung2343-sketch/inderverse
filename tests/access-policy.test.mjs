@@ -160,6 +160,16 @@ test('auth pages and admin routes keep their expected redirects', () => {
 
   assert.deepEqual(
     getRouteAccessDecision({
+      pathname: '/join-prompt',
+      search: '?next=%2Fmain&force=1',
+      isLoggedIn: true,
+      userRole: 'reader',
+    }),
+    { type: 'allow' }
+  )
+
+  assert.deepEqual(
+    getRouteAccessDecision({
       pathname: '/admin',
       isLoggedIn: true,
       userRole: 'creator',

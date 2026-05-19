@@ -35,6 +35,10 @@ export function getJoinPromptHref(nextPath: string) {
   return `/join-prompt?next=${encodeURIComponent(sanitizeInternalPath(nextPath))}`
 }
 
+function getSearchParams(search: string) {
+  return new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+}
+
 function getPathWithSearch(pathname: string, search = '') {
   return `${pathname}${search}`
 }
@@ -65,8 +69,9 @@ export function getRouteAccessDecision({
   const isCreator = userRole === 'creator' || userRole === 'admin'
   const isAdmin = userRole === 'admin'
   const isGuardianPending = guardianConsentStatus === 'pending'
+  const shouldForceJoinPrompt = isJoinPromptPage && getSearchParams(search).get('force') === '1'
 
-  if (isJoinPromptPage && isLoggedIn) {
+  if (isJoinPromptPage && isLoggedIn && !shouldForceJoinPrompt) {
     return { type: 'redirect', location: '/main', reason: 'already_logged_in' }
   }
 

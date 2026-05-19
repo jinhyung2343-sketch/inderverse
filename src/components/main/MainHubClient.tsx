@@ -118,7 +118,7 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
     };
   }, [checkSession]);
 
-  const resolvedIsLoading = isUsingInitialAuth ? false : isLoading;
+  const resolvedIsLoading = isUsingInitialAuth ? false : isLoading && isLoggedIn;
   const resolvedIsLoggedIn = isUsingInitialAuth ? initialAuth.isLoggedIn : isLoggedIn;
   const resolvedProfile = isUsingInitialAuth ? initialAuth.profile : profile;
   const resolvedUserNickname = isUsingInitialAuth ? initialAuth.userNickname : userNickname;

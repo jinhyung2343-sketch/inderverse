@@ -100,70 +100,84 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     sessionCheckPromise = (async () => {
       set({ isLoading: true })
-      const supabase = createClient()
-      const { data: { user }, error } = await supabase.auth.getUser()
+      try {
+        const supabase = createClient()
+        const { data: { user }, error } = await supabase.auth.getUser()
 
-      if (user && !error) {
-        const pendingConsent = readPendingUserTermsConsent()
+        if (user && !error) {
+          const pendingConsent = readPendingUserTermsConsent()
 
-        if (pendingConsent && pendingConsent.user_id === user.id) {
-          const { error: pendingConsentError } = await supabase
-            .from('user_terms_consents')
-            .upsert(pendingConsent, {
-              onConflict: USER_TERMS_CONSENT_CONFLICT_KEY,
-            })
+          if (pendingConsent && pendingConsent.user_id === user.id) {
+            const { error: pendingConsentError } = await supabase
+              .from('user_terms_consents')
+              .upsert(pendingConsent, {
+                onConflict: USER_TERMS_CONSENT_CONFLICT_KEY,
+              })
 
-          if (!pendingConsentError) {
-            clearPendingUserTermsConsent()
+            if (!pendingConsentError) {
+              clearPendingUserTermsConsent()
+            }
           }
-        }
 
-        const pendingGuardianConsent = readPendingMinorGuardianConsent()
+          const pendingGuardianConsent = readPendingMinorGuardianConsent()
 
-        if (pendingGuardianConsent && pendingGuardianConsent.user_id === user.id) {
-          const { error: guardianConsentError } = await supabase
-            .from('minor_guardian_consents')
-            .upsert(pendingGuardianConsent, {
-              onConflict: 'user_id',
-            })
+          if (pendingGuardianConsent && pendingGuardianConsent.user_id === user.id) {
+            const { error: guardianConsentError } = await supabase
+              .from('minor_guardian_consents')
+              .upsert(pendingGuardianConsent, {
+                onConflict: 'user_id',
+              })
 
-          if (!guardianConsentError) {
-            clearPendingMinorGuardianConsent()
+            if (!guardianConsentError) {
+              clearPendingMinorGuardianConsent()
+            }
           }
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          const verifiedSession = session?.user.id === user.id ? session : null
+          const storedAccounts = verifiedSession
+            ? rememberAccountSession({ profile, session: verifiedSession, user })
+            : readStoredAccounts()
+
+          const fallbackNickname =
+            user.user_metadata?.display_name ||
+            user.email?.split('@')[0] ||
+            '유저'
+
+          set({
+            user,
+            profile,
+            isLoading: false,
+            isAdultVerified: profile?.is_adult_verified ?? false,
+            isSubscribed: profile?.is_subscribed ?? false,
+            guardianConsentStatus: profile?.guardian_consent_status ?? null,
+            isLoggedIn: true,
+            userNickname: profile?.display_name || fallbackNickname,
+            storedAccounts,
+          })
+          await syncViewerAccountGroup()
+          await syncLinkedStoredAccounts(user.id, storedAccounts)
+        } else {
+          set({
+            user: null,
+            profile: null,
+            isLoading: false,
+            isAdultVerified: false,
+            isSubscribed: false,
+            guardianConsentStatus: null,
+            isLoggedIn: false,
+            userNickname: 'Guest',
+            storedAccounts: readStoredAccounts(),
+          })
         }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        const verifiedSession = session?.user.id === user.id ? session : null
-        const storedAccounts = verifiedSession
-          ? rememberAccountSession({ profile, session: verifiedSession, user })
-          : readStoredAccounts()
-
-        const fallbackNickname =
-          user.user_metadata?.display_name ||
-          user.email?.split('@')[0] ||
-          '유저'
-
-        set({
-          user,
-          profile,
-          isLoading: false,
-          isAdultVerified: profile?.is_adult_verified ?? false,
-          isSubscribed: profile?.is_subscribed ?? false,
-          guardianConsentStatus: profile?.guardian_consent_status ?? null,
-          isLoggedIn: true,
-          userNickname: profile?.display_name || fallbackNickname,
-          storedAccounts,
-        })
-        await syncViewerAccountGroup()
-        await syncLinkedStoredAccounts(user.id, storedAccounts)
-      } else {
+      } catch {
         set({
           user: null,
           profile: null,
