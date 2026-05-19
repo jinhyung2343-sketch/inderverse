@@ -1,4 +1,4 @@
-import { bucket } from './client'
+import { getGcsBucket, getGcsBucketName } from './client'
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 
@@ -86,7 +86,7 @@ export function buildPublicAssetUrl(filePath: string) {
     return `${cdnUrl.replace(/\/$/, '')}/${filePath}`
   }
 
-  return `https://storage.googleapis.com/${bucket.name}/${filePath}`
+  return `https://storage.googleapis.com/${getGcsBucketName()}/${filePath}`
 }
 
 async function uploadFileToPath(file: File, filePath: string, contentType: AllowedContentType) {
@@ -100,7 +100,7 @@ async function uploadFileToPath(file: File, filePath: string, contentType: Allow
 }
 
 async function uploadBufferToPath(bytes: Buffer, filePath: string, contentType: AllowedContentType) {
-  await bucket.file(filePath).save(bytes, {
+  await getGcsBucket().file(filePath).save(bytes, {
     resumable: false,
     contentType,
     metadata: {
@@ -118,7 +118,7 @@ async function deleteFileIfExists(filePath: string | null) {
   }
 
   try {
-    await bucket.file(filePath).delete()
+    await getGcsBucket().file(filePath).delete()
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 404) {
       return
@@ -237,7 +237,7 @@ export async function regenerateWebtoonEpisodeDerivatives({
   originalImageUrl?: string | null
   contentType?: string | null
 }) {
-  const [originalBytes] = await bucket.file(originalFilePath).download()
+  const [originalBytes] = await getGcsBucket().file(originalFilePath).download()
   const candidateContentType = contentType ?? ''
   const normalizedContentType: AllowedContentType = isAllowedContentType(candidateContentType)
     ? candidateContentType
@@ -268,7 +268,7 @@ export async function generateSignedUrl({
   const extension = getFileExtension(contentType)
   const filePath = `originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`
   
-  const [url] = await bucket.file(filePath).getSignedUrl({
+  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
     version: 'v4',
     action: 'write',
     expires: Date.now() + 15 * 60 * 1000, // 15분
@@ -291,7 +291,7 @@ export async function generateSparkCoverSignedUrl({
   const extension = getFileExtension(contentType)
   const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`
 
-  const [url] = await bucket.file(filePath).getSignedUrl({
+  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
     version: 'v4',
     action: 'write',
     expires: Date.now() + 15 * 60 * 1000,
@@ -314,7 +314,7 @@ export async function generateChannelCoverSignedUrl({
   const extension = getFileExtension(contentType)
   const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`
 
-  const [url] = await bucket.file(filePath).getSignedUrl({
+  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
     version: 'v4',
     action: 'write',
     expires: Date.now() + 15 * 60 * 1000,
@@ -339,7 +339,7 @@ export async function generateCreatorChannelImageSignedUrl({
   const extension = getFileExtension(contentType)
   const filePath = `creator-channels/${creatorChannelId}/${imageRole}/${Date.now()}-${randomUUID()}.${extension}`
 
-  const [url] = await bucket.file(filePath).getSignedUrl({
+  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
     version: 'v4',
     action: 'write',
     expires: Date.now() + 15 * 60 * 1000,
@@ -364,7 +364,7 @@ export async function generateSparkPanelSignedUrl({
   const extension = getFileExtension(contentType)
   const filePath = `panels/${channelId}/${panelIndex + 1}-${Date.now()}-${randomUUID()}.${extension}`
 
-  const [url] = await bucket.file(filePath).getSignedUrl({
+  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
     version: 'v4',
     action: 'write',
     expires: Date.now() + 15 * 60 * 1000,

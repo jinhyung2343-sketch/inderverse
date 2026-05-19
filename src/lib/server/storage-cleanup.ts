@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { bucket } from '@/lib/gcs/client'
+import { getGcsBucket } from '@/lib/gcs/client'
 import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/types'
@@ -91,7 +91,7 @@ async function isFileStillReferenced(filePath: string) {
 
 async function deleteStorageFile(filePath: string) {
   try {
-    await bucket.file(filePath).delete()
+    await getGcsBucket().file(filePath).delete()
     return 'deleted'
   } catch (error) {
     if (isGcsNotFoundError(error)) {
