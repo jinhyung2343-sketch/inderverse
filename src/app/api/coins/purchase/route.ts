@@ -14,14 +14,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { episodeId, channelId, episodeNumber } = await req.json()
-    const hasEpisodeId = typeof episodeId === 'string' && episodeId.trim().length > 0
+    let body: unknown
+
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const { episodeId, channelId, episodeNumber } = body as {
+      episodeId?: unknown
+      channelId?: unknown
+      episodeNumber?: unknown
+    }
+    const normalizedEpisodeId =
+      typeof episodeId === 'string' && episodeId.trim().length > 0 ? episodeId : undefined
+    const normalizedChannelId =
+      typeof channelId === 'string' && channelId.trim().length > 0 ? channelId : undefined
+    const normalizedEpisodeNumber =
+      typeof episodeNumber === 'number' && Number.isInteger(episodeNumber) && episodeNumber > 0
+        ? episodeNumber
+        : undefined
+    const hasEpisodeId = Boolean(normalizedEpisodeId)
     const hasChannelReference =
-      typeof channelId === 'string' &&
-      channelId.trim().length > 0 &&
-      typeof episodeNumber === 'number' &&
-      Number.isInteger(episodeNumber) &&
-      episodeNumber > 0
+      normalizedChannelId !== undefined && normalizedEpisodeNumber !== undefined
 
     if (!hasEpisodeId && !hasChannelReference) {
       return NextResponse.json({ error: 'Invalid episode reference' }, { status: 400 })
@@ -29,9 +49,9 @@ export async function POST(req: NextRequest) {
 
     const adminClient = createAdminClient()
     const episode = await resolveEpisodeReference(adminClient, {
-      episodeId,
-      channelId,
-      episodeNumber,
+      episodeId: normalizedEpisodeId,
+      channelId: normalizedChannelId,
+      episodeNumber: normalizedEpisodeNumber,
     })
 
     if (!episode) {

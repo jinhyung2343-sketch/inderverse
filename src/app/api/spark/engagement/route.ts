@@ -56,13 +56,29 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const { sparkId, action, anonId } = await req.json()
+    let body: unknown
+
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const { sparkId, action, anonId } = body as {
+      sparkId?: unknown
+      action?: unknown
+      anonId?: unknown
+    }
 
     if (typeof sparkId !== 'string' || sparkId.trim().length === 0) {
       return NextResponse.json({ error: 'Invalid spark id' }, { status: 400 })
     }
 
-    if (!['view', 'applause', 'toggle_save'].includes(action)) {
+    if (action !== 'view' && action !== 'applause' && action !== 'toggle_save') {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
 

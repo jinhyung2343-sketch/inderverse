@@ -98,6 +98,38 @@ async function getCreatorNovelRows() {
   return (data ?? []) as ChannelRow[]
 }
 
+async function getCreatorNovelRowById(id: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select(
+      'id, title, description, cover_image_url, age_rating, rating_checklist, is_adult_only, is_comment_enabled, comment_policy_note, status, total_episodes, work_scale, teaser_percentage, is_free_archive, updated_at'
+    )
+    .eq('id', id)
+    .eq('creator_id', user.id)
+    .eq('work_type', 'novel')
+    .maybeSingle()
+
+  if (error) {
+    if (isNovelSchemaUnavailable(error)) {
+      console.warn('Novel schema is not available yet. Run the latest Supabase migrations to enable novel studio.')
+      return null
+    }
+
+    throw new Error(`Failed to load creator novel: ${error.message}`)
+  }
+
+  return data as ChannelRow | null
+}
+
 async function getCurrentCreatorDisplayName() {
   const supabase = await createClient()
   const {
@@ -234,8 +266,7 @@ export async function getCreatorNovelList(): Promise<CreatorNovelListItem[]> {
 }
 
 export async function getCreatorNovelById(id: string): Promise<CreatorNovelRecord | null> {
-  const channels = await getCreatorNovelRows()
-  const channel = channels.find((entry) => entry.id === id)
+  const channel = await getCreatorNovelRowById(id)
 
   if (!channel) {
     return null

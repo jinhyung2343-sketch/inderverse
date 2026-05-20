@@ -106,6 +106,33 @@ async function getCreatorChannelRows() {
   return (data ?? []) as ChannelRow[]
 }
 
+async function getCreatorChannelRowById(id: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select(
+      'id, title, description, cover_image_url, age_rating, rating_checklist, is_adult_only, is_comment_enabled, comment_policy_note, status, total_episodes, work_scale, teaser_percentage, is_free_archive, serialization_days, updated_at'
+    )
+    .eq('id', id)
+    .eq('creator_id', user.id)
+    .eq('work_type', 'webtoon')
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load creator webtoon: ${error.message}`)
+  }
+
+  return data as ChannelRow | null
+}
+
 async function getCurrentCreatorDisplayName() {
   const supabase = await createClient()
   const {
@@ -302,8 +329,7 @@ export async function getCreatorWebtoonList(): Promise<CreatorWebtoonListItem[]>
 }
 
 export async function getCreatorWebtoonById(id: string): Promise<CreatorWebtoonRecord | null> {
-  const channels = await getCreatorChannelRows()
-  const channel = channels.find((entry) => entry.id === id)
+  const channel = await getCreatorChannelRowById(id)
 
   if (!channel) {
     return null

@@ -144,26 +144,6 @@ export function ForgotPasswordPageClient({
       })
     }
 
-    const { error: existingPasswordError } = await supabase.auth.signInWithPassword({
-      email: requestedEmail,
-      password,
-    })
-
-    if (!existingPasswordError) {
-      setIsSubmitting(false)
-      setErrorMessage('')
-      setMessage('입력한 비밀번호가 기존 비밀번호와 일치합니다. 비밀번호 변경 없이 로그인합니다.')
-      replaceAfterAuth(redirectPath, 900)
-      return
-    }
-
-    if (verifyData.session) {
-      await supabase.auth.setSession({
-        access_token: verifyData.session.access_token,
-        refresh_token: verifyData.session.refresh_token,
-      })
-    }
-
     const { error: updateError } = await supabase.auth.updateUser({
       password,
       nonce: trimmedCode,

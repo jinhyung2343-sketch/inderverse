@@ -17,7 +17,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Login required to save artworks' }, { status: 401 })
     }
 
-    const { artworkId } = await req.json()
+    let body: unknown
+
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const { artworkId } = body as { artworkId?: unknown }
 
     if (typeof artworkId !== 'string' || artworkId.trim().length === 0) {
       return NextResponse.json({ error: 'Invalid artwork id' }, { status: 400 })

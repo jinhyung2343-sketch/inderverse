@@ -71,9 +71,10 @@ export function ResetPasswordPageClient({
       const code = searchParams.get('code')
       const accessToken = readHashParam('access_token')
       const refreshToken = readHashParam('refresh_token')
+      let sessionUserId: string | null = null
 
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (error) {
           if (isMounted) {
@@ -82,8 +83,10 @@ export function ResetPasswordPageClient({
           }
           return
         }
+
+        sessionUserId = data.session?.user.id ?? null
       } else if (accessToken && refreshToken) {
-        const { error } = await supabase.auth.setSession({
+        const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         })
@@ -95,6 +98,8 @@ export function ResetPasswordPageClient({
           }
           return
         }
+
+        sessionUserId = data.session?.user.id ?? null
       }
 
       const {
@@ -112,11 +117,7 @@ export function ResetPasswordPageClient({
         return
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session || session.user.id !== user.id) {
+      if (!sessionUserId || sessionUserId !== user.id) {
         setStatusMessage('')
         setErrorMessage('재설정 세션을 찾지 못했습니다. 메일의 재설정 링크로 다시 들어와 주세요.')
         return
