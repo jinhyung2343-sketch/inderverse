@@ -55,16 +55,26 @@ export function SignInPageClient({
     setErrorMessage('')
     setNeedsEmailVerification(false)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    })
+    let signInError: { message: string } | null = null
 
-    if (error) {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      })
+
+      signInError = error
+    } catch {
       setIsSubmitting(false)
-      setNeedsEmailVerification(error.message.toLowerCase().includes('email not confirmed'))
-      setErrorMessage(getReadableSignInErrorMessage(error.message))
+      setErrorMessage('로그인 요청을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      return
+    }
+
+    if (signInError) {
+      setIsSubmitting(false)
+      setNeedsEmailVerification(signInError.message.toLowerCase().includes('email not confirmed'))
+      setErrorMessage(getReadableSignInErrorMessage(signInError.message))
       return
     }
 
