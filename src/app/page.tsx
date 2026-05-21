@@ -29,7 +29,7 @@ export default function LandingPage() {
         style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
       >
         <Link
-          href="/join-prompt?next=%2Fmain&force=1"
+          href="/join-prompt?next=%2Fmain"
           prefetch={false}
           className="group relative inline-flex items-center justify-center px-12 py-4 font-medium text-white transition-all duration-700 ease-out"
         >
