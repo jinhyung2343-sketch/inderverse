@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server'
+import {
+  AccountGroupsSchemaUnavailableError,
+  detachAccountGroupMembershipsForWithdrawal,
+} from '@/lib/server/account-groups'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -25,7 +29,15 @@ export async function POST() {
     )
   }
 
+  try {
+    await detachAccountGroupMembershipsForWithdrawal(user.id)
+  } catch (error) {
+    if (!(error instanceof AccountGroupsSchemaUnavailableError)) {
+      console.warn('Failed to clean withdrawn account group memberships:', error)
+    }
+  }
+
   await supabase.auth.signOut()
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, withdrawnUserId: user.id })
 }

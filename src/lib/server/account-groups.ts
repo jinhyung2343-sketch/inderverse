@@ -190,6 +190,23 @@ export async function ensureViewerAccountGroup(userId: string) {
   } satisfies ViewerAccountGroup
 }
 
+export async function detachAccountGroupMembershipsForWithdrawal(userId: string) {
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('account_group_members')
+    .update({ status: 'removed' })
+    .eq('user_id', userId)
+    .eq('status', 'active')
+
+  if (error) {
+    if (isSchemaUnavailableError(error.message)) {
+      throw new AccountGroupsSchemaUnavailableError()
+    }
+
+    throw new Error(error.message || '계정 그룹 연결을 정리하지 못했습니다.')
+  }
+}
+
 export async function recordAccountSwitch({
   fromUserId,
   metadata,

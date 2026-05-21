@@ -243,11 +243,20 @@ export function SettingsPageClient({
       const response = await fetch('/api/auth/withdrawal', {
         method: 'POST',
       })
-      const result = await response.json().catch(() => null) as { error?: string } | null
+      const result = await response.json().catch(() => null) as {
+        error?: string
+        withdrawnUserId?: string
+      } | null
 
       if (!response.ok) {
         setWithdrawalError(result?.error ?? '회원 탈퇴를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.')
         return
+      }
+
+      const withdrawnUserId = result?.withdrawnUserId ?? user?.id ?? resolvedUserId
+
+      if (withdrawnUserId) {
+        await forgetAccount(withdrawnUserId)
       }
 
       await signOut()
@@ -257,7 +266,7 @@ export function SettingsPageClient({
     } finally {
       setIsWithdrawing(false)
     }
-  }, [isWithdrawing, router, signOut])
+  }, [forgetAccount, isWithdrawing, resolvedUserId, router, signOut, user?.id])
 
   const closeConfirmDialog = useCallback(() => {
     if (!isSigningOut && !isWithdrawing) {
