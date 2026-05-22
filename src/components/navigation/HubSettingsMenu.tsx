@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { getForcedJoinPromptHref } from '@/lib/guest-policy'
 import { useAuthStore } from '@/stores/auth'
 import type { Database } from '@/lib/supabase/types'
 
@@ -418,7 +419,7 @@ export function SettingsPageClient({
               </p>
             </div>
             <Link
-              href="/join-prompt?next=%2Fmain%2Fsettings"
+              href={getForcedJoinPromptHref('/main/settings')}
               className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10"
             >
               계정 추가

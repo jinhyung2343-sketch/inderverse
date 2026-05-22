@@ -39,7 +39,11 @@ yarn-error.log*
 
 # vercel
 .vercel
+.vercel-cache/
 .vercel-home/
+
+# local audit artifacts
+inderverse_audit_*.txt
 
 # typescript
 *.tsbuildinfo

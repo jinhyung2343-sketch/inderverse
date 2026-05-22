@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useReducer, useState } from 'react'
 import type { ArtworkEpisode } from '@/lib/explore'
+import { formatInderium } from '@/lib/billing'
 import { useAuthStore } from '@/stores/auth'
 import {
   getEffectiveEpisodeAccess,
@@ -19,6 +21,7 @@ export function EpisodeAccessPanel({
   artworkId: string
   episode: ArtworkEpisode
 }) {
+  const router = useRouter()
   const [, forceRender] = useReducer((value: number) => value + 1, 0)
   const [isPending, setIsPending] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -49,6 +52,52 @@ export function EpisodeAccessPanel({
   function handleLocalSubscriberPreview() {
     unlockEpisodeLocally(scope, artworkId, episode.id)
     setActionMessage('구독자 접근권한으로 회차를 열었습니다.')
+  }
+
+  async function handleInderiumPurchase() {
+    if (!user) {
+      setActionMessage(LOGIN_REQUIRED_MESSAGE)
+      return
+    }
+
+    if (!episode.backendEpisodeId) {
+      setActionMessage('이 회차는 아직 인더륨 구매 장부와 연결되지 않았습니다.')
+      return
+    }
+
+    setIsPending(true)
+    setActionMessage(null)
+
+    try {
+      const response = await fetch('/api/coins/purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ episodeId: episode.backendEpisodeId }),
+      })
+      const result = await response.json().catch(() => null) as { error?: string; message?: string } | null
+
+      if (!response.ok) {
+        if (result?.error === 'Insufficient balance') {
+          setActionMessage('인더륨 잔액이 부족합니다. 스토어에서 로컬 충전 후 다시 시도해 주세요.')
+          return
+        }
+
+        setActionMessage(result?.error ?? '인더륨 구매를 완료하지 못했습니다.')
+        return
+      }
+
+      unlockEpisodeLocally(scope, artworkId, episode.id)
+      setActionMessage(
+        result?.message === 'Already purchased'
+          ? '이미 소장한 회차입니다.'
+          : '인더륨으로 회차를 소장했습니다.'
+      )
+      router.refresh()
+    } finally {
+      setIsPending(false)
+    }
   }
 
   const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
@@ -113,7 +162,7 @@ export function EpisodeAccessPanel({
         <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">Episode Locked</p>
         <h2 className="mt-3 text-3xl font-black tracking-tight">이 회차는 구독자 공개입니다</h2>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-          작가가 정한 맛보기 구간을 지난 회차입니다. 구독자는 이어서 읽을 수 있고, 비구독자는 구독 안내로 이동합니다.
+          작가가 정한 맛보기 구간을 지난 회차입니다. 구독자는 바로 읽을 수 있고, 원할 때는 인더륨으로 개별 소장할 수 있습니다.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
@@ -127,6 +176,16 @@ export function EpisodeAccessPanel({
           <Link href="/main/store" className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10">
             구독 안내 보기
           </Link>
+          {episode.backendEpisodeId && episode.coinPrice && episode.coinPrice > 0 ? (
+            <button
+              type="button"
+              onClick={handleInderiumPurchase}
+              disabled={isPending}
+              className="rounded-full border border-amber-300/25 bg-amber-500/15 px-5 py-3 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isPending ? '처리 중...' : `${formatInderium(episode.coinPrice)}으로 소장`}
+            </button>
+          ) : null}
           {isSubscribed ? (
             <button
               type="button"

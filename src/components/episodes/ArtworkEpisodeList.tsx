@@ -121,6 +121,12 @@ export function ArtworkEpisodeList({
                     >
                       {pendingEpisodeId === episode.id ? '확인 중...' : user ? '구독하고 보기' : '로그인하고 구독'}
                     </button>
+                    <Link
+                      href={href}
+                      className="ml-2 inline-flex rounded-full border border-amber-300/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-100 transition hover:bg-amber-500/15"
+                    >
+                      인더륨 소장 보기
+                    </Link>
                   </div>
                 ) : null}
                 {feedback?.episodeId === episode.id ? (

@@ -35,6 +35,10 @@ export function getJoinPromptHref(nextPath: string) {
   return `/join-prompt?next=${encodeURIComponent(sanitizeInternalPath(nextPath))}`
 }
 
+export function getForcedJoinPromptHref(nextPath: string) {
+  return `${getJoinPromptHref(nextPath)}&force=1`
+}
+
 function getSearchParams(search: string) {
   return new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
 }

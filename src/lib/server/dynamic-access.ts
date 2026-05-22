@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 export type DynamicAccessReason =
   | 'free_archive'
   | 'teaser'
+  | 'purchased'
   | 'subscriber'
   | 'subscription_required'
   | 'not_published'

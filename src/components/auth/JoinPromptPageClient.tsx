@@ -127,7 +127,7 @@ export function JoinPromptPageClient({
             {initialAuth?.isLoggedIn || storedAccount ? '다른 계정으로 로그인' : '로그인'}
           </Link>
 
-          {!initialAuth?.isLoggedIn && storedAccount ? (
+          {initialAuth?.isLoggedIn || storedAccount ? (
             <Link
               href={signUpHref}
               className="flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 py-4 font-medium text-zinc-200 transition-colors hover:scale-[1.02] hover:bg-white/10 active:scale-[0.98]"

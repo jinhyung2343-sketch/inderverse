@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   canGuestOpenMainMenu,
+  getForcedJoinPromptHref,
   getJoinPromptHref,
   getRouteAccessDecision,
   sanitizeInternalPath,
@@ -23,6 +24,7 @@ test('join prompt next paths are normalized to internal routes', () => {
   assert.equal(sanitizeInternalPath('//evil.example/main'), '/main')
   assert.equal(sanitizeInternalPath('https://evil.example/main'), '/main')
   assert.equal(getJoinPromptHref('/main/store?tab=charge'), '/join-prompt?next=%2Fmain%2Fstore%3Ftab%3Dcharge')
+  assert.equal(getForcedJoinPromptHref('/main/settings'), '/join-prompt?next=%2Fmain%2Fsettings&force=1')
 })
 
 test('guests can open stable landing pages and are redirected from account-bound actions', () => {

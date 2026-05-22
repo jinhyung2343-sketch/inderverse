@@ -50,6 +50,7 @@ type EpisodeRow = Pick<
   | 'episode_number'
   | 'title'
   | 'body_text'
+  | 'coin_price'
   | 'status'
   | 'published_at'
   | 'is_adult_only'
@@ -315,6 +316,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
         title: episode.title,
         accessState: access.accessState,
         accessLabel: access.accessLabel,
+        coinPrice: episode.coin_price,
         preview:
           bundle.channel.work_type === 'novel'
             ? buildNovelEpisodePreview(episode.body_text?.trim() || '', episode.title)
@@ -473,7 +475,7 @@ async function loadPublicEpisodes({
   let episodeQuery = admin
     .from('episodes')
     .select(
-      'id, channel_id, episode_number, title, body_text, status, published_at, is_adult_only'
+      'id, channel_id, episode_number, title, body_text, coin_price, status, published_at, is_adult_only'
     )
     .in('channel_id', channelIds)
     .order('episode_number', { ascending: true })
@@ -497,7 +499,7 @@ async function loadPublicEpisodes({
   let fallbackQuery = admin
     .from('episodes')
     .select(
-      'id, channel_id, episode_number, title, status, published_at, is_adult_only'
+      'id, channel_id, episode_number, title, coin_price, status, published_at, is_adult_only'
     )
     .in('channel_id', channelIds)
     .order('episode_number', { ascending: true })

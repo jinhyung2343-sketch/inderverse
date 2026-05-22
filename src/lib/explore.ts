@@ -9,6 +9,7 @@ export interface ArtworkEpisode {
   title: string
   accessState: EpisodeAccessState
   accessLabel: string
+  coinPrice?: number
   preview: string
   body: string[]
   imageUrls?: string[]

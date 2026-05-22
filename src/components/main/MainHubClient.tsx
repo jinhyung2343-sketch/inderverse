@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { HubSettingsButton } from '@/components/navigation/HubSettingsMenu';
 import { PageBackLink } from '@/components/navigation/PageBackLink';
-import { BRAND } from '@/lib/brand';
 import { canGuestOpenMainMenu, getJoinPromptHref, LOGIN_REQUIRED_MESSAGE } from '@/lib/guest-policy';
 import { useAuthStore } from '@/stores/auth';
 import type { Database } from '@/lib/supabase/types';
@@ -26,65 +25,58 @@ const MENUS = [
   {
     id: 'explore',
     title: '작품보기',
-    description: '작품과 작가 채널을 함께 발견하는 곳',
     path: '/main/explore',
-    ambientColor: 'bg-indigo-500', // 블루/퍼플
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(99,102,241,0.2)]',
-    borderColor: 'group-hover:border-indigo-500/30'
+    wash: 'from-violet-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-violet-300',
+    text: 'group-hover:text-violet-100',
   },
   {
     id: 'creators',
     title: '작가 채널',
-    description: '마음에 드는 작가의 세계를 따라가기',
     path: '/main/explore?view=creators',
-    ambientColor: 'bg-violet-500',
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(139,92,246,0.2)]',
-    borderColor: 'group-hover:border-violet-500/30'
+    wash: 'from-fuchsia-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-fuchsia-300',
+    text: 'group-hover:text-fuchsia-100',
   },
   {
     id: 'spark',
     title: 'Spark',
-    description: '짧고 날카로운 숏폼 만평',
     path: '/main/spark',
-    ambientColor: 'bg-sky-500',
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(14,165,233,0.2)]',
-    borderColor: 'group-hover:border-sky-500/30'
+    wash: 'from-sky-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-sky-300',
+    text: 'group-hover:text-sky-100',
   },
   {
     id: 'studio',
     title: 'Bottega',
-    description: '작가 등록 후 창작 공방을 여는 곳',
     path: '/main/studio',
-    ambientColor: 'bg-emerald-500', // 그린
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]',
-    borderColor: 'group-hover:border-emerald-500/30'
+    wash: 'from-emerald-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-emerald-300',
+    text: 'group-hover:text-emerald-100',
   },
   {
     id: 'community',
     title: '커뮤니티',
-    description: '함께 모여 세계를 나누는 광장',
     path: '/community',
-    ambientColor: 'bg-cyan-500',
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(6,182,212,0.2)]',
-    borderColor: 'group-hover:border-cyan-500/30'
+    wash: 'from-cyan-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-cyan-300',
+    text: 'group-hover:text-cyan-100',
   },
   {
     id: 'library',
     title: '라이브러리',
-    description: '내 흔적이 고스란히 담긴 서재',
     path: '/main/library',
-    ambientColor: 'bg-rose-500', // 로즈
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(244,63,94,0.2)]',
-    borderColor: 'group-hover:border-rose-500/30'
+    wash: 'from-rose-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-rose-300',
+    text: 'group-hover:text-rose-100',
   },
   {
     id: 'store',
-    title: '충전하기',
-    description: '이야기를 멈추지 않는 원동력',
+    title: '구독과 인더륨',
     path: '/main/store',
-    ambientColor: 'bg-amber-500', // 골드
-    glowColor: 'group-hover:shadow-[0_0_40px_rgba(245,158,11,0.2)]',
-    borderColor: 'group-hover:border-amber-500/30'
+    wash: 'from-amber-500/20 via-white/[0.03] to-transparent',
+    dot: 'bg-amber-300',
+    text: 'group-hover:text-amber-100',
   }
 ];
 
@@ -152,11 +144,10 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
           ...menu,
           id: 'creator-operations',
           title: 'My Bottega',
-          description: '선택한 장르의 작업실과 공개 상태 관리하기',
           path: '/main/studio',
-          ambientColor: 'bg-emerald-500',
-          glowColor: 'group-hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]',
-          borderColor: 'group-hover:border-emerald-500/30'
+          wash: 'from-emerald-500/20 via-white/[0.03] to-transparent',
+          dot: 'bg-emerald-300',
+          text: 'group-hover:text-emerald-100',
         }]
         : [];
     }
@@ -166,49 +157,39 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
         ? []
         : [{
           ...menu,
-          title: 'Bottega 열기',
-          description: '작가 등록 후 장르를 고르고 공방 시작하기'
+          title: 'Bottega',
         }];
     }
 
     return [menu];
   });
-  const activeAmbient = menus.find(m => m.id === hoveredMenu)?.ambientColor || 'bg-white';
   const displayNickname = resolvedIsLoggedIn ? resolvedUserNickname : 'Guest';
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#050505] overflow-hidden selection:bg-white/30 text-white">
-      
-      {/* 
-        Background Ambient Light
-        마우스 호버에 따라 컬러가 부드럽게 전환됨
-      */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-10 transition-colors duration-1000">
-        <div className={`w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] rounded-full blur-[120px] transition-all duration-1000 ease-out 
-          ${hoveredMenu ? `scale-110 opacity-30 ${activeAmbient}` : 'opacity-0 bg-white/5'}
-        `} />
-      </div>
+    <main className="relative flex min-h-screen flex-col overflow-hidden bg-[#050608] text-white selection:bg-white/30">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(125deg,rgba(255,255,255,0.09),rgba(255,255,255,0.01)_34%,rgba(20,184,166,0.08)_64%,rgba(244,114,182,0.06))]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.13] [background-image:linear-gradient(rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:56px_56px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
 
       {/* Header */}
-      <header className="absolute top-0 left-0 w-full p-6 md:p-10 z-30 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-6">
-          {/* 뒤로가기 버튼 */}
+      <header className="absolute left-0 top-0 z-30 flex w-full items-center justify-between gap-3 p-5 md:p-10">
+        <div className="flex min-w-0 items-center gap-3 md:gap-5">
           <PageBackLink href="/" />
-          
-          <div className="flex items-center gap-4">
-            <span className="text-xl font-black tracking-tighter">{BRAND.name}</span>
-            
-            {/* 접속 상태 / 닉네임 */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5 backdrop-blur-sm">
-              {!resolvedIsLoading ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-zinc-400 tracking-wider">접속중 - <span className="text-zinc-200 font-medium">{displayNickname}</span></span>
-                </>
-              ) : (
-                <span className="text-xs text-zinc-500">인증 확인중...</span>
-              )}
-            </div>
+
+          <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-md md:px-4">
+            {!resolvedIsLoading ? (
+              <>
+                <span className={`h-2 w-2 shrink-0 rounded-full ${resolvedIsLoggedIn ? 'bg-emerald-300' : 'bg-zinc-400'}`} />
+                <span className="truncate text-xs font-semibold text-zinc-100 md:text-sm">
+                  {displayNickname}
+                </span>
+                <span className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 sm:inline">
+                  {resolvedIsLoggedIn ? 'Online' : 'Guest'}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-zinc-500">인증 확인중...</span>
+            )}
           </div>
         </div>
 
@@ -250,15 +231,27 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
         </div>
       ) : null}
 
-      {/* Main Content (Cards Grid) */}
-      <div className="z-20 flex flex-1 flex-col items-center justify-center px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-4xl mt-20">
+      <section className="relative z-20 flex flex-1 items-center px-5 py-28 md:px-10 md:py-32">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="mb-10 flex flex-col gap-4 md:mb-14 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.42em] text-zinc-500">Hub</p>
+              <h1 className="mt-4 text-5xl font-black uppercase leading-none tracking-normal text-white md:text-7xl">
+                Inderverse
+              </h1>
+            </div>
+            <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-zinc-500">
+              <span className="h-px w-10 bg-white/20" />
+              <span>{resolvedIsLoggedIn ? 'Member' : 'Guest'}</span>
+            </div>
+          </div>
+
           {resolvedGuardianConsentStatus === 'pending' ? (
-            <div className="md:col-span-2 rounded-3xl border border-sky-400/20 bg-sky-500/10 p-6">
+            <div className="mb-6 rounded-2xl border border-sky-400/20 bg-sky-500/10 p-5 backdrop-blur-md md:p-6">
               <p className="text-xs uppercase tracking-[0.3em] text-sky-100/70">Guardian Consent Pending</p>
               <h2 className="mt-3 text-2xl font-bold text-white">보호자 동의 확인이 진행 중입니다</h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-sky-50/80">
-                확인이 끝나기 전까지는 충전하기와 Bottega 개설 기능이 잠시 제한됩니다. 현재 상태는 보호자 동의 확인 안내 화면에서 다시 볼 수 있습니다.
+                확인이 끝나기 전까지는 구독·인더륨 결제와 Bottega 개설 기능이 잠시 제한됩니다. 현재 상태는 보호자 동의 확인 안내 화면에서 다시 볼 수 있습니다.
               </p>
               <button
                 onClick={() => router.push('/main/guardian-consent')}
@@ -269,75 +262,77 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
             </div>
           ) : null}
 
-          
-          {menus.map((menu, idx) => {
-            const canOpenMenu = canGuestOpenMainMenu(menu.id) || resolvedIsLoggedIn;
-            const menuClassName = `group relative block h-40 overflow-hidden rounded-3xl p-8 text-left transition-all duration-200 ease-out md:h-56
-              hover:scale-[1.01] active:scale-[0.99]`;
+          <nav className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl md:grid-cols-2 xl:grid-cols-3" aria-label="주요 메뉴">
+            {menus.map((menu, idx) => {
+              const canOpenMenu = canGuestOpenMainMenu(menu.id) || resolvedIsLoggedIn;
+              const isHovered = hoveredMenu === menu.id;
+              const menuClassName = `group relative flex min-h-[132px] flex-col justify-between overflow-hidden bg-[#08090b]/85 p-6 text-left transition-all duration-500 ease-out hover:z-10 hover:scale-[1.015] hover:bg-[#101216]/90 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/70 active:scale-[0.99] md:min-h-[190px] md:p-8`;
+              const menuNumber = String(idx + 1).padStart(2, '0');
+              const accessibleMenuLabel = `${idx + 1}번 ${menu.title}`;
 
-            const menuContent = (
-              <>
-                {/* 카드 배경 및 Glass 효과 */}
-                <div className={`absolute inset-0 rounded-3xl border border-white/10 bg-[#0d0d0d]/60 backdrop-blur-md transition-all duration-200 
-                  ${menu.borderColor} ${menu.glowColor}
-                `} />
-
-                {/* 카드 내부 컨텐츠 */}
-                <div className="relative z-10 flex h-full flex-col justify-between">
-                  <div>
-                    <h2 className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-2xl font-bold text-transparent transition-all group-hover:to-white md:text-3xl">
-                      {menu.title}
-                    </h2>
+              const menuContent = (
+                <>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${menu.wash} opacity-0 transition-all duration-500 ease-out group-hover:opacity-100 ${isHovered ? 'opacity-100' : ''}`} />
+                  <div className="relative z-10 flex justify-end" aria-hidden="true">
+                    <span className={`h-2 w-2 rounded-full ${menu.dot} opacity-70 transition-all duration-500 ease-out group-hover:scale-125 group-hover:opacity-100`} />
                   </div>
-                  
-                  <div className="flex items-end justify-between">
-                    <p className="text-sm font-light tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-300 md:text-base">
-                      {menu.description}
-                    </p>
-                    
-                    {/* 우측 하단 화살표 아이콘 */}
-                    <div className="flex h-8 w-8 translate-x-2 items-center justify-center rounded-full border border-white/10 bg-white/5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                      </svg>
+                  <div className="relative z-10 flex items-end justify-between gap-4">
+                    <div className="flex min-w-0 items-baseline gap-3 md:gap-4" aria-hidden="true">
+                      <span className="shrink-0 text-xs font-semibold tracking-[0.2em] text-zinc-500 transition-colors duration-500 ease-out group-hover:text-zinc-300 md:text-sm">
+                        {menuNumber}
+                      </span>
+                      <h2 className={`break-keep text-3xl font-black leading-none tracking-normal text-zinc-100 transition-all duration-500 ease-out ${menu.text} group-hover:translate-x-1 md:text-5xl`}>
+                        {menu.title}
+                      </h2>
                     </div>
+                    <span className="mb-1 flex h-9 w-9 shrink-0 translate-x-2 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-300 opacity-0 transition-all duration-500 ease-out group-hover:translate-x-0 group-hover:opacity-100" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </span>
                   </div>
-                </div>
-              </>
-            );
+                </>
+              );
 
-            return canOpenMenu ? (
-              <Link
-                key={menu.id}
-                href={menu.path}
-                prefetch
-                onMouseEnter={() => {
-                  setHoveredMenu(menu.id);
-                  router.prefetch(menu.path);
-                }}
-                onFocus={() => router.prefetch(menu.path)}
-                onMouseLeave={() => setHoveredMenu(null)}
-                className={menuClassName}
-                style={{ animationDelay: `${idx * 0.05}s` }}
-              >
-                {menuContent}
-              </Link>
-            ) : (
-              <button
-                key={menu.id}
-                onClick={() => handleMenuClick(menu.id, menu.path, menu.title)}
-                onMouseEnter={() => setHoveredMenu(menu.id)}
-                onMouseLeave={() => setHoveredMenu(null)}
-                className={menuClassName}
-                style={{ animationDelay: `${idx * 0.05}s` }}
-              >
-                {menuContent}
-              </button>
-            );
-          })}
-          
+              return canOpenMenu ? (
+                <Link
+                  key={menu.id}
+                  href={menu.path}
+                  prefetch
+                  onMouseEnter={() => {
+                    setHoveredMenu(menu.id);
+                    router.prefetch(menu.path);
+                  }}
+                  onFocus={() => {
+                    setHoveredMenu(menu.id);
+                    router.prefetch(menu.path);
+                  }}
+                  onMouseLeave={() => setHoveredMenu(null)}
+                  onBlur={() => setHoveredMenu(null)}
+                  className={menuClassName}
+                  aria-label={accessibleMenuLabel}
+                >
+                  {menuContent}
+                </Link>
+              ) : (
+                <button
+                  key={menu.id}
+                  type="button"
+                  onClick={() => handleMenuClick(menu.id, menu.path, menu.title)}
+                  onMouseEnter={() => setHoveredMenu(menu.id)}
+                  onFocus={() => setHoveredMenu(menu.id)}
+                  onMouseLeave={() => setHoveredMenu(null)}
+                  onBlur={() => setHoveredMenu(null)}
+                  className={menuClassName}
+                  aria-label={accessibleMenuLabel}
+                >
+                  {menuContent}
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </div>
+      </section>
     </main>
   );
 }

@@ -40,6 +40,8 @@ export default async function EpisodeReaderPage({
         accessLabel: accessDecision.allowed
           ? accessDecision.reason === 'subscriber'
             ? '구독 공개'
+            : accessDecision.reason === 'purchased'
+              ? '소장 공개'
             : '맛보기 공개'
           : '구독 필요',
       }
