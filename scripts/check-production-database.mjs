@@ -101,7 +101,15 @@ const checks = [
     run: (supabase) =>
       supabase
         .from('artwork_saves')
-        .select('user_id, artwork_id, artwork_type')
+        .select('user_id, artwork_id')
+        .limit(1),
+  },
+  {
+    name: 'creator revenue settings table',
+    run: (supabase) =>
+      supabase
+        .from('creator_revenue_settings')
+        .select('creator_id, creator_share_pct, min_payout_amount, payout_method, bank_info_encrypted')
         .limit(1),
   },
 ]
