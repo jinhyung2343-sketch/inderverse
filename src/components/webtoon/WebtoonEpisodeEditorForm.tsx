@@ -13,7 +13,6 @@ interface EpisodeFormDraft {
   pricingType: string
   coinPrice: string
   status: string
-  isAdultOnly: boolean
   savedAt: string
 }
 
@@ -44,6 +43,7 @@ export function WebtoonEpisodeEditorForm({
   heading,
   description,
   submitLabel,
+  workTitle,
 }: {
   action: (formData: FormData) => void | Promise<void>
   channelId: string
@@ -52,6 +52,7 @@ export function WebtoonEpisodeEditorForm({
   heading: string
   description: string
   submitLabel: string
+  workTitle?: string
 }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [draftLoaded, setDraftLoaded] = useState(false)
@@ -116,12 +117,6 @@ export function WebtoonEpisodeEditorForm({
         }
       })
 
-      const adultOnlyInput = form.elements.namedItem('isAdultOnly')
-
-      if (adultOnlyInput instanceof HTMLInputElement && typeof draft.isAdultOnly === 'boolean') {
-        adultOnlyInput.checked = draft.isAdultOnly
-      }
-
       window.setTimeout(() => {
         setLastSavedAt(typeof draft.savedAt === 'string' ? draft.savedAt : null)
         setDraftRestored(true)
@@ -157,7 +152,6 @@ export function WebtoonEpisodeEditorForm({
         pricingType: String(formData.get('pricingType') ?? 'free'),
         coinPrice: String(formData.get('coinPrice') ?? ''),
         status: String(formData.get('status') ?? 'draft'),
-        isAdultOnly: formData.get('isAdultOnly') === 'on',
         savedAt,
       }
 
@@ -199,20 +193,27 @@ export function WebtoonEpisodeEditorForm({
       onChange={resumeAutoSave}
       className="grid gap-6"
     >
-      <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
-        <div className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Episode Editor</p>
-          <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">{heading}</h1>
-          <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">{description}</p>
+      <section className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Episode Upload</p>
+            <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">{heading}</h1>
+            <p className="max-w-3xl text-sm leading-6 text-zinc-400">{description}</p>
+          </div>
+          {workTitle ? (
+            <div className="w-fit rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold text-zinc-300">
+              {workTitle}
+            </div>
+          ) : null}
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.05fr_1.95fr]">
+      <section className="grid gap-6 lg:grid-cols-[0.82fr_2.18fr]">
         <input type="hidden" name="pricingType" value="paid" />
         <input type="hidden" name="coinPrice" value="0" />
         <div className="space-y-6">
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-bold text-white">회차 정보</h2>
+          <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
+            <h2 className="text-lg font-bold text-white">회차 기본값</h2>
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2 text-sm text-zinc-300">
                 <span>회차 제목</span>
@@ -238,7 +239,7 @@ export function WebtoonEpisodeEditorForm({
               </label>
 
               <label className="grid gap-2 text-sm text-zinc-300">
-                <span>회차 상태</span>
+                <span>저장 상태</span>
                 <select
                   name="status"
                   defaultValue={initialValue?.status ?? 'draft'}
@@ -251,20 +252,10 @@ export function WebtoonEpisodeEditorForm({
                   ))}
                 </select>
               </label>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-                <input
-                  type="checkbox"
-                  name="isAdultOnly"
-                  defaultChecked={initialValue?.isAdultOnly ?? false}
-                  className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
-                />
-                <span>이 회차는 성인 인증이 필요합니다.</span>
-              </label>
             </div>
           </div>
 
-          <div className="rounded-[32px] border border-emerald-300/15 bg-emerald-500/5 p-6 text-sm leading-7 text-zinc-300">
+          <div className="rounded-[24px] border border-emerald-300/15 bg-emerald-500/5 p-5 text-sm leading-6 text-zinc-300">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="font-semibold text-emerald-100">로컬 자동저장</p>
@@ -292,8 +283,8 @@ export function WebtoonEpisodeEditorForm({
             </div>
           </div>
 
-          <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
-            공개 상태의 회차는 최소 1장의 이미지가 필요합니다. 이미지는 Supabase Storage에 업로드되고, 저장하면 정렬 순서와 URL이 `episode_images`에 반영됩니다.
+          <div className="rounded-[24px] border border-sky-400/20 bg-sky-500/5 p-5 text-sm leading-6 text-zinc-300">
+            작품 등급과 공개 기준은 이전 단계에서 정한 값을 따릅니다. 이 화면에서는 이번 회차의 제목, 번호, 원고 이미지만 정리합니다.
           </div>
 
           <button
@@ -304,7 +295,7 @@ export function WebtoonEpisodeEditorForm({
           </button>
         </div>
 
-        <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+        <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:p-6">
           <h2 className="text-xl font-bold text-white">회차 이미지</h2>
           <div className="mt-5">
             <EpisodeImagesField

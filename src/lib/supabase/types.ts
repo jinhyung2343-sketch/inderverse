@@ -583,6 +583,50 @@ export type Database = {
           },
         ]
       }
+      creator_revenue_settings: {
+        Row: {
+          bank_info_encrypted: string | null
+          created_at: string
+          creator_id: string
+          creator_share_pct: number
+          id: string
+          min_payout_amount: number
+          payout_method: Database["public"]["Enums"]["payout_method"] | null
+          platform_share_pct: number | null
+          updated_at: string
+        }
+        Insert: {
+          bank_info_encrypted?: string | null
+          created_at?: string
+          creator_id: string
+          creator_share_pct?: number
+          id?: string
+          min_payout_amount?: number
+          payout_method?: Database["public"]["Enums"]["payout_method"] | null
+          platform_share_pct?: number | null
+          updated_at?: string
+        }
+        Update: {
+          bank_info_encrypted?: string | null
+          created_at?: string
+          creator_id?: string
+          creator_share_pct?: number
+          id?: string
+          min_payout_amount?: number
+          payout_method?: Database["public"]["Enums"]["payout_method"] | null
+          platform_share_pct?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_revenue_settings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       minor_guardian_consents: {
         Row: {
           consent_version: string

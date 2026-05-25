@@ -3,13 +3,11 @@
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import type { WebtoonChannelActionState } from '@/app/main/studio/channels/actions'
-import { BRAND } from '@/lib/brand'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import { categories } from '@/lib/explore'
 import type { CreatorWebtoonRecord } from '@/lib/webtoon'
 import {
   FLEXIBLE_SERIALIZATION_LABEL,
-  getPayoutMethodLabel,
   getSerializationDayLabel,
   getWebtoonStatusLabel,
   getWorkScaleLabel,
@@ -19,7 +17,6 @@ import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
 const weekdayOptions = [0, 1, 2, 3, 4, 5, 6] as const
 const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
-const payoutMethodOptions = ['bank_transfer', 'paypal'] as const
 const workScaleOptions = ['short', 'medium', 'long'] as const
 const initialActionState: WebtoonChannelActionState = { error: null }
 
@@ -291,89 +288,6 @@ export function WebtoonEditorForm({
                 <p className="mt-1 text-zinc-400">체크하면 맛보기 비율과 무관하게 모든 공개 회차를 누구나 볼 수 있습니다.</p>
               </div>
             </div>
-          </div>
-
-          <div className="rounded-[32px] border border-emerald-400/20 bg-emerald-500/5 p-6">
-            <h2 className="text-xl font-bold text-white">정산 설정</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              인더버스의 일반 정산 분배는 작가 {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%로 고정됩니다. 계좌정보는 서버에서 암호화해 저장하고, 화면에서는 기본적으로 마스킹된 상태로 다룹니다.
-            </p>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>정산 분배</span>
-                <input type="hidden" name="creatorSharePct" value={String(BRAND.creatorSharePct)} />
-                <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white">
-                  작가 {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%
-                </div>
-              </label>
-
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>최소 정산 금액 (원)</span>
-                <input
-                  type="number"
-                  min={1000}
-                  step={1000}
-                  name="minPayoutAmount"
-                  defaultValue={initialValue?.revenueSettings.minPayoutAmount ?? 10000}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                />
-              </label>
-            </div>
-
-            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
-              <span>정산 방식</span>
-              <select
-                name="payoutMethod"
-                defaultValue={initialValue?.revenueSettings.payoutMethod ?? ''}
-                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-              >
-                <option value="">아직 미정</option>
-                {payoutMethodOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {getPayoutMethodLabel(option)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>은행명</span>
-                <input
-                  name="bankName"
-                  defaultValue={initialValue?.revenueSettings.bankInfo.bankName ?? ''}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="국민은행"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>예금주</span>
-                <input
-                  name="accountHolder"
-                  defaultValue={initialValue?.revenueSettings.bankInfo.accountHolder ?? ''}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="홍길동"
-                />
-              </label>
-            </div>
-
-            <label className="mt-4 grid gap-2 text-sm text-zinc-300">
-              <span>계좌번호</span>
-              <input
-                name="accountNumber"
-                defaultValue={initialValue?.revenueSettings.bankInfo.accountNumber ?? ''}
-                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                placeholder="12345678901234"
-              />
-            </label>
-
-            {initialValue?.revenueSettings.bankInfo.maskedSummary ? (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
-                현재 저장된 계좌 요약: <span className="text-white">{initialValue.revenueSettings.bankInfo.maskedSummary}</span>
-              </div>
-            ) : null}
           </div>
 
           <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">

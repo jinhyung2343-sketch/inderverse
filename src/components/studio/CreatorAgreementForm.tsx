@@ -9,10 +9,13 @@ import {
   requiredCreatorAgreementConsentItems,
 } from '@/lib/creator-agreement'
 import { acceptCreatorAgreement } from '@/app/main/studio/actions'
+import { BRAND } from '@/lib/brand'
+import { getPayoutMethodLabel } from '@/lib/webtoon'
 
 const initialCreatorAgreementState = {
   error: null,
 }
+const payoutMethodOptions = ['bank_transfer', 'paypal'] as const
 
 function getInitialConsentValues() {
   return requiredCreatorAgreementConsentItems.reduce<Record<string, boolean>>((acc, item) => {
@@ -178,19 +181,101 @@ export function CreatorAgreementForm({
             </p>
           ) : null}
 
-          {state.error ? (
-            <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              {state.error}
-            </p>
-          ) : null}
+        </section>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <SubmitButton canSubmit={allChecked} />
-            <p className="text-sm leading-6 text-zinc-500">
-              동의 기록은 Bottega 개설 단계에서만 저장되며, 일반 회원가입 약관과는 별도로 관리됩니다.
+        <section className="grid gap-5 rounded-[32px] border border-emerald-400/20 bg-emerald-500/5 p-6">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Settlement Profile</p>
+            <h2 className="text-2xl font-bold tracking-tight text-white">작가 정산 설정</h2>
+            <p className="text-sm leading-6 text-zinc-300">
+              정산 설정은 작품마다 반복 입력하지 않고 작가 계정에 한 번 저장됩니다. 일반 정산 분배는 작가{' '}
+              {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%로 고정됩니다.
             </p>
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="grid gap-2 text-sm text-zinc-300">
+              <span>정산 분배</span>
+              <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white">
+                작가 {BRAND.creatorSharePct}% / 회사 {BRAND.platformSharePct}%
+              </div>
+            </label>
+
+            <label className="grid gap-2 text-sm text-zinc-300">
+              <span>최소 정산 금액 (원)</span>
+              <input
+                type="number"
+                min={1000}
+                step={1000}
+                name="minPayoutAmount"
+                defaultValue={10000}
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+              />
+            </label>
+          </div>
+
+          <label className="grid gap-2 text-sm text-zinc-300">
+            <span>정산 방식</span>
+            <select
+              name="payoutMethod"
+              defaultValue=""
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+            >
+              <option value="">아직 미정</option>
+              {payoutMethodOptions.map((option) => (
+                <option key={option} value={option}>
+                  {getPayoutMethodLabel(option)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="grid gap-2 text-sm text-zinc-300">
+              <span>은행명</span>
+              <input
+                name="bankName"
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                placeholder="국민은행"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm text-zinc-300">
+              <span>예금주</span>
+              <input
+                name="accountHolder"
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                placeholder="홍길동"
+              />
+            </label>
+          </div>
+
+          <label className="grid gap-2 text-sm text-zinc-300">
+            <span>계좌번호</span>
+            <input
+              name="accountNumber"
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+              placeholder="12345678901234"
+            />
+          </label>
+
+          <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs leading-5 text-zinc-400">
+            계좌 정보는 서버에서 암호화해 저장합니다. 아직 정산 정보를 확정하지 못했다면 방식은 미정으로 두고 Bottega를 먼저 열 수 있습니다.
+          </p>
         </section>
+
+        {state.error ? (
+          <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {state.error}
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <SubmitButton canSubmit={allChecked} />
+          <p className="text-sm leading-6 text-zinc-500">
+            동의 기록과 작가 정산 설정은 Bottega 개설 단계에서 저장되며, 일반 회원가입 약관과는 별도로 관리됩니다.
+          </p>
+        </div>
       </form>
 
       <PolicyViewerModal document={viewerDocument} onClose={() => setViewerDocument(null)} />

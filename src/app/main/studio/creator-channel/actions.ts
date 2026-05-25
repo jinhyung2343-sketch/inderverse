@@ -243,6 +243,15 @@ export async function cancelCreatorRegistration(
     return { error: '작가 등록 동의 기록을 정리하는 중 문제가 발생했습니다.' }
   }
 
+  const { error: revenueSettingsDeleteError } = await admin
+    .from('creator_revenue_settings')
+    .delete()
+    .eq('creator_id', user.id)
+
+  if (revenueSettingsDeleteError) {
+    return { error: '작가 정산 설정을 정리하는 중 문제가 발생했습니다.' }
+  }
+
   const { error: roleUpdateError } = await admin
     .from('profiles')
     .update({ role: 'reader' })

@@ -47,9 +47,10 @@ export default async function EditWebtoonEpisodePage({
           channelId={id}
           episodeId={episodeId}
           initialValue={episode}
-          heading="회차 수정"
-          description="실제 공개 회차에 필요한 이미지 자산과 가격 정책을 함께 다듬는 단계입니다."
+          heading="회차 원고 수정"
+          description="작품 설정은 유지하고, 이번 회차의 제목과 원고 이미지 순서만 다듬습니다."
           submitLabel="회차 변경 저장"
+          workTitle={webtoon.title}
         />
       </div>
     </main>

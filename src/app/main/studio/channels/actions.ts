@@ -2,7 +2,6 @@
 
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { BRAND } from '@/lib/brand'
 import { getBottegaHref, isReadyBottegaWorkType } from '@/lib/bottega'
 import {
   buildRatingChecklistJson,
@@ -22,7 +21,6 @@ import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
 import { createClient } from '@/lib/supabase/server'
 import type { SparkDraftInput, SparkFormat, SparkPanel, SparkStatus } from '@/lib/spark'
 import { buildSparkMeta, getSparkPanelCount, sanitizeSparkTags } from '@/lib/spark'
@@ -285,12 +283,6 @@ function isWorkScale(value: string): value is 'short' | 'medium' | 'long' {
 
 function isNovelEpisodeStatus(value: string): value is NovelEpisodeStatus {
   return value === 'draft' || value === 'published' || value === 'hidden'
-}
-
-function isPayoutMethod(
-  value: string
-): value is Database['public']['Enums']['payout_method'] {
-  return value === 'bank_transfer' || value === 'paypal'
 }
 
 function parseChannelContentRating(formData: FormData) {
@@ -557,19 +549,6 @@ async function syncChannelTags(channelId: string, category: string, tags: string
   }
 }
 
-async function upsertRevenueSettings(
-  payload: Database['public']['Tables']['revenue_settings']['Insert']
-) {
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('revenue_settings')
-    .upsert(payload, { onConflict: 'channel_id' })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-}
-
 async function uploadOptionalChannelCoverFile({
   channelId,
   file,
@@ -663,12 +642,6 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
   const statusValue = readText(formData, 'status')
   const workScaleValue = readText(formData, 'workScale') || 'medium'
   const teaserPercentage = readInteger(formData, 'teaserPercentage', 10)
-  const creatorSharePct = readInteger(formData, 'creatorSharePct', BRAND.creatorSharePct)
-  const minPayoutAmount = readInteger(formData, 'minPayoutAmount', 10000)
-  const payoutMethodValue = readText(formData, 'payoutMethod')
-  const bankName = readText(formData, 'bankName')
-  const accountHolder = readText(formData, 'accountHolder')
-  const accountNumber = readText(formData, 'accountNumber')
 
   if (!title || !description || !category) {
     throw new Error('필수 항목이 비어 있습니다.')
@@ -686,25 +659,6 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     throw new Error('맛보기 비율은 3%에서 20% 사이여야 합니다.')
   }
 
-  if (creatorSharePct !== BRAND.creatorSharePct) {
-    throw new Error(`작가 정산 비율은 ${BRAND.creatorSharePct}%로 고정되어 있습니다.`)
-  }
-
-  if (minPayoutAmount < 1000) {
-    throw new Error('최소 정산 금액은 1000원 이상이어야 합니다.')
-  }
-
-  if (payoutMethodValue && !isPayoutMethod(payoutMethodValue)) {
-    throw new Error('유효하지 않은 정산 방식입니다.')
-  }
-
-  const payoutMethod = isPayoutMethod(payoutMethodValue) ? payoutMethodValue : null
-  const bankInfo = {
-    bankName,
-    accountHolder,
-    accountNumber,
-  }
-  const bankInfoEncrypted = hasAnyBankInfo(bankInfo) ? encryptBankInfo(bankInfo) : null
   const contentRating = parseChannelContentRating(formData)
 
   return {
@@ -723,17 +677,6 @@ function parseWebtoonDraft(formData: FormData): WebtoonDraftInput {
     serializationDays: readSerializationDays(formData),
     category,
     tags: sanitizeWebtoonTags(readText(formData, 'tags')),
-    revenueSettings: {
-      creatorSharePct,
-      minPayoutAmount,
-      payoutMethod,
-      bankInfo: {
-        bankName,
-        accountHolder,
-        accountNumber,
-      },
-      bankInfoEncrypted,
-    },
   }
 }
 
@@ -896,7 +839,6 @@ function parseWebtoonEpisodeDraft(formData: FormData): WebtoonEpisodeDraftInput 
     episodeNumber,
     pricingType: pricingTypeValue,
     coinPrice,
-    isAdultOnly: readBoolean(formData, 'isAdultOnly'),
     status: statusValue,
     images: parseEpisodeImages(imagesJson, statusValue, pendingEpisodeImageFiles.length),
   }
@@ -919,8 +861,6 @@ export async function createSparkChannel(formData: FormData) {
   if (error || !data) {
     throw new Error(error?.message || '스파크를 만들지 못했습니다.')
   }
-
-  await upsertRevenueSettings({ channel_id: data.id })
 
   const patch: Database['public']['Tables']['channels']['Update'] = {}
 
@@ -1017,14 +957,6 @@ async function createWebtoonChannelMutation(formData: FormData) {
   if (error || !data) {
     throw new Error(error?.message || '연재 툰을 만들지 못했습니다.')
   }
-
-  await upsertRevenueSettings({
-    channel_id: data.id,
-    creator_share_pct: input.revenueSettings.creatorSharePct,
-    min_payout_amount: input.revenueSettings.minPayoutAmount,
-    payout_method: input.revenueSettings.payoutMethod,
-    bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
-  })
 
   await syncChannelTags(data.id, input.category, input.tags)
 
@@ -1150,14 +1082,6 @@ async function updateWebtoonChannelMutation(formData: FormData) {
     throw new Error(error.message)
   }
 
-  await upsertRevenueSettings({
-    channel_id: channelId,
-    creator_share_pct: input.revenueSettings.creatorSharePct,
-    min_payout_amount: input.revenueSettings.minPayoutAmount,
-    payout_method: input.revenueSettings.payoutMethod,
-    bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
-  })
-
   await syncChannelTags(channelId, input.category, input.tags)
 
   if (pendingCoverImageFile) {
@@ -1227,8 +1151,6 @@ export async function createNovelChannel(formData: FormData) {
   if (error || !data) {
     throw new Error(error?.message || '소설을 만들지 못했습니다.')
   }
-
-  await upsertRevenueSettings({ channel_id: data.id })
 
   await syncChannelTags(data.id, input.category, input.tags)
 
@@ -1438,7 +1360,7 @@ export async function createWebtoonEpisode(formData: FormData) {
 
   const { data: channel, error: channelError } = await supabase
     .from('channels')
-    .select('id')
+    .select('id, is_adult_only')
     .eq('id', channelId)
     .eq('creator_id', userId)
     .eq('work_type', 'webtoon')
@@ -1458,7 +1380,7 @@ export async function createWebtoonEpisode(formData: FormData) {
       title: input.title,
       pricing_type: input.pricingType,
       coin_price: input.coinPrice,
-      is_adult_only: input.isAdultOnly,
+      is_adult_only: channel.is_adult_only,
       status: input.status,
       published_at: publishedAt,
     })
@@ -1557,7 +1479,7 @@ export async function updateWebtoonEpisode(formData: FormData) {
 
   const { data: ownedChannel, error: channelError } = await supabase
     .from('channels')
-    .select('id')
+    .select('id, is_adult_only')
     .eq('id', channelId)
     .eq('creator_id', userId)
     .eq('work_type', 'webtoon')
@@ -1593,7 +1515,7 @@ export async function updateWebtoonEpisode(formData: FormData) {
       p_title: input.title,
       p_pricing_type: input.pricingType,
       p_coin_price: input.coinPrice,
-      p_is_adult_only: input.isAdultOnly,
+      p_is_adult_only: ownedChannel.is_adult_only,
       p_status: input.status,
       p_published_at: publishedAt,
       p_images: input.images.map((image) => ({

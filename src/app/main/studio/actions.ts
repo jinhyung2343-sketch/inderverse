@@ -7,6 +7,8 @@ import {
   CREATOR_AGREEMENT_VERSION,
   requiredCreatorAgreementConsentItems,
 } from '@/lib/creator-agreement'
+import { BRAND } from '@/lib/brand'
+import { encryptBankInfo, hasAnyBankInfo } from '@/lib/security/bank-info'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
@@ -20,6 +22,67 @@ type CreatorAgreementActionState = {
 function readUserMetadataText(user: User, key: string) {
   const value = user.user_metadata?.[key]
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function readText(formData: FormData, key: string) {
+  const value = formData.get(key)
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function readInteger(formData: FormData, key: string, fallback = 0) {
+  const value = readText(formData, key)
+
+  if (!value) {
+    return fallback
+  }
+
+  const parsed = Number.parseInt(value, 10)
+
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`${key} 값이 올바르지 않습니다.`)
+  }
+
+  return parsed
+}
+
+function isPayoutMethod(
+  value: string
+): value is Database['public']['Enums']['payout_method'] {
+  return value === 'bank_transfer' || value === 'paypal'
+}
+
+function parseCreatorRevenueSettings(formData: FormData) {
+  const minPayoutAmount = readInteger(formData, 'minPayoutAmount', 10000)
+  const payoutMethodValue = readText(formData, 'payoutMethod')
+  const bankInfo = {
+    bankName: readText(formData, 'bankName'),
+    accountHolder: readText(formData, 'accountHolder'),
+    accountNumber: readText(formData, 'accountNumber'),
+  }
+
+  if (minPayoutAmount < 1000) {
+    throw new Error('최소 정산 금액은 1000원 이상이어야 합니다.')
+  }
+
+  if (payoutMethodValue && !isPayoutMethod(payoutMethodValue)) {
+    throw new Error('유효하지 않은 정산 방식입니다.')
+  }
+
+  const payoutMethod = isPayoutMethod(payoutMethodValue) ? payoutMethodValue : null
+
+  if (
+    payoutMethod === 'bank_transfer' &&
+    (!bankInfo.bankName || !bankInfo.accountHolder || !bankInfo.accountNumber)
+  ) {
+    throw new Error('계좌 이체를 선택한 경우 은행명, 예금주, 계좌번호를 모두 입력해 주세요.')
+  }
+
+  return {
+    creator_share_pct: BRAND.creatorSharePct,
+    min_payout_amount: minPayoutAmount,
+    payout_method: payoutMethod,
+    bank_info_encrypted: hasAnyBankInfo(bankInfo) ? encryptBankInfo(bankInfo) : null,
+  }
 }
 
 async function ensureProfileForStudioAccess(user: User): Promise<Pick<ProfileRow, 'id' | 'role'>> {
@@ -136,6 +199,16 @@ export async function acceptCreatorAgreement(
 
   const supabase = await createClient()
   const admin = createAdminClient()
+  let revenueSettings: ReturnType<typeof parseCreatorRevenueSettings>
+
+  try {
+    revenueSettings = parseCreatorRevenueSettings(formData)
+  } catch (error) {
+    return {
+      error: getErrorMessage(error),
+    }
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -178,6 +251,24 @@ export async function acceptCreatorAgreement(
     console.error('Studio action error:', getErrorMessage(consentError))
     return {
       error: '동의 기록을 저장하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+    }
+  }
+
+  const { error: revenueError } = await admin
+    .from('creator_revenue_settings')
+    .upsert(
+      {
+        creator_id: user.id,
+        ...revenueSettings,
+        updated_at: agreedAt,
+      },
+      { onConflict: 'creator_id' }
+    )
+
+  if (revenueError) {
+    console.error('Studio action error:', getErrorMessage(revenueError))
+    return {
+      error: '작가 정산 설정을 저장하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
     }
   }
 

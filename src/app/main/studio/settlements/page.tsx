@@ -1,8 +1,8 @@
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { getSettlementStatusLabel } from '@/lib/settlement'
+import { getCurrentCreatorRevenueSettings } from '@/lib/server/creator-revenue-settings'
 import { getCreatorSettlementDashboard } from '@/lib/server/settlements'
-import { getCreatorWebtoonList } from '@/lib/server/webtoon-studio'
 import { getPayoutMethodLabel, getWebtoonStatusLabel } from '@/lib/webtoon'
 
 const settlementRules = [
@@ -20,8 +20,8 @@ function formatPeriodRange(startDate: string, endDate: string) {
 }
 
 export default async function StudioSettlementsPage() {
-  const [webtoons, dashboard] = await Promise.all([
-    getCreatorWebtoonList(),
+  const [creatorRevenueSettings, dashboard] = await Promise.all([
+    getCurrentCreatorRevenueSettings(),
     getCreatorSettlementDashboard(),
   ])
 
@@ -129,6 +129,49 @@ export default async function StudioSettlementsPage() {
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
           <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Creator Revenue Profile</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">작가 정산 설정</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              작품별로 반복 입력하지 않고 작가 등록 단계에서 저장한 기준을 모든 작품에 공통 적용합니다.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Share</p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                작가 {creatorRevenueSettings.creatorSharePct}% / 회사 {100 - creatorRevenueSettings.creatorSharePct}%
+              </p>
+              <p className="mt-2 text-sm text-zinc-400">
+                플랫폼 일반 정산 분배는 고정 기준으로 운영됩니다.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Payout</p>
+              <div className="mt-2 grid gap-2 text-sm leading-6 text-zinc-300">
+                <p>최소 정산 금액: {creatorRevenueSettings.minPayoutAmount.toLocaleString('ko-KR')}원</p>
+                <p>
+                  정산 방식:{' '}
+                  {creatorRevenueSettings.payoutMethod
+                    ? getPayoutMethodLabel(creatorRevenueSettings.payoutMethod)
+                    : '미정'}
+                </p>
+                <p>
+                  정산 계좌:{' '}
+                  {creatorRevenueSettings.maskedBankSummary
+                    ? creatorRevenueSettings.maskedBankSummary
+                    : creatorRevenueSettings.hasStoredBankInfo
+                      ? '암호화 저장됨'
+                      : '미입력'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div>
             <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Settlement Snapshots</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight">저장된 정산 스냅샷</h2>
           </div>
@@ -161,51 +204,6 @@ export default async function StudioSettlementsPage() {
           )}
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Revenue Settings</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">채널별 정산 설정</h2>
-          </div>
-
-          {webtoons.length > 0 ? (
-            <div className="mt-6 grid gap-3">
-              {webtoons.map((webtoon) => (
-                <div key={webtoon.id} className="rounded-3xl border border-white/10 bg-black/20 p-5">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold text-white">{webtoon.title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        {webtoon.category} · {getWebtoonStatusLabel(webtoon.status)} · 회차 {webtoon.episodeCount}개
-                      </p>
-                    </div>
-                    <div className="grid gap-2 text-sm text-zinc-300">
-                      <p>정산 분배: 작가 {webtoon.revenueSettings.creatorSharePct}% / 회사 {100 - webtoon.revenueSettings.creatorSharePct}%</p>
-                      <p>최소 정산 금액: {webtoon.revenueSettings.minPayoutAmount.toLocaleString('ko-KR')}원</p>
-                      <p>
-                        정산 방식:{' '}
-                        {webtoon.revenueSettings.payoutMethod
-                          ? getPayoutMethodLabel(webtoon.revenueSettings.payoutMethod)
-                          : '미정'}
-                      </p>
-                      <p>
-                        정산 계좌:{' '}
-                        {webtoon.revenueSettings.maskedBankSummary
-                          ? webtoon.revenueSettings.maskedBankSummary
-                          : webtoon.revenueSettings.hasStoredBankInfo
-                            ? '암호화 저장됨'
-                            : '미입력'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-400">
-              아직 만든 연재 툰이 없습니다. Toon Bottega에서 작품을 만들고 편집 화면에서 정산 기준을 저장하면 이곳에 반영됩니다.
-            </div>
-          )}
-        </section>
       </div>
     </main>
   )

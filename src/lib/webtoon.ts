@@ -60,18 +60,6 @@ export interface CreatorWebtoonRecord {
   creatorName: string
   updatedAt: string
   episodes: CreatorWebtoonEpisodeRecord[]
-  revenueSettings: {
-    creatorSharePct: number
-    minPayoutAmount: number
-    payoutMethod: Database['public']['Enums']['payout_method'] | null
-    bankInfo: {
-      bankName: string
-      accountHolder: string
-      accountNumber: string
-      maskedSummary: string | null
-      hasStoredInfo: boolean
-    }
-  }
 }
 
 export interface CreatorWebtoonListItem {
@@ -84,13 +72,6 @@ export interface CreatorWebtoonListItem {
   tags: string[]
   episodeCount: number
   updatedAt: string
-  revenueSettings: {
-    creatorSharePct: number
-    minPayoutAmount: number
-    payoutMethod: Database['public']['Enums']['payout_method'] | null
-    maskedBankSummary: string | null
-    hasStoredBankInfo: boolean
-  }
 }
 
 export interface WebtoonDraftInput {
@@ -109,17 +90,6 @@ export interface WebtoonDraftInput {
   serializationDays: number[]
   category: string
   tags: string[]
-  revenueSettings: {
-    creatorSharePct: number
-    minPayoutAmount: number
-    payoutMethod: Database['public']['Enums']['payout_method'] | null
-    bankInfo: {
-      bankName: string
-      accountHolder: string
-      accountNumber: string
-    }
-    bankInfoEncrypted: string | null
-  }
 }
 
 export interface WebtoonEpisodeDraftInput {
@@ -127,7 +97,6 @@ export interface WebtoonEpisodeDraftInput {
   episodeNumber: number
   pricingType: WebtoonEpisodePricing
   coinPrice: number
-  isAdultOnly: boolean
   status: WebtoonEpisodeStatus
   images: WebtoonEpisodeImageRecord[]
 }

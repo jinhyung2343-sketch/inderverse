@@ -942,8 +942,8 @@ export function EpisodeImagesField({
 
       <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
         {episodeId
-          ? '이미지를 올리면 Supabase Storage 공개 URL이 자동으로 채워지고, 저장 시 episode_images 테이블에 정렬 순서와 함께 기록됩니다.'
-          : '새 회차는 먼저 저장한 뒤 수정 화면에서 이미지를 올릴 수 있습니다. 이미 URL이 있다면 먼저 직접 입력할 수도 있습니다.'}
+          ? '원고 이미지를 추가하면 현재 순서대로 회차에 반영됩니다.'
+          : '여러 이미지를 먼저 고르고 순서를 확인한 뒤 회차를 저장할 수 있습니다.'}
       </div>
 
       {draftRestored ? (
@@ -1012,7 +1012,7 @@ export function EpisodeImagesField({
 
         {warningDiagnosticCount > 0 ? (
           <p className="mt-3 text-xs leading-5 text-amber-100">
-            주의 항목 {warningDiagnosticCount}개가 있습니다. 공개는 가능할 수 있지만 로딩, 선명도, 자동 최적화 상태를 확인해 주세요.
+            주의 항목 {warningDiagnosticCount}개가 있습니다. 공개 전 로딩과 선명도를 확인해 주세요.
           </p>
         ) : null}
       </section>
