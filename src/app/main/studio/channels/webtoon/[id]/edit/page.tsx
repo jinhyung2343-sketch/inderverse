@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { updateWebtoonChannel } from '@/app/main/studio/channels/actions'
+import {
+  updateWebtoonChannelWithState,
+  type WebtoonChannelActionState,
+} from '@/app/main/studio/channels/actions'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
@@ -22,10 +25,13 @@ export default async function EditWebtoonPage({
     notFound()
   }
 
-  async function updateWebtoonChannelWithId(formData: FormData) {
+  async function updateWebtoonChannelWithId(
+    previousState: WebtoonChannelActionState,
+    formData: FormData
+  ) {
     'use server'
     formData.set('channelId', id)
-    await updateWebtoonChannel(formData)
+    return updateWebtoonChannelWithState(previousState, formData)
   }
 
   return (

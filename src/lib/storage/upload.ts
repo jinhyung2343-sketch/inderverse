@@ -1,12 +1,24 @@
-import { getGcsBucket, getGcsBucketName } from './client'
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export type AllowedContentType = 'image/png' | 'image/jpeg' | 'image/webp'
 
+export const SUPABASE_ASSET_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'artwork-assets'
 export const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024
+const COVER_IMAGE_WIDTH = 1200
+const COVER_IMAGE_WEBP_QUALITY = 85
 const WEBTOON_READER_WIDTH = 1600
 const WEBTOON_THUMBNAIL_WIDTH = 480
+
+export interface SupabaseSignedUpload {
+  bucket: string
+  filePath: string
+  publicUrl: string
+  token: string
+  url: string
+  maxFileBytes?: number
+}
 
 export interface UploadedEpisodeImage {
   imageUrl: string
@@ -79,14 +91,30 @@ function inferContentTypeFromPath(filePath: string): AllowedContentType {
   return 'image/jpeg'
 }
 
-export function buildPublicAssetUrl(filePath: string) {
-  const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL?.trim()
+function getStorage() {
+  return createAdminClient().storage.from(SUPABASE_ASSET_BUCKET)
+}
 
-  if (cdnUrl && !cdnUrl.includes('cdn.inderverse.com')) {
-    return `${cdnUrl.replace(/\/$/, '')}/${filePath}`
+export function buildPublicAssetUrl(filePath: string) {
+  return getStorage().getPublicUrl(filePath).data.publicUrl
+}
+
+async function uploadBufferToPath(bytes: Buffer, filePath: string, contentType: AllowedContentType) {
+  if (bytes.length > MAX_IMAGE_FILE_BYTES) {
+    throw new Error('이미지 파일은 20MB 이하로 업로드해 주세요.')
   }
 
-  return `https://storage.googleapis.com/${getGcsBucketName()}/${filePath}`
+  const { error } = await getStorage().upload(filePath, bytes, {
+    contentType,
+    cacheControl: '31536000',
+    upsert: true,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return buildPublicAssetUrl(filePath)
 }
 
 async function uploadFileToPath(file: File, filePath: string, contentType: AllowedContentType) {
@@ -94,22 +122,17 @@ async function uploadFileToPath(file: File, filePath: string, contentType: Allow
     throw new Error('이미지 파일은 20MB 이하로 업로드해 주세요.')
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer())
-
-  return uploadBufferToPath(bytes, filePath, contentType)
+  return uploadBufferToPath(Buffer.from(await file.arrayBuffer()), filePath, contentType)
 }
 
-async function uploadBufferToPath(bytes: Buffer, filePath: string, contentType: AllowedContentType) {
-  await getGcsBucket().file(filePath).save(bytes, {
-    resumable: false,
-    contentType,
-    metadata: {
-      contentType,
-      cacheControl: 'public, max-age=31536000, immutable',
-    },
-  })
+async function downloadBuffer(filePath: string) {
+  const { data, error } = await getStorage().download(filePath)
 
-  return buildPublicAssetUrl(filePath)
+  if (error || !data) {
+    throw new Error(error?.message || '이미지 원본을 찾지 못했습니다.')
+  }
+
+  return Buffer.from(await data.arrayBuffer())
 }
 
 async function deleteFileIfExists(filePath: string | null) {
@@ -117,27 +140,36 @@ async function deleteFileIfExists(filePath: string | null) {
     return
   }
 
-  try {
-    await getGcsBucket().file(filePath).delete()
-  } catch (error) {
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 404) {
-      return
-    }
+  const { error } = await getStorage().remove([filePath])
 
-    throw error
+  if (error && !error.message.toLowerCase().includes('not found')) {
+    throw new Error(error.message)
   }
 }
 
-async function buildWebtoonDerivative(
-  sourceBytes: Buffer,
-  width: number,
-  quality: number
-) {
+async function buildWebtoonDerivative(sourceBytes: Buffer, width: number, quality: number) {
   return sharp(sourceBytes, { limitInputPixels: false })
     .rotate()
     .resize({ width, withoutEnlargement: true })
     .webp({ quality, effort: 4 })
     .toBuffer({ resolveWithObject: true })
+}
+
+async function createSignedUpload(filePath: string): Promise<SupabaseSignedUpload> {
+  const { data, error } = await getStorage().createSignedUploadUrl(filePath)
+
+  if (error || !data) {
+    throw new Error(error?.message || '업로드용 주소를 만들지 못했습니다.')
+  }
+
+  return {
+    bucket: SUPABASE_ASSET_BUCKET,
+    filePath,
+    publicUrl: buildPublicAssetUrl(filePath),
+    token: data.token,
+    url: data.signedUrl,
+    maxFileBytes: MAX_IMAGE_FILE_BYTES,
+  }
 }
 
 export async function buildAndUploadWebtoonEpisodeDerivatives({
@@ -161,8 +193,8 @@ export async function buildAndUploadWebtoonEpisodeDerivatives({
   const originalWidth = originalMetadata.width ?? null
   const originalHeight = originalMetadata.height ?? null
   const optimizedPath = `optimized/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
-  const optimized = await buildWebtoonDerivative(originalBytes, WEBTOON_READER_WIDTH, 88)
   const thumbnailPath = `thumbnails/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.webp`
+  const optimized = await buildWebtoonDerivative(originalBytes, WEBTOON_READER_WIDTH, 88)
   const thumbnail = await buildWebtoonDerivative(originalBytes, WEBTOON_THUMBNAIL_WIDTH, 76)
   let optimizedImageUrl: string | null = null
   let thumbnailImageUrl: string | null = null
@@ -171,25 +203,11 @@ export async function buildAndUploadWebtoonEpisodeDerivatives({
     optimizedImageUrl = await uploadBufferToPath(optimized.data, optimizedPath, 'image/webp')
     thumbnailImageUrl = await uploadBufferToPath(thumbnail.data, thumbnailPath, 'image/webp')
   } catch (error) {
-    await Promise.all([deleteFileIfExists(optimizedImageUrl ? optimizedPath : null), deleteFileIfExists(thumbnailImageUrl ? thumbnailPath : null)])
+    await Promise.all([
+      deleteFileIfExists(optimizedImageUrl ? optimizedPath : null),
+      deleteFileIfExists(thumbnailImageUrl ? thumbnailPath : null),
+    ])
     throw error
-  }
-
-  const optimizedDerivative: ImageDerivativeMetadata = {
-    url: optimizedImageUrl,
-    filePath: optimizedPath,
-    width: optimized.info.width || null,
-    height: optimized.info.height || null,
-    fileSizeBytes: optimized.data.length,
-    contentType: 'image/webp',
-  }
-  const thumbnailDerivative: ImageDerivativeMetadata = {
-    url: thumbnailImageUrl,
-    filePath: thumbnailPath,
-    width: thumbnail.info.width || null,
-    height: thumbnail.info.height || null,
-    fileSizeBytes: thumbnail.data.length,
-    contentType: 'image/webp',
   }
 
   return {
@@ -216,8 +234,22 @@ export async function buildAndUploadWebtoonEpisodeDerivatives({
         fileSizeBytes: originalBytes.length,
         contentType,
       },
-      optimized: optimizedDerivative,
-      thumbnail: thumbnailDerivative,
+      optimized: {
+        url: optimizedImageUrl,
+        filePath: optimizedPath,
+        width: optimized.info.width || null,
+        height: optimized.info.height || null,
+        fileSizeBytes: optimized.data.length,
+        contentType: 'image/webp',
+      },
+      thumbnail: {
+        url: thumbnailImageUrl,
+        filePath: thumbnailPath,
+        width: thumbnail.info.width || null,
+        height: thumbnail.info.height || null,
+        fileSizeBytes: thumbnail.data.length,
+        contentType: 'image/webp',
+      },
     },
   }
 }
@@ -237,9 +269,9 @@ export async function regenerateWebtoonEpisodeDerivatives({
   originalImageUrl?: string | null
   contentType?: string | null
 }) {
-  const [originalBytes] = await getGcsBucket().file(originalFilePath).download()
+  const originalBytes = await downloadBuffer(originalFilePath)
   const candidateContentType = contentType ?? ''
-  const normalizedContentType: AllowedContentType = isAllowedContentType(candidateContentType)
+  const normalizedContentType = isAllowedContentType(candidateContentType)
     ? candidateContentType
     : inferContentTypeFromPath(originalFilePath)
 
@@ -266,19 +298,7 @@ export async function generateSignedUrl({
   contentType: AllowedContentType
 }) {
   const extension = getFileExtension(contentType)
-  const filePath = `originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`
-  
-  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
-    version: 'v4',
-    action: 'write',
-    expires: Date.now() + 15 * 60 * 1000, // 15분
-    contentType: contentType, // Content-Type 잠금
-    extensionHeaders: {
-      'x-goog-content-length-range': '1,20971520', // 최대 20MB
-    },
-  })
-
-  return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
+  return createSignedUpload(`originals/${channelId}/${episodeId}/${sortOrder}-${randomUUID()}.${extension}`)
 }
 
 export async function generateSparkCoverSignedUrl({
@@ -289,42 +309,25 @@ export async function generateSparkCoverSignedUrl({
   contentType: AllowedContentType
 }) {
   const extension = getFileExtension(contentType)
-  const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`
-
-  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
-    version: 'v4',
-    action: 'write',
-    expires: Date.now() + 15 * 60 * 1000,
-    contentType,
-    extensionHeaders: {
-      'x-goog-content-length-range': '1,20971520',
-    },
-  })
-
-  return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
+  return createSignedUpload(`covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`)
 }
 
-export async function generateChannelCoverSignedUrl({
-  channelId,
-  contentType,
-}: {
+export async function generateChannelCoverSignedUrl(args: {
   channelId: string
   contentType: AllowedContentType
 }) {
+  return generateSparkCoverSignedUrl(args)
+}
+
+export async function generateDraftChannelCoverSignedUrl({
+  userId,
+  contentType,
+}: {
+  userId: string
+  contentType: AllowedContentType
+}) {
   const extension = getFileExtension(contentType)
-  const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`
-
-  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
-    version: 'v4',
-    action: 'write',
-    expires: Date.now() + 15 * 60 * 1000,
-    contentType,
-    extensionHeaders: {
-      'x-goog-content-length-range': '1,20971520',
-    },
-  })
-
-  return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
+  return createSignedUpload(`covers/drafts/${userId}/${Date.now()}-${randomUUID()}.${extension}`)
 }
 
 export async function generateCreatorChannelImageSignedUrl({
@@ -337,19 +340,9 @@ export async function generateCreatorChannelImageSignedUrl({
   contentType: AllowedContentType
 }) {
   const extension = getFileExtension(contentType)
-  const filePath = `creator-channels/${creatorChannelId}/${imageRole}/${Date.now()}-${randomUUID()}.${extension}`
-
-  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
-    version: 'v4',
-    action: 'write',
-    expires: Date.now() + 15 * 60 * 1000,
-    contentType,
-    extensionHeaders: {
-      'x-goog-content-length-range': '1,20971520',
-    },
-  })
-
-  return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
+  return createSignedUpload(
+    `creator-channels/${creatorChannelId}/${imageRole}/${Date.now()}-${randomUUID()}.${extension}`
+  )
 }
 
 export async function generateSparkPanelSignedUrl({
@@ -362,36 +355,23 @@ export async function generateSparkPanelSignedUrl({
   contentType: AllowedContentType
 }) {
   const extension = getFileExtension(contentType)
-  const filePath = `panels/${channelId}/${panelIndex + 1}-${Date.now()}-${randomUUID()}.${extension}`
-
-  const [url] = await getGcsBucket().file(filePath).getSignedUrl({
-    version: 'v4',
-    action: 'write',
-    expires: Date.now() + 15 * 60 * 1000,
-    contentType,
-    extensionHeaders: {
-      'x-goog-content-length-range': '1,20971520',
-    },
-  })
-
-  return { url, filePath, publicUrl: buildPublicAssetUrl(filePath) }
+  return createSignedUpload(`panels/${channelId}/${panelIndex + 1}-${Date.now()}-${randomUUID()}.${extension}`)
 }
 
-async function uploadCoverFile({
-  channelId,
-  file,
-}: {
-  channelId: string
-  file: File
-}) {
+async function uploadCoverFile({ channelId, file }: { channelId: string; file: File }) {
   if (!isAllowedContentType(file.type)) {
     throw new Error('지원하지 않는 커버 이미지 형식입니다.')
   }
 
-  const extension = getFileExtension(file.type)
-  const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.${extension}`
+  const sourceBytes = Buffer.from(await file.arrayBuffer())
+  const optimizedCover = await sharp(sourceBytes, { limitInputPixels: false })
+    .rotate()
+    .resize({ width: COVER_IMAGE_WIDTH, withoutEnlargement: true })
+    .webp({ quality: COVER_IMAGE_WEBP_QUALITY, effort: 4 })
+    .toBuffer({ resolveWithObject: true })
 
-  return uploadFileToPath(file, filePath, file.type)
+  const filePath = `covers/${channelId}/${Date.now()}-${randomUUID()}.webp`
+  return uploadBufferToPath(optimizedCover.data, filePath, 'image/webp')
 }
 
 export async function uploadChannelCoverFile(args: { channelId: string; file: File }) {
@@ -416,9 +396,7 @@ export async function uploadSparkPanelFile({
   }
 
   const extension = getFileExtension(file.type)
-  const filePath = `panels/${channelId}/${panelIndex + 1}-${Date.now()}-${randomUUID()}.${extension}`
-
-  return uploadFileToPath(file, filePath, file.type)
+  return uploadFileToPath(file, `panels/${channelId}/${panelIndex + 1}-${Date.now()}-${randomUUID()}.${extension}`, file.type)
 }
 
 export async function uploadEpisodeImageFile({

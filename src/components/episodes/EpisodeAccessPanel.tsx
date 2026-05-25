@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useReducer, useState } from 'react'
@@ -136,10 +137,12 @@ export function EpisodeAccessPanel({
                 key={`${imageUrl}-${index + 1}`}
                 className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={imageUrl}
                   alt={`${episode.title} 이미지 ${index + 1}`}
+                  width={1600}
+                  height={2400}
+                  sizes="100vw"
                   className="h-auto w-full"
                 />
               </div>

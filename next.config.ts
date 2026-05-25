@@ -1,29 +1,38 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
-function getHostnameFromUrl(value: string | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return new URL(value).hostname;
-  } catch {
-    return null;
-  }
-}
-
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development", // 개발 모드에서는 SW 사용 안함
 });
 
-const gcsBucketName = process.env.GCS_BUCKET_NAME || "inderverse-images";
-const cdnHostname = getHostnameFromUrl(process.env.NEXT_PUBLIC_CDN_URL) || "cdn.inderverse.com";
+function parseUrl(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabasePublicUrl = parseUrl(supabaseUrl);
+const supabaseHostname = supabasePublicUrl?.hostname ?? "127.0.0.1";
+const supabaseStorageHostname = supabasePublicUrl
+  ? `${supabaseHostname.split(".")[0]}.storage.supabase.co`
+  : "127.0.0.1";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '20mb',
+    },
+  },
   allowedDevOrigins: [
     "127.0.0.1",
     "192.168.219.*",
@@ -36,15 +45,17 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
       },
       {
-        // GCS 원본 버킷
-        protocol: "https",
-        hostname: "storage.googleapis.com",
-        pathname: `/${gcsBucketName}/**`,
+        // Supabase Storage public assets
+        protocol: (supabasePublicUrl?.protocol.replace(":", "") || "http") as "http" | "https",
+        hostname: supabaseHostname,
+        port: supabasePublicUrl?.port,
+        pathname: "/storage/v1/object/public/**",
       },
       {
-        // CDN (프로덕션 배포 후 사용)
+        // Supabase direct storage host for larger uploads/downloads
         protocol: "https",
-        hostname: cdnHostname,
+        hostname: supabaseStorageHostname,
+        pathname: "/storage/v1/object/public/**",
       },
     ],
   },

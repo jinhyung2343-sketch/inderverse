@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { FilePickerButton, ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import type { SparkFormat, SparkPanel } from '@/lib/spark'
 import { getSparkFormatLabel } from '@/lib/spark'
+import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
 
 const emptyPanels = Array.from({ length: 4 }, () => ({
   imageUrl: '',
@@ -96,26 +97,32 @@ export function SparkPanelField({
       })
 
       const signedUrlPayload = (await signedUrlResponse.json()) as {
+        bucket?: string
         error?: string
-        url?: string
+        filePath?: string
         publicUrl?: string
+        token?: string
       }
 
-      if (!signedUrlResponse.ok || !signedUrlPayload.url || !signedUrlPayload.publicUrl) {
+      if (
+        !signedUrlResponse.ok ||
+        !signedUrlPayload.bucket ||
+        !signedUrlPayload.filePath ||
+        !signedUrlPayload.publicUrl ||
+        !signedUrlPayload.token
+      ) {
         throw new Error(signedUrlPayload.error || '패널 업로드용 주소를 만들지 못했습니다.')
       }
 
-      const uploadResponse = await fetch(signedUrlPayload.url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
+      await uploadToSupabaseSignedUrl(
+        {
+          bucket: signedUrlPayload.bucket,
+          filePath: signedUrlPayload.filePath,
+          publicUrl: signedUrlPayload.publicUrl,
+          token: signedUrlPayload.token,
         },
-        body: file,
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error('패널 이미지 업로드에 실패했습니다.')
-      }
+        file
+      )
 
       updatePanel(index, 'imageUrl', signedUrlPayload.publicUrl)
       setMessage(`${index + 1}번 컷 이미지가 업로드되었습니다.`)

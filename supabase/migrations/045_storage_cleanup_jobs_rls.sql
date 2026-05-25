@@ -33,4 +33,4 @@ CREATE POLICY "storage_cleanup_jobs_update_admin" ON storage_cleanup_jobs
     )
   );
 
-COMMENT ON TABLE storage_cleanup_jobs IS '업로드 교체/삭제로 더 이상 참조하지 않는 GCS 파일 정리 대기열. 직접 테이블 접근은 운영자 전용';
+COMMENT ON TABLE storage_cleanup_jobs IS '업로드 교체/삭제로 더 이상 참조하지 않는 Supabase Storage 파일 정리 대기열. 직접 테이블 접근은 운영자 전용';

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useDeferredValue, useState, useSyncExternalStore } from 'react'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import Link from 'next/link'
@@ -47,8 +48,13 @@ function CreatorChannelCard({ creator }: { creator: PublicCreatorChannelSummary 
       <div className="p-5">
         <div className="-mt-14 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-zinc-900 text-2xl font-black text-zinc-500">
           {creator.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={creator.avatarUrl} alt={creator.displayName} className="h-full w-full object-cover" />
+            <Image
+              src={creator.avatarUrl}
+              alt={creator.displayName}
+              width={80}
+              height={80}
+              className="h-full w-full object-cover"
+            />
           ) : (
             creator.displayName.slice(0, 1)
           )}

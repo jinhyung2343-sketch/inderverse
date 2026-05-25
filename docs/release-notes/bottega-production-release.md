@@ -18,7 +18,7 @@ This release prepares the creator platform for a production-grade Bottega flow.
 - Added genre-specific `Toon Bottega` and `Novel Bottega` pages.
 - Removed genre selection from already-registered creators' My Bottega.
 - Added creator registration cancellation panel.
-- Strengthened environment validation for Supabase, GCS, site URL, secrets, and settlement encryption.
+- Strengthened environment validation for Supabase, Supabase Storage, site URL, secrets, and settlement encryption.
 - Strengthened route authorization to use the database profile role.
 - Added release scripts:
   - `npm run check:release-files`

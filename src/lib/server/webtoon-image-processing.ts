@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { regenerateWebtoonEpisodeDerivatives } from '@/lib/gcs/upload'
+import { regenerateWebtoonEpisodeDerivatives } from '@/lib/storage/upload'
 import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/types'

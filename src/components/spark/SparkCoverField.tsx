@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
+import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
 
 export function SparkCoverField({
   channelId,
@@ -37,26 +38,32 @@ export function SparkCoverField({
       })
 
       const signedUrlPayload = (await signedUrlResponse.json()) as {
+        bucket?: string
         error?: string
-        url?: string
+        filePath?: string
         publicUrl?: string
+        token?: string
       }
 
-      if (!signedUrlResponse.ok || !signedUrlPayload.url || !signedUrlPayload.publicUrl) {
+      if (
+        !signedUrlResponse.ok ||
+        !signedUrlPayload.bucket ||
+        !signedUrlPayload.filePath ||
+        !signedUrlPayload.publicUrl ||
+        !signedUrlPayload.token
+      ) {
         throw new Error(signedUrlPayload.error || '업로드용 주소를 만들지 못했습니다.')
       }
 
-      const uploadResponse = await fetch(signedUrlPayload.url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
+      await uploadToSupabaseSignedUrl(
+        {
+          bucket: signedUrlPayload.bucket,
+          filePath: signedUrlPayload.filePath,
+          publicUrl: signedUrlPayload.publicUrl,
+          token: signedUrlPayload.token,
         },
-        body: file,
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error('이미지 업로드에 실패했습니다.')
-      }
+        file
+      )
 
       setValue(signedUrlPayload.publicUrl)
       setMessage('커버 이미지가 업로드되어 저장 대기 상태로 반영되었습니다.')

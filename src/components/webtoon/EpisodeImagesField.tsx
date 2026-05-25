@@ -8,6 +8,7 @@ import {
   getWebtoonUploadGuide,
   prepareAndInspectImageFiles,
 } from '@/lib/image-upload-policy'
+import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
 import type { WebtoonEpisodeImageRecord } from '@/lib/webtoon'
 
 type ImageUploadStatus = 'empty' | 'pending' | 'uploading' | 'ready' | 'failed'
@@ -640,14 +641,21 @@ export function EpisodeImagesField({
       }),
     })
     const signedUrlPayload = (await signedUrlResponse.json()) as {
+      bucket?: string
       error?: string
-      url?: string
       filePath?: string
       publicUrl?: string
+      token?: string
       maxFileBytes?: number
     }
 
-    if (!signedUrlResponse.ok || !signedUrlPayload.url || !signedUrlPayload.filePath || !signedUrlPayload.publicUrl) {
+    if (
+      !signedUrlResponse.ok ||
+      !signedUrlPayload.bucket ||
+      !signedUrlPayload.filePath ||
+      !signedUrlPayload.publicUrl ||
+      !signedUrlPayload.token
+    ) {
       throw new Error(signedUrlPayload.error || '직접 업로드 URL을 만들지 못했습니다.')
     }
 
@@ -655,18 +663,15 @@ export function EpisodeImagesField({
       throw new Error(`파일당 최대 ${formatFileSize(signedUrlPayload.maxFileBytes)}까지 업로드할 수 있습니다.`)
     }
 
-    const directUploadResponse = await fetch(signedUrlPayload.url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': file.type,
-        'x-goog-content-length-range': `1,${signedUrlPayload.maxFileBytes ?? file.size}`,
+    await uploadToSupabaseSignedUrl(
+      {
+        bucket: signedUrlPayload.bucket,
+        filePath: signedUrlPayload.filePath,
+        publicUrl: signedUrlPayload.publicUrl,
+        token: signedUrlPayload.token,
       },
-      body: file,
-    })
-
-    if (!directUploadResponse.ok) {
-      throw new Error('직접 업로드에 실패했습니다.')
-    }
+      file
+    )
 
     return {
       imageUrl: signedUrlPayload.publicUrl,
@@ -937,7 +942,7 @@ export function EpisodeImagesField({
 
       <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
         {episodeId
-          ? '이미지를 올리면 GCS 공개 URL이 자동으로 채워지고, 저장 시 episode_images 테이블에 정렬 순서와 함께 기록됩니다.'
+          ? '이미지를 올리면 Supabase Storage 공개 URL이 자동으로 채워지고, 저장 시 episode_images 테이블에 정렬 순서와 함께 기록됩니다.'
           : '새 회차는 먼저 저장한 뒤 수정 화면에서 이미지를 올릴 수 있습니다. 이미 URL이 있다면 먼저 직접 입력할 수도 있습니다.'}
       </div>
 

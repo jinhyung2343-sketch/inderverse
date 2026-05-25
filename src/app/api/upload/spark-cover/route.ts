@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateSparkCoverSignedUrl, type AllowedContentType } from '@/lib/gcs/upload'
+import { generateSparkCoverSignedUrl, type AllowedContentType } from '@/lib/storage/upload'
 import { createClient } from '@/lib/supabase/server'
 
 const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'] as const
@@ -40,12 +40,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: not your spark channel' }, { status: 403 })
     }
 
-    const { url, filePath, publicUrl } = await generateSparkCoverSignedUrl({
+    const signedUpload = await generateSparkCoverSignedUrl({
       channelId,
       contentType: contentType as AllowedContentType,
     })
 
-    return NextResponse.json({ url, filePath, publicUrl }, { status: 200 })
+    return NextResponse.json(signedUpload, { status: 200 })
   } catch (error) {
     console.error('Error generating spark cover signed URL:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

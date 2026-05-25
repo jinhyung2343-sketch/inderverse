@@ -1,4 +1,4 @@
-import { createWebtoonChannel } from '@/app/main/studio/channels/actions'
+import { createWebtoonChannelWithState } from '@/app/main/studio/channels/actions'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
 
@@ -16,7 +16,7 @@ export default function NewWebtoonPage() {
         </header>
 
         <WebtoonEditorForm
-          action={createWebtoonChannel}
+          action={createWebtoonChannelWithState}
           heading="새 연재 툰 만들기"
           description="작품의 기본 정보와 공개 운용 기준을 먼저 저장합니다. 이후 회차와 이미지 업로드를 붙이면 탐색 노출 구조까지 연결됩니다."
           submitLabel="연재 툰 저장"

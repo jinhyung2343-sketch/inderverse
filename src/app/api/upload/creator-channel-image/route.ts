@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   generateCreatorChannelImageSignedUrl,
   type AllowedContentType,
-} from '@/lib/gcs/upload'
+} from '@/lib/storage/upload'
 import { createClient } from '@/lib/supabase/server'
 
 const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'] as const
@@ -50,13 +50,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: not your creator channel' }, { status: 403 })
     }
 
-    const { url, filePath, publicUrl } = await generateCreatorChannelImageSignedUrl({
+    const signedUpload = await generateCreatorChannelImageSignedUrl({
       creatorChannelId,
       imageRole,
       contentType: contentType as AllowedContentType,
     })
 
-    return NextResponse.json({ url, filePath, publicUrl }, { status: 200 })
+    return NextResponse.json(signedUpload, { status: 200 })
   } catch (error) {
     console.error('Error generating creator channel image signed URL:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

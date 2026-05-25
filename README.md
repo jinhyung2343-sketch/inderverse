@@ -7,7 +7,7 @@
 - Next.js App Router
 - Tailwind CSS
 - Supabase Auth / Database / Storage
-- Google Cloud Storage signed upload + 후처리 훅
+- Supabase Storage signed upload + 이미지 후처리 훅
 - Serwist 기반 PWA
 
 ## Current Focus
@@ -15,7 +15,7 @@
 - 작가/독자 통합 프로필, 채널, 에피소드, 코인, 구매, 정산 데이터 모델
 - 성인물 태그 및 연령 게이트를 포함한 안전한 표현 자유 구조
 - 채널별 정산 정보와 지급 기준 관리
-- GCS 원본 업로드와 CDN 서빙 구조 준비
+- Supabase Storage 기반 원본 업로드와 이미지 최적화 구조
 
 ## Main Areas
 
@@ -66,11 +66,7 @@ INDERVERSE_SMTP_USER=
 INDERVERSE_SMTP_PASS=
 INDERVERSE_SMTP_FROM_EMAIL=
 INDERVERSE_SMTP_FROM_NAME=
-GCS_PROJECT_ID=
-GCS_BUCKET_NAME=
-GCS_CLIENT_EMAIL=
-GCS_PRIVATE_KEY=
-NEXT_PUBLIC_CDN_URL=
+SUPABASE_STORAGE_BUCKET=artwork-assets
 AGE_VERIFICATION_STATE_SECRET=
 AGE_VERIFICATION_PROVIDER_SECRET=
 CRON_SECRET=

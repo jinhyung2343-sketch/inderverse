@@ -1,11 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import {
+  formatFileSize,
   getWebtoonUploadGuide,
   prepareAndInspectImageFiles,
 } from '@/lib/image-upload-policy'
+import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
+
+type CoverUploadPhase = 'idle' | 'compressing' | 'uploading' | 'ready'
+
+function getCoverUploadPhaseLabel(phase: CoverUploadPhase) {
+  if (phase === 'compressing') {
+    return '이미지 최적화 중'
+  }
+
+  if (phase === 'uploading') {
+    return '스토리지 업로드 중'
+  }
+
+  if (phase === 'ready') {
+    return '최적화 완료'
+  }
+
+  return ''
+}
 
 export function WebtoonCoverField({
   channelId,
@@ -18,20 +38,47 @@ export function WebtoonCoverField({
 }) {
   const [value, setValue] = useState(initialValue ?? '')
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
-  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const localPreviewUrlRef = useRef<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [inspectionMessages, setInspectionMessages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadPhase, setUploadPhase] = useState<CoverUploadPhase>('idle')
+  const [uploadProgress, setUploadProgress] = useState(0)
   const previewUrl = localPreviewUrl || value
-  const guideItems = getWebtoonUploadGuide()
+  const guideItems = getWebtoonUploadGuide('cover')
+  const uploadPhaseLabel = getCoverUploadPhaseLabel(uploadPhase)
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrlRef.current) {
+        URL.revokeObjectURL(localPreviewUrlRef.current)
+      }
+    }
+  }, [])
+
+  function replaceLocalPreviewUrl(nextUrl: string | null) {
+    if (localPreviewUrlRef.current) {
+      URL.revokeObjectURL(localPreviewUrlRef.current)
+    }
+
+    localPreviewUrlRef.current = nextUrl
+    setLocalPreviewUrl(nextUrl)
+  }
 
   async function prepareCoverFile(file: File) {
+    setMessage('커버 이미지를 WebP로 최적화하고 있습니다.')
+    setUploadPhase('compressing')
+    setUploadProgress(15)
+
     const result = await prepareAndInspectImageFiles([file], 'cover')
 
     setInspectionMessages(result.messages)
+    setUploadProgress(100)
 
     if (result.errors.length > 0) {
       setMessage(result.errors[0])
+      setUploadPhase('idle')
+      setUploadProgress(0)
       return null
     }
 
@@ -39,55 +86,62 @@ export function WebtoonCoverField({
   }
 
   async function uploadFile(file: File) {
-    if (!file || !channelId) {
+    if (!file) {
       return
     }
 
-    setMessage(null)
-    setIsUploading(true)
+    setMessage('최적화된 커버 이미지를 스토리지에 업로드하고 있습니다.')
+    setUploadPhase('uploading')
+    setUploadProgress(10)
 
-    try {
-      const signedUrlResponse = await fetch('/api/upload/channel-cover', {
+    const signedUrlResponse = await fetch(
+      channelId ? '/api/upload/channel-cover' : '/api/upload/channel-cover-draft',
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          channelId,
+          ...(channelId ? { channelId } : {}),
           contentType: file.type,
         }),
-      })
-
-      const signedUrlPayload = (await signedUrlResponse.json()) as {
-        error?: string
-        url?: string
-        publicUrl?: string
       }
+    )
 
-      if (!signedUrlResponse.ok || !signedUrlPayload.url || !signedUrlPayload.publicUrl) {
-        throw new Error(signedUrlPayload.error || '업로드용 주소를 만들지 못했습니다.')
-      }
-
-      const uploadResponse = await fetch(signedUrlPayload.url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
-        },
-        body: file,
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error('커버 이미지 업로드에 실패했습니다.')
-      }
-
-      setValue(signedUrlPayload.publicUrl)
-      setMessage('커버 이미지가 업로드되어 저장 대기 상태로 반영되었습니다.')
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '업로드 중 문제가 발생했습니다.'
-      setMessage(errorMessage)
-    } finally {
-      setIsUploading(false)
+    const signedUrlPayload = (await signedUrlResponse.json()) as {
+      bucket?: string
+      error?: string
+      filePath?: string
+      publicUrl?: string
+      token?: string
     }
+
+    if (
+      !signedUrlResponse.ok ||
+      !signedUrlPayload.bucket ||
+      !signedUrlPayload.filePath ||
+      !signedUrlPayload.publicUrl ||
+      !signedUrlPayload.token
+    ) {
+      throw new Error(signedUrlPayload.error || '업로드용 주소를 만들지 못했습니다.')
+    }
+
+    setUploadProgress(20)
+    await uploadToSupabaseSignedUrl(
+      {
+        bucket: signedUrlPayload.bucket,
+        filePath: signedUrlPayload.filePath,
+        publicUrl: signedUrlPayload.publicUrl,
+        token: signedUrlPayload.token,
+      },
+      file
+    )
+
+    replaceLocalPreviewUrl(null)
+    setValue(signedUrlPayload.publicUrl)
+    setUploadPhase('ready')
+    setUploadProgress(100)
+    setMessage(`커버 이미지가 ${formatFileSize(file.size)} WebP로 업로드되어 저장 대기 상태로 반영되었습니다.`)
   }
 
   async function handleFilesSelected(files: File[]) {
@@ -97,29 +151,33 @@ export function WebtoonCoverField({
       return
     }
 
-    const preparedFile = await prepareCoverFile(file)
+    setIsUploading(true)
 
-    if (!preparedFile) {
-      setPendingFile(null)
-      setLocalPreviewUrl(null)
-      return
+    try {
+      const preparedFile = await prepareCoverFile(file)
+
+      if (!preparedFile) {
+        replaceLocalPreviewUrl(null)
+        return
+      }
+
+      await uploadFile(preparedFile)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '업로드 중 문제가 발생했습니다.'
+      setUploadPhase('idle')
+      setUploadProgress(0)
+      setMessage(errorMessage)
+    } finally {
+      setIsUploading(false)
     }
-
-    if (!channelId) {
-      setPendingFile(preparedFile)
-      setLocalPreviewUrl(URL.createObjectURL(preparedFile))
-      setMessage('선택한 커버 이미지를 먼저 미리보고 있습니다. 채널을 저장하면 업로드가 함께 진행됩니다.')
-      return
-    }
-
-    await uploadFile(preparedFile)
   }
 
   function clearCoverImage() {
     setValue('')
-    setPendingFile(null)
-    setLocalPreviewUrl(null)
+    replaceLocalPreviewUrl(null)
     setInspectionMessages([])
+    setUploadPhase('idle')
+    setUploadProgress(0)
     setMessage('커버 이미지를 비웠습니다. 저장하면 커버 없이 반영됩니다.')
   }
 
@@ -138,14 +196,12 @@ export function WebtoonCoverField({
         description={
           channelId
             ? '파일을 올리면 공개 URL이 자동으로 입력됩니다. 저장 버튼까지 눌러야 최종 반영됩니다.'
-            : `새 ${workLabel} 단계에서도 먼저 커버를 골라 미리볼 수 있습니다. 저장 시 실제 업로드가 이어집니다.`
+            : `새 ${workLabel} 단계에서도 커버를 먼저 업로드한 뒤, 저장 시 이미지 주소만 함께 반영됩니다.`
         }
         disabled={false}
         isUploading={isUploading}
         buttonLabel="커버 이미지 고르기"
-        inputName={channelId ? undefined : 'coverImageFile'}
-        preserveSelection={!channelId}
-        selectedFiles={!channelId && pendingFile ? [pendingFile] : !channelId ? [] : undefined}
+        preserveSelection={false}
         onFilesSelected={handleFilesSelected}
       />
 
@@ -154,6 +210,21 @@ export function WebtoonCoverField({
           {inspectionMessages.map((item) => (
             <p key={item}>{item}</p>
           ))}
+        </div>
+      ) : null}
+
+      {uploadPhase !== 'idle' ? (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs text-zinc-400">
+            <span>{uploadPhaseLabel}</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-emerald-300 transition-[width] duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
         </div>
       ) : null}
 
@@ -174,8 +245,9 @@ export function WebtoonCoverField({
               value={value}
               onChange={(event) => {
                 setValue(event.target.value)
-                setPendingFile(null)
-                setLocalPreviewUrl(null)
+                replaceLocalPreviewUrl(null)
+                setUploadPhase('idle')
+                setUploadProgress(0)
               }}
               className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
               placeholder="https://..."

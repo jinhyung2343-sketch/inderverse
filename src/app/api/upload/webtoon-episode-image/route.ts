@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { uploadEpisodeImageFile } from '@/lib/gcs/upload'
+import { uploadEpisodeImageFile } from '@/lib/storage/upload'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'

@@ -38,7 +38,7 @@ export default async function NewWebtoonEpisodePage({
           action={createEpisodeForChannel}
           channelId={id}
           heading="새 회차 만들기"
-          description="회차의 공개 상태와 가격 정책을 먼저 정하고, 저장 후 수정 화면에서 GCS 업로드까지 이어서 붙이면 됩니다."
+          description="회차의 공개 상태와 가격 정책을 먼저 정하고, 저장 후 수정 화면에서 Supabase Storage 업로드까지 이어서 붙이면 됩니다."
           submitLabel="회차 저장"
         />
       </div>

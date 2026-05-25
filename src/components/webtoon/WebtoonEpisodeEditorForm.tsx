@@ -293,7 +293,7 @@ export function WebtoonEpisodeEditorForm({
           </div>
 
           <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
-            공개 상태의 회차는 최소 1장의 이미지가 필요합니다. 이미지는 GCS에 업로드되고, 저장하면 정렬 순서와 URL이 `episode_images`에 반영됩니다.
+            공개 상태의 회차는 최소 1장의 이미지가 필요합니다. 이미지는 Supabase Storage에 업로드되고, 저장하면 정렬 순서와 URL이 `episode_images`에 반영됩니다.
           </div>
 
           <button

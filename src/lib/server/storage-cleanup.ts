@@ -1,8 +1,8 @@
 import 'server-only'
 
-import { getGcsBucket } from '@/lib/gcs/client'
 import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { SUPABASE_ASSET_BUCKET } from '@/lib/storage/upload'
 import type { Database } from '@/lib/supabase/types'
 
 type StorageCleanupJob = Database['public']['Tables']['storage_cleanup_jobs']['Row']
@@ -55,10 +55,6 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-function isGcsNotFoundError(error: unknown) {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 404
-}
-
 async function completeJob(
   jobId: string,
   status: 'completed' | 'ignored' | 'failed',
@@ -90,16 +86,14 @@ async function isFileStillReferenced(filePath: string) {
 }
 
 async function deleteStorageFile(filePath: string) {
-  try {
-    await getGcsBucket().file(filePath).delete()
-    return 'deleted'
-  } catch (error) {
-    if (isGcsNotFoundError(error)) {
-      return 'already_missing'
-    }
+  const admin = createAdminClient()
+  const { error } = await admin.storage.from(SUPABASE_ASSET_BUCKET).remove([filePath])
 
-    throw error
+  if (error && !error.message.toLowerCase().includes('not found')) {
+    throw new Error(error.message)
   }
+
+  return 'deleted'
 }
 
 async function processCleanupJob(job: StorageCleanupJob): Promise<StorageCleanupRunResult['items'][number]> {

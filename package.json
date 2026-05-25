@@ -21,7 +21,6 @@
     "env:vercel": "node scripts/print-vercel-env-checklist.mjs"
   },
   "dependencies": {
-    "@google-cloud/storage": "^7.19.0",
     "@serwist/next": "^9.5.7",
     "@serwist/precaching": "^9.5.7",
     "@serwist/sw": "^9.5.7",

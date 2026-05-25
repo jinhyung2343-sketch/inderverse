@@ -241,6 +241,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       user: null,
       profile: null,
+      isLoading: false,
       isAdultVerified: false,
       isSubscribed: false,
       guardianConsentStatus: null,

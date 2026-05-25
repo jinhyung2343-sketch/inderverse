@@ -48,12 +48,8 @@ const requiredEnv = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_STORAGE_BUCKET',
   'NEXT_PUBLIC_SITE_URL',
-  'GCS_PROJECT_ID',
-  'GCS_BUCKET_NAME',
-  'GCS_CLIENT_EMAIL',
-  'GCS_PRIVATE_KEY',
-  'NEXT_PUBLIC_CDN_URL',
   'AGE_VERIFICATION_STATE_SECRET',
   'AGE_VERIFICATION_PROVIDER_SECRET',
   'CRON_SECRET',
@@ -63,7 +59,6 @@ const requiredEnv = [
 const urlEnv = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SITE_URL',
-  'NEXT_PUBLIC_CDN_URL',
   'PASS_VERIFY_START_URL',
   'PHONE_VERIFY_START_URL',
 ]
@@ -122,7 +117,7 @@ for (const name of urlEnv) {
   try {
     const url = new URL(value)
 
-    if (name !== 'NEXT_PUBLIC_SITE_URL' && name !== 'NEXT_PUBLIC_CDN_URL') {
+    if (name !== 'NEXT_PUBLIC_SITE_URL') {
       continue
     }
 

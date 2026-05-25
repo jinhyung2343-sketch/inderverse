@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { SparkCard } from '@/components/spark/SparkCard'
@@ -71,12 +72,15 @@ export default async function SparkDetailPage({
                     key={`${spark.id}-panel-${index}`}
                     className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={panel.imageUrl}
-                      alt={`${spark.title} ${index + 1}번 컷`}
-                      className={`w-full object-cover ${spark.format === 'four_cut' ? 'h-64' : 'h-[420px]'}`}
-                    />
+                    <div className={`relative w-full ${spark.format === 'four_cut' ? 'h-64' : 'h-[420px]'}`}>
+                      <Image
+                        src={panel.imageUrl}
+                        alt={`${spark.title} ${index + 1}번 컷`}
+                        fill
+                        sizes={spark.format === 'four_cut' ? '(min-width: 768px) 40vw, 100vw' : '100vw'}
+                        className="object-cover"
+                      />
+                    </div>
                     {panel.caption ? (
                       <figcaption className="border-t border-white/10 px-4 py-3 text-sm leading-6 text-zinc-300">
                         {panel.caption}
@@ -86,8 +90,15 @@ export default async function SparkDetailPage({
                 ))}
               </div>
             ) : spark.coverImageUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={spark.coverImageUrl} alt={spark.title} className="h-[360px] w-full object-cover" />
+              <div className="relative h-[360px] w-full">
+                <Image
+                  src={spark.coverImageUrl}
+                  alt={spark.title}
+                  fill
+                  sizes="100vw"
+                  className="object-cover"
+                />
+              </div>
             ) : (
               <div className={`flex h-[360px] items-end bg-gradient-to-br ${accentClassName} p-6`}>
                 <div className="rounded-[24px] border border-white/10 bg-black/30 p-5 backdrop-blur-sm">

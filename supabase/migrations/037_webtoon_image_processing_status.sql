@@ -28,10 +28,10 @@ SET
 
 COMMENT ON COLUMN episode_images.processing_status IS '이미지 변환 상태. ready=원본/파생 이미지 준비 완료, partial=원본 fallback, retry_needed=재처리 필요';
 COMMENT ON COLUMN episode_images.processing_error IS '이미지 변환 또는 파생 파일 생성 실패 사유';
-COMMENT ON COLUMN episode_images.cleanup_status IS 'GCS 파일 정리 상태. 삭제/교체 후 고아 파일 추적에 사용';
-COMMENT ON COLUMN episode_images.original_file_path IS 'GCS 원본 파일 경로';
-COMMENT ON COLUMN episode_images.optimized_file_path IS 'GCS 독자용 최적화 파일 경로';
-COMMENT ON COLUMN episode_images.thumbnail_file_path IS 'GCS 썸네일 파일 경로';
+COMMENT ON COLUMN episode_images.cleanup_status IS 'Supabase Storage 파일 정리 상태. 삭제/교체 후 고아 파일 추적에 사용';
+COMMENT ON COLUMN episode_images.original_file_path IS 'Supabase Storage 원본 파일 경로';
+COMMENT ON COLUMN episode_images.optimized_file_path IS 'Supabase Storage 독자용 최적화 파일 경로';
+COMMENT ON COLUMN episode_images.thumbnail_file_path IS 'Supabase Storage 썸네일 파일 경로';
 
 CREATE TABLE IF NOT EXISTS storage_cleanup_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS storage_cleanup_jobs (
 CREATE INDEX IF NOT EXISTS idx_storage_cleanup_jobs_status_created_at
   ON storage_cleanup_jobs(status, created_at);
 
-COMMENT ON TABLE storage_cleanup_jobs IS '업로드 교체/삭제로 더 이상 참조하지 않는 GCS 파일 정리 대기열';
-COMMENT ON COLUMN storage_cleanup_jobs.file_path IS 'GCS 파일 경로. 실제 삭제 전 공개 URL 대신 경로 기준으로 처리';
+COMMENT ON TABLE storage_cleanup_jobs IS '업로드 교체/삭제로 더 이상 참조하지 않는 Supabase Storage 파일 정리 대기열';
+COMMENT ON COLUMN storage_cleanup_jobs.file_path IS 'Supabase Storage 파일 경로. 실제 삭제 전 공개 URL 대신 경로 기준으로 처리';
 
 CREATE OR REPLACE FUNCTION public.claim_storage_cleanup_jobs(
   p_limit INT DEFAULT 25

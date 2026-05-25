@@ -1,7 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 import { ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
+import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
 
 export function CreatorChannelImageField({
   creatorChannelId,
@@ -42,26 +44,32 @@ export function CreatorChannelImageField({
       })
 
       const signedUrlPayload = (await signedUrlResponse.json()) as {
+        bucket?: string
         error?: string
-        url?: string
+        filePath?: string
         publicUrl?: string
+        token?: string
       }
 
-      if (!signedUrlResponse.ok || !signedUrlPayload.url || !signedUrlPayload.publicUrl) {
+      if (
+        !signedUrlResponse.ok ||
+        !signedUrlPayload.bucket ||
+        !signedUrlPayload.filePath ||
+        !signedUrlPayload.publicUrl ||
+        !signedUrlPayload.token
+      ) {
         throw new Error(signedUrlPayload.error || '업로드용 주소를 만들지 못했습니다.')
       }
 
-      const uploadResponse = await fetch(signedUrlPayload.url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
+      await uploadToSupabaseSignedUrl(
+        {
+          bucket: signedUrlPayload.bucket,
+          filePath: signedUrlPayload.filePath,
+          publicUrl: signedUrlPayload.publicUrl,
+          token: signedUrlPayload.token,
         },
-        body: file,
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error('이미지 업로드에 실패했습니다.')
-      }
+        file
+      )
 
       setValue(signedUrlPayload.publicUrl)
       setMessage('이미지가 업로드되어 저장 대기 상태로 반영되었습니다.')
@@ -98,8 +106,13 @@ export function CreatorChannelImageField({
 
       <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={value} alt={`${label} preview`} className={previewClassName} />
+          <Image
+            src={value}
+            alt={`${label} preview`}
+            width={960}
+            height={540}
+            className={previewClassName}
+          />
         ) : (
           <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-white/10 text-sm text-zinc-500">
             아직 이미지가 없습니다.

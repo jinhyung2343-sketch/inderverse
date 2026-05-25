@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
@@ -45,8 +46,13 @@ export default async function PublicCreatorChannelPage({
             <div className="grid gap-6 p-6 md:grid-cols-[auto_1fr_auto] md:items-end md:p-8">
               <div className="-mt-20 flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-zinc-900 text-4xl font-black text-zinc-500">
                 {channel.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={channel.avatarUrl} alt={channel.displayName} className="h-full w-full object-cover" />
+                  <Image
+                    src={channel.avatarUrl}
+                    alt={channel.displayName}
+                    width={128}
+                    height={128}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   channel.displayName.slice(0, 1)
                 )}

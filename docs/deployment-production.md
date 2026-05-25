@@ -54,6 +54,7 @@ Set these in the hosting provider:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_STORAGE_BUCKET=artwork-assets
 NEXT_PUBLIC_SITE_URL=
 
 INDERVERSE_SMTP_HOST=
@@ -61,12 +62,6 @@ INDERVERSE_SMTP_USER=
 INDERVERSE_SMTP_PASS=
 INDERVERSE_SMTP_FROM_EMAIL=
 INDERVERSE_SMTP_FROM_NAME=
-
-GCS_PROJECT_ID=
-GCS_BUCKET_NAME=
-GCS_CLIENT_EMAIL=
-GCS_PRIVATE_KEY=
-NEXT_PUBLIC_CDN_URL=
 
 PASS_VERIFY_START_URL=
 PHONE_VERIFY_START_URL=
@@ -116,6 +111,8 @@ The My Bottega flow depends on:
 
 Migration `050_creator_channel_primary_bottega.sql` adds `creator_channels.primary_work_type` and reloads the PostgREST schema cache. Without it, the app has a fallback, but the selected Bottega genre is not fully persisted.
 
+Migration `052_supabase_storage_assets.sql` creates the public `artwork-assets` storage bucket used for covers, panels, and webtoon episode images. Keep `SUPABASE_STORAGE_BUCKET` aligned with that bucket name unless a separate migration is prepared.
+
 ## 4. Supabase Auth URL Configuration
 
 Set the production domain as the Supabase Auth Site URL:
@@ -134,16 +131,16 @@ https://your-domain.com/auth/verify-email
 
 If preview deployments are used for QA, add preview URLs separately and keep production redirects exact.
 
-## 5. Storage and CDN
+## 5. Supabase Storage
 
-The GCS service account must be able to:
+The app stores uploaded artwork in the Supabase Storage bucket configured by `SUPABASE_STORAGE_BUCKET`.
 
-- create objects
-- read objects
-- delete objects used by cleanup jobs
-- generate signed upload URLs
+The bucket must be public for image delivery, while uploads are still issued through server-generated signed upload URLs. The service role key is used only server-side for:
 
-Set `NEXT_PUBLIC_CDN_URL` to the public CDN origin used for uploaded images. If the CDN is not ready, use the GCS public bucket URL path and keep `next.config.ts` aligned with `GCS_BUCKET_NAME`.
+- creating signed upload URLs
+- server-side cover optimization
+- webtoon image derivative generation
+- deleting stale storage objects in cleanup jobs
 
 ## 6. Cron and Internal Jobs
 
@@ -178,4 +175,4 @@ For domain rollback:
 
 - keep Supabase Auth redirect URLs for both the old and new domains during transition
 - keep `NEXT_PUBLIC_SITE_URL` aligned with the active canonical domain
-- keep CDN cache invalidation available for uploaded image paths
+- keep Supabase Storage bucket policies and uploaded image paths intact

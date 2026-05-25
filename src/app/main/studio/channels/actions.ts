@@ -17,7 +17,7 @@ import {
   uploadEpisodeImageFile,
   uploadSparkCoverFile,
   uploadSparkPanelFile,
-} from '@/lib/gcs/upload'
+} from '@/lib/storage/upload'
 import { mapWithConcurrency } from '@/lib/server/concurrency'
 import { PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { ensureDefaultCreatorChannel } from '@/lib/server/creator-channels'
@@ -47,6 +47,18 @@ type UserRole = Database['public']['Enums']['user_role']
 type WorkType = Database['public']['Enums']['work_type']
 
 const WEBTOON_EPISODE_CREATE_UPLOAD_CONCURRENCY = 2
+
+export interface WebtoonChannelActionState {
+  error: string | null
+}
+
+function getActionErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message
+  }
+
+  return fallback
+}
 
 function revalidatePublicContentCache() {
   revalidateTag(PUBLIC_CACHE_TAGS.artworks, 'max')
@@ -545,6 +557,36 @@ async function syncChannelTags(channelId: string, category: string, tags: string
   }
 }
 
+async function upsertRevenueSettings(
+  payload: Database['public']['Tables']['revenue_settings']['Insert']
+) {
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('revenue_settings')
+    .upsert(payload, { onConflict: 'channel_id' })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
+async function uploadOptionalChannelCoverFile({
+  channelId,
+  file,
+  context,
+}: {
+  channelId: string
+  file: File
+  context: string
+}) {
+  try {
+    return await uploadChannelCoverFile({ channelId, file })
+  } catch (error) {
+    console.error(`${context} cover upload failed:`, error)
+    return null
+  }
+}
+
 function parseSparkDraft(formData: FormData): SparkDraftInput {
   const title = readText(formData, 'title')
   const description = readText(formData, 'description')
@@ -878,13 +920,7 @@ export async function createSparkChannel(formData: FormData) {
     throw new Error(error?.message || '스파크를 만들지 못했습니다.')
   }
 
-  const { error: revenueError } = await supabase
-    .from('revenue_settings')
-    .upsert({ channel_id: data.id }, { onConflict: 'channel_id' })
-
-  if (revenueError) {
-    throw new Error(revenueError.message)
-  }
+  await upsertRevenueSettings({ channel_id: data.id })
 
   const patch: Database['public']['Tables']['channels']['Update'] = {}
 
@@ -965,7 +1001,7 @@ export async function updateSparkChannel(formData: FormData) {
   redirect(`/main/studio/channels/spark/${channelId}/edit`)
 }
 
-export async function createWebtoonChannel(formData: FormData) {
+async function createWebtoonChannelMutation(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
   const creatorChannel = await ensureDefaultCreatorChannel(userId)
   const input = parseWebtoonDraft(formData)
@@ -982,40 +1018,34 @@ export async function createWebtoonChannel(formData: FormData) {
     throw new Error(error?.message || '연재 툰을 만들지 못했습니다.')
   }
 
-  const { error: revenueError } = await supabase
-    .from('revenue_settings')
-    .upsert(
-      {
-        channel_id: data.id,
-        creator_share_pct: input.revenueSettings.creatorSharePct,
-        min_payout_amount: input.revenueSettings.minPayoutAmount,
-        payout_method: input.revenueSettings.payoutMethod,
-        bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
-      },
-      { onConflict: 'channel_id' }
-    )
-
-  if (revenueError) {
-    throw new Error(revenueError.message)
-  }
+  await upsertRevenueSettings({
+    channel_id: data.id,
+    creator_share_pct: input.revenueSettings.creatorSharePct,
+    min_payout_amount: input.revenueSettings.minPayoutAmount,
+    payout_method: input.revenueSettings.payoutMethod,
+    bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
+  })
 
   await syncChannelTags(data.id, input.category, input.tags)
 
   if (pendingCoverImageFile) {
-    const uploadedCoverUrl = await uploadChannelCoverFile({
+    const uploadedCoverUrl = await uploadOptionalChannelCoverFile({
       channelId: data.id,
       file: pendingCoverImageFile,
+      context: 'createWebtoonChannel',
     })
 
-    const { error: coverError } = await supabase
-      .from('channels')
-      .update({ cover_image_url: uploadedCoverUrl })
-      .eq('id', data.id)
-      .eq('creator_id', userId)
-      .eq('work_type', 'webtoon')
+    if (uploadedCoverUrl) {
+      const { error: coverError } = await supabase
+        .from('channels')
+        .update({ cover_image_url: uploadedCoverUrl })
+        .eq('id', data.id)
+        .eq('creator_id', userId)
+        .eq('work_type', 'webtoon')
 
-    if (coverError) {
-      throw new Error(coverError.message)
+      if (coverError) {
+        throw new Error(coverError.message)
+      }
     }
   }
 
@@ -1023,7 +1053,30 @@ export async function createWebtoonChannel(formData: FormData) {
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/channels')
   revalidatePublicContentCache()
-  redirect(`/main/studio/channels/webtoon/${data.id}/rating`)
+
+  return `/main/studio/channels/webtoon/${data.id}/rating`
+}
+
+export async function createWebtoonChannel(formData: FormData) {
+  redirect(await createWebtoonChannelMutation(formData))
+}
+
+export async function createWebtoonChannelWithState(
+  _previousState: WebtoonChannelActionState,
+  formData: FormData
+): Promise<WebtoonChannelActionState> {
+  let nextPath: string
+
+  try {
+    nextPath = await createWebtoonChannelMutation(formData)
+  } catch (error) {
+    console.error('createWebtoonChannel failed:', error)
+    return {
+      error: getActionErrorMessage(error, '연재 툰을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+    }
+  }
+
+  redirect(nextPath)
 }
 
 export async function updateChannelContentRating(formData: FormData) {
@@ -1073,7 +1126,7 @@ export async function updateChannelContentRating(formData: FormData) {
   redirect(nextPath || `/main/studio/channels/${workType}/${channelId}/edit`)
 }
 
-export async function updateWebtoonChannel(formData: FormData) {
+async function updateWebtoonChannelMutation(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
   const creatorChannel = await ensureDefaultCreatorChannel(userId)
   const channelId = readText(formData, 'channelId')
@@ -1097,40 +1150,34 @@ export async function updateWebtoonChannel(formData: FormData) {
     throw new Error(error.message)
   }
 
-  const { error: revenueError } = await supabase
-    .from('revenue_settings')
-    .upsert(
-      {
-        channel_id: channelId,
-        creator_share_pct: input.revenueSettings.creatorSharePct,
-        min_payout_amount: input.revenueSettings.minPayoutAmount,
-        payout_method: input.revenueSettings.payoutMethod,
-        bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
-      },
-      { onConflict: 'channel_id' }
-    )
-
-  if (revenueError) {
-    throw new Error(revenueError.message)
-  }
+  await upsertRevenueSettings({
+    channel_id: channelId,
+    creator_share_pct: input.revenueSettings.creatorSharePct,
+    min_payout_amount: input.revenueSettings.minPayoutAmount,
+    payout_method: input.revenueSettings.payoutMethod,
+    bank_info_encrypted: input.revenueSettings.bankInfoEncrypted,
+  })
 
   await syncChannelTags(channelId, input.category, input.tags)
 
   if (pendingCoverImageFile) {
-    const uploadedCoverUrl = await uploadChannelCoverFile({
+    const uploadedCoverUrl = await uploadOptionalChannelCoverFile({
       channelId,
       file: pendingCoverImageFile,
+      context: 'updateWebtoonChannel',
     })
 
-    const { error: coverError } = await supabase
-      .from('channels')
-      .update({ cover_image_url: uploadedCoverUrl })
-      .eq('id', channelId)
-      .eq('creator_id', userId)
-      .eq('work_type', 'webtoon')
+    if (uploadedCoverUrl) {
+      const { error: coverError } = await supabase
+        .from('channels')
+        .update({ cover_image_url: uploadedCoverUrl })
+        .eq('id', channelId)
+        .eq('creator_id', userId)
+        .eq('work_type', 'webtoon')
 
-    if (coverError) {
-      throw new Error(coverError.message)
+      if (coverError) {
+        throw new Error(coverError.message)
+      }
     }
   }
 
@@ -1138,7 +1185,30 @@ export async function updateWebtoonChannel(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath('/main/studio/channels')
   revalidatePublicContentCache()
-  redirect(`/main/studio/channels/webtoon/${channelId}/edit`)
+
+  return `/main/studio/channels/webtoon/${channelId}/edit`
+}
+
+export async function updateWebtoonChannel(formData: FormData) {
+  redirect(await updateWebtoonChannelMutation(formData))
+}
+
+export async function updateWebtoonChannelWithState(
+  _previousState: WebtoonChannelActionState,
+  formData: FormData
+): Promise<WebtoonChannelActionState> {
+  let nextPath: string
+
+  try {
+    nextPath = await updateWebtoonChannelMutation(formData)
+  } catch (error) {
+    console.error('updateWebtoonChannel failed:', error)
+    return {
+      error: getActionErrorMessage(error, '연재 툰 변경 사항을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+    }
+  }
+
+  redirect(nextPath)
 }
 
 export async function createNovelChannel(formData: FormData) {
@@ -1158,13 +1228,7 @@ export async function createNovelChannel(formData: FormData) {
     throw new Error(error?.message || '소설을 만들지 못했습니다.')
   }
 
-  const { error: revenueError } = await supabase
-    .from('revenue_settings')
-    .upsert({ channel_id: data.id }, { onConflict: 'channel_id' })
-
-  if (revenueError) {
-    throw new Error(revenueError.message)
-  }
+  await upsertRevenueSettings({ channel_id: data.id })
 
   await syncChannelTags(data.id, input.category, input.tags)
 

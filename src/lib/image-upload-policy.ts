@@ -2,6 +2,9 @@ export const IMAGE_UPLOAD_POLICY = {
   allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
   maxFileBytes: 20 * 1024 * 1024,
   compressionWarningBytes: 10 * 1024 * 1024,
+  coverWidthMax: 1200,
+  coverWebpQuality: 0.85,
+  webtoonPanelWebpQuality: 0.9,
   recommendedWebtoonWidthMin: 1080,
   recommendedWebtoonWidthMax: 1600,
   longStripHeightPx: 20000,
@@ -39,10 +42,22 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export function getWebtoonUploadGuide() {
-  return [
+export function getWebtoonUploadGuide(purpose: ImageUploadPurpose = 'webtoon-panel') {
+  const commonGuide = [
     `지원 형식: JPG, PNG, WebP`,
     `파일당 최대 ${formatFileSize(IMAGE_UPLOAD_POLICY.maxFileBytes)}`,
+  ]
+
+  if (purpose === 'cover') {
+    return [
+      ...commonGuide,
+      `표지는 가로 ${IMAGE_UPLOAD_POLICY.coverWidthMax}px 이하 WebP로 자동 최적화됩니다.`,
+      `권장 가로폭: 720px-${IMAGE_UPLOAD_POLICY.coverWidthMax}px`,
+    ]
+  }
+
+  return [
+    ...commonGuide,
     `권장 가로폭: ${IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMin}px-${IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMax}px`,
     `긴 세로 원고는 컷 단위로 나누면 독자 로딩이 안정적입니다.`,
   ]
@@ -107,9 +122,13 @@ async function compressImageFile(
 
     context.drawImage(image, 0, 0, targetWidth, targetHeight)
 
-    const blob = await canvasToBlob(canvas, 'image/webp', purpose === 'cover' ? 0.88 : 0.9)
+    const quality =
+      purpose === 'cover'
+        ? IMAGE_UPLOAD_POLICY.coverWebpQuality
+        : IMAGE_UPLOAD_POLICY.webtoonPanelWebpQuality
+    const blob = await canvasToBlob(canvas, 'image/webp', quality)
 
-    if (!blob || blob.size >= file.size) {
+    if (!blob || (purpose !== 'cover' && blob.size >= file.size)) {
       return null
     }
 
@@ -140,12 +159,15 @@ async function prepareImageFileForUpload(file: File, purpose: ImageUploadPurpose
   const isLongWebtoonStrip =
     purpose === 'webtoon-panel' &&
     (height >= IMAGE_UPLOAD_POLICY.longStripHeightPx || height / width >= IMAGE_UPLOAD_POLICY.longStripRatio)
+  const maxWidth =
+    purpose === 'cover' ? IMAGE_UPLOAD_POLICY.coverWidthMax : IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMax
   const shouldResize =
-    width > IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMax &&
+    width > maxWidth &&
     (purpose === 'cover' || !isLongWebtoonStrip)
   const shouldCompress = file.size > IMAGE_UPLOAD_POLICY.compressionWarningBytes
+  const shouldConvertCover = purpose === 'cover' && file.type !== 'image/webp'
 
-  if (!shouldResize && !shouldCompress) {
+  if (!shouldResize && !shouldCompress && !shouldConvertCover) {
     return { file, messages }
   }
 
@@ -154,7 +176,7 @@ async function prepareImageFileForUpload(file: File, purpose: ImageUploadPurpose
     return { file, messages }
   }
 
-  const targetWidth = shouldResize ? IMAGE_UPLOAD_POLICY.recommendedWebtoonWidthMax : width
+  const targetWidth = shouldResize ? maxWidth : width
   const compressedFile = await compressImageFile(file, width, height, targetWidth, purpose)
 
   if (!compressedFile) {

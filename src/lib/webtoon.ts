@@ -133,6 +133,7 @@ export interface WebtoonEpisodeDraftInput {
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const
+export const FLEXIBLE_SERIALIZATION_LABEL = '자율'
 
 export function sanitizeWebtoonTags(value: string) {
   return Array.from(
@@ -220,6 +221,14 @@ export function getEpisodeStatusLabel(status: WebtoonEpisodeStatus) {
 
 export function getSerializationDayLabel(day: number) {
   return WEEKDAY_LABELS[day] ?? `${day}`
+}
+
+export function getSerializationScheduleLabel(days: number[]) {
+  if (days.length === 0) {
+    return FLEXIBLE_SERIALIZATION_LABEL
+  }
+
+  return days.map(getSerializationDayLabel).join(', ')
 }
 
 export function getPayoutMethodLabel(

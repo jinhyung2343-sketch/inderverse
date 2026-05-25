@@ -1,8 +1,14 @@
+'use client'
+
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
+import type { WebtoonChannelActionState } from '@/app/main/studio/channels/actions'
 import { BRAND } from '@/lib/brand'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import { categories } from '@/lib/explore'
 import type { CreatorWebtoonRecord } from '@/lib/webtoon'
 import {
+  FLEXIBLE_SERIALIZATION_LABEL,
   getPayoutMethodLabel,
   getSerializationDayLabel,
   getWebtoonStatusLabel,
@@ -15,6 +21,21 @@ const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
 const payoutMethodOptions = ['bank_transfer', 'paypal'] as const
 const workScaleOptions = ['short', 'medium', 'long'] as const
+const initialActionState: WebtoonChannelActionState = { error: null }
+
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? '저장 중...' : label}
+    </button>
+  )
+}
 
 export function WebtoonEditorForm({
   action,
@@ -25,7 +46,10 @@ export function WebtoonEditorForm({
   channelId,
   showContentRatingFieldset = true,
 }: {
-  action: (formData: FormData) => void | Promise<void>
+  action: (
+    previousState: WebtoonChannelActionState,
+    formData: FormData
+  ) => WebtoonChannelActionState | Promise<WebtoonChannelActionState>
   initialValue?: CreatorWebtoonRecord
   heading: string
   description: string
@@ -33,8 +57,10 @@ export function WebtoonEditorForm({
   channelId?: string
   showContentRatingFieldset?: boolean
 }) {
+  const [state, formAction] = useActionState(action, initialActionState)
+
   return (
-    <form action={action} className="grid gap-6">
+    <form action={formAction} className="grid gap-6">
       {!showContentRatingFieldset ? (
         <>
           <input type="hidden" name="ageRating" value="all" />
@@ -138,6 +164,16 @@ export function WebtoonEditorForm({
 
             <div className="mt-4 grid gap-3 text-sm text-zinc-300">
               <p className="text-white">연재 요일</p>
+              <label className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-emerald-50">
+                <input
+                  type="checkbox"
+                  name="serializationDays"
+                  value="flexible"
+                  defaultChecked={(initialValue?.serializationDays.length ?? 0) === 0}
+                  className="h-4 w-4 rounded border-white/20 bg-black/30"
+                />
+                <span>{FLEXIBLE_SERIALIZATION_LABEL}</span>
+              </label>
               <div className="flex flex-wrap gap-2">
                 {weekdayOptions.map((day) => {
                   const checked = initialValue?.serializationDays.includes(day) ?? false
@@ -342,16 +378,17 @@ export function WebtoonEditorForm({
 
           <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
             {channelId
-              ? '채널 저장 후 아래 회차 섹션에서 실제 공개용 에피소드를 추가할 수 있습니다. 커버 이미지는 GCS에 올라가고, 메타데이터는 Supabase에 남습니다.'
+              ? '채널 저장 후 아래 회차 섹션에서 실제 공개용 에피소드를 추가할 수 있습니다. 커버 이미지는 Supabase Storage에 올라가고, 메타데이터는 Supabase에 남습니다.'
               : '새 웹툰 채널은 먼저 저장한 뒤, 다음 화면에서 회차 생성과 이미지 업로드까지 이어서 진행하면 됩니다.'}
           </div>
 
-          <button
-            type="submit"
-            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-          >
-            {submitLabel}
-          </button>
+          {state.error ? (
+            <div className="rounded-3xl border border-rose-300/25 bg-rose-500/10 p-4 text-sm leading-6 text-rose-100">
+              {state.error}
+            </div>
+          ) : null}
+
+          <SubmitButton label={submitLabel} />
         </div>
       </section>
     </form>

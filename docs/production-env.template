@@ -9,6 +9,7 @@
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_STORAGE_BUCKET=artwork-assets
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 
 # Inderverse SMTP via Resend or another verified sender
@@ -18,15 +19,6 @@ INDERVERSE_SMTP_USER=resend
 INDERVERSE_SMTP_PASS=your-smtp-password-or-api-key
 INDERVERSE_SMTP_FROM_EMAIL=no-reply@your-verified-domain.com
 INDERVERSE_SMTP_FROM_NAME=Inderverse
-
-# Google Cloud Storage
-GCS_PROJECT_ID=your-gcp-project-id
-GCS_BUCKET_NAME=inderverse-images
-GCS_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
-GCS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour-private-key\n-----END PRIVATE KEY-----"
-
-# CDN for uploaded image delivery
-NEXT_PUBLIC_CDN_URL=https://cdn.your-domain.com
 
 # Age verification
 PASS_VERIFY_START_URL=https://pass-provider.your-domain.com/start

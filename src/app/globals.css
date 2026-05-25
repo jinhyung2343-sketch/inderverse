@@ -52,6 +52,23 @@ body {
   overscroll-behavior-y: none; /* PWA 당겨서 새로고침 방지용 (필요시 조정) */
 }
 
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+textarea,
+select {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+input,
+textarea,
+select {
+  caret-color: currentColor;
+}
+
+textarea {
+  resize: vertical;
+}
+
 /* Glassmorphism Utilities */
 .glass {
   background: rgba(22, 24, 29, 0.6);

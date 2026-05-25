@@ -24,6 +24,7 @@ type SettlementRow = Pick<
   Database['public']['Tables']['settlements']['Row'],
   | 'id'
   | 'channel_id'
+  | 'creator_id'
   | 'period_start'
   | 'period_end'
   | 'total_purchases'
@@ -167,7 +168,7 @@ export async function getCreatorSettlementDashboard(): Promise<CreatorSettlement
   const settlementsResult = await admin
     .from('settlements')
     .select(
-      'id, channel_id, period_start, period_end, total_purchases, gross_revenue_coins, paid_coin_revenue, free_coin_revenue, creator_amount, platform_amount, creator_share_pct_snapshot, status, paid_at, created_at'
+      'id, channel_id, creator_id, period_start, period_end, total_purchases, gross_revenue_coins, paid_coin_revenue, free_coin_revenue, creator_amount, platform_amount, creator_share_pct_snapshot, status, paid_at, created_at'
     )
     .eq('creator_id', user.id)
     .order('period_end', { ascending: false })

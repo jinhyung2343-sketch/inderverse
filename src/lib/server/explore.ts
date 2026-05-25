@@ -84,7 +84,7 @@ type CreatorChannelSummaryRow = Pick<
 interface ArtworkBundle {
   channel: ChannelRow
   episodes: EpisodeRow[]
-  episodeImagesByEpisodeId: Map<string, string[]>
+  episodeImagesByEpisodeId: ReadonlyMap<string, readonly string[]>
   tags: TagRow[]
 }
 
@@ -301,7 +301,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
     maxFreeEpisode,
     isFreeArchive: bundle.channel.is_free_archive,
     episodes: orderedEpisodes.map((episode) => {
-      const imageUrls = bundle.episodeImagesByEpisodeId.get(episode.id) ?? []
+      const imageUrls = [...(bundle.episodeImagesByEpisodeId.get(episode.id) ?? [])]
       const access =
         episode.status === 'published' &&
         (bundle.channel.is_free_archive || episode.episode_number <= maxFreeEpisode)

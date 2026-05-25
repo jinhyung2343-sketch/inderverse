@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   generateSignedUrl,
   isAllowedContentType,
-  MAX_IMAGE_FILE_BYTES,
-} from '@/lib/gcs/upload'
+} from '@/lib/storage/upload'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -59,14 +58,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
     }
 
-    const { url, filePath, publicUrl } = await generateSignedUrl({
+    const signedUpload = await generateSignedUrl({
       channelId,
       episodeId,
       sortOrder,
       contentType,
     })
 
-    return NextResponse.json({ url, filePath, publicUrl, maxFileBytes: MAX_IMAGE_FILE_BYTES }, { status: 200 })
+    return NextResponse.json(signedUpload, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal Server Error'
     console.error('Error generating signed URL:', message)

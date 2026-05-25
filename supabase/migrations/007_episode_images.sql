@@ -1,5 +1,5 @@
 -- 007_episode_images.sql
--- 에피소드 이미지 (GCS 연동)
+-- 에피소드 이미지 (Supabase Storage 연동)
 
 CREATE TABLE episode_images (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -16,5 +16,5 @@ CREATE TABLE episode_images (
 
 ALTER TABLE episode_images ENABLE ROW LEVEL SECURITY;
 
-COMMENT ON TABLE episode_images IS '에피소드 이미지. GCS 경로 저장';
-COMMENT ON COLUMN episode_images.is_verified IS 'Cloud Function에서 magic bytes 검증 완료 여부';
+COMMENT ON TABLE episode_images IS '에피소드 이미지. Supabase Storage 경로 저장';
+COMMENT ON COLUMN episode_images.is_verified IS '이미지 처리 작업에서 magic bytes 검증 완료 여부';

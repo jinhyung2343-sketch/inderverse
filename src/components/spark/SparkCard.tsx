@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import type { SparkRecord } from '@/lib/spark'
 import { getSparkAccentClassName, getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
 
@@ -11,14 +12,13 @@ export function SparkCard({ spark }: { spark: SparkRecord }) {
       <article className="group h-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] transition hover:border-white/20 hover:bg-white/[0.09]">
         <div className="relative aspect-[16/10] overflow-hidden bg-zinc-900">
           {spark.coverImageUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={spark.coverImageUrl}
-                alt={spark.title}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-              />
-            </>
+            <Image
+              src={spark.coverImageUrl}
+              alt={spark.title}
+              fill
+              sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 100vw"
+              className="object-cover transition duration-500 group-hover:scale-105"
+            />
           ) : (
             <div className={`flex h-full flex-col justify-end bg-gradient-to-br ${accentClassName} p-5`}>
               <h2 className="line-clamp-2 text-2xl font-black tracking-tight text-white">{spark.title}</h2>
