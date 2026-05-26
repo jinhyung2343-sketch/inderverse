@@ -1,9 +1,17 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import type { WebtoonChannelActionState } from '@/app/main/studio/channels/actions'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
+import { FreeArchiveConfirmField } from '@/components/studio/FreeArchiveConfirmField'
+import {
+  DEFAULT_RATING_CHECKLIST,
+  isChannelAgeRating,
+  sanitizeRatingChecklist,
+  type ChannelAgeRating,
+  type RatingChecklist,
+} from '@/lib/content-rating'
 import { categories } from '@/lib/explore'
 import type { CreatorWebtoonRecord } from '@/lib/webtoon'
 import {
@@ -19,6 +27,82 @@ const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
 const workScaleOptions = ['short', 'medium', 'long'] as const
 const initialActionState: WebtoonChannelActionState = { error: null }
+const WEBTOON_CHANNEL_DRAFT_KEY_PREFIX = 'inderverse:webtoon-channel-draft:'
+
+interface WebtoonChannelFormDraft {
+  title: string
+  description: string
+  coverImageUrl: string
+  category: string
+  status: string
+  tags: string
+  serializationDays: string[]
+  workScale: string
+  teaserPercentage: string
+  isFreeArchive: boolean
+  isCommentEnabled: boolean
+  commentPolicyNote: string
+  ageRating: ChannelAgeRating
+  ratingChecklist: RatingChecklist
+  savedAt: string
+}
+
+function formatDraftSavedAt(value: string | null) {
+  if (!value) {
+    return '아직 저장 전'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '저장 시각 확인 전'
+  }
+
+  return date.toLocaleString('ko-KR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function parseDraft(rawDraft: string) {
+  const parsed = JSON.parse(rawDraft) as Partial<WebtoonChannelFormDraft>
+  const rawAgeRating = typeof parsed.ageRating === 'string' ? parsed.ageRating : ''
+  const ageRating = isChannelAgeRating(rawAgeRating) ? rawAgeRating : 'all'
+
+  return {
+    title: typeof parsed.title === 'string' ? parsed.title : '',
+    description: typeof parsed.description === 'string' ? parsed.description : '',
+    coverImageUrl: typeof parsed.coverImageUrl === 'string' ? parsed.coverImageUrl : '',
+    category: typeof parsed.category === 'string' ? parsed.category : '드라마',
+    status: typeof parsed.status === 'string' ? parsed.status : 'draft',
+    tags: typeof parsed.tags === 'string' ? parsed.tags : '',
+    serializationDays: Array.isArray(parsed.serializationDays)
+      ? parsed.serializationDays.filter((value): value is string => typeof value === 'string')
+      : [],
+    workScale: typeof parsed.workScale === 'string' ? parsed.workScale : 'medium',
+    teaserPercentage: typeof parsed.teaserPercentage === 'string' ? parsed.teaserPercentage : '10',
+    isFreeArchive: parsed.isFreeArchive === true,
+    isCommentEnabled: parsed.isCommentEnabled !== false,
+    commentPolicyNote: typeof parsed.commentPolicyNote === 'string' ? parsed.commentPolicyNote : '',
+    ageRating,
+    ratingChecklist: sanitizeRatingChecklist(parsed.ratingChecklist),
+    savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
+  } satisfies WebtoonChannelFormDraft
+}
+
+function parseRatingChecklistJson(value: FormDataEntryValue | null) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return DEFAULT_RATING_CHECKLIST
+  }
+
+  try {
+    return sanitizeRatingChecklist(JSON.parse(value))
+  } catch {
+    return DEFAULT_RATING_CHECKLIST
+  }
+}
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus()
@@ -55,9 +139,152 @@ export function WebtoonEditorForm({
   showContentRatingFieldset?: boolean
 }) {
   const [state, formAction] = useActionState(action, initialActionState)
+  const formRef = useRef<HTMLFormElement>(null)
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  const [draftRestored, setDraftRestored] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [isAutoSavePaused, setIsAutoSavePaused] = useState(false)
+  const [localDraft, setLocalDraft] = useState<WebtoonChannelFormDraft | null>(null)
+  const draftStorageKey = useMemo(
+    () => `${WEBTOON_CHANNEL_DRAFT_KEY_PREFIX}${channelId ?? 'new'}`,
+    [channelId]
+  )
+
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href)
+      const clearDraftKey = url.searchParams.get('clearDraftKey')
+      const shouldClearSavedDraft = clearDraftKey === draftStorageKey || url.searchParams.get('saved') === '1'
+
+      if (shouldClearSavedDraft) {
+        window.localStorage.removeItem(draftStorageKey)
+        url.searchParams.delete('clearDraftKey')
+        url.searchParams.delete('saved')
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+        window.setTimeout(() => {
+          setIsAutoSavePaused(true)
+          setDraftLoaded(true)
+        }, 0)
+        return
+      }
+
+      const rawDraft = window.localStorage.getItem(draftStorageKey)
+
+      if (!rawDraft) {
+        window.setTimeout(() => setDraftLoaded(true), 0)
+        return
+      }
+
+      const draft = parseDraft(rawDraft)
+
+      window.setTimeout(() => {
+        setLocalDraft(draft)
+        setLastSavedAt(draft.savedAt || null)
+        setDraftRestored(true)
+        setDraftLoaded(true)
+      }, 0)
+    } catch {
+      window.localStorage.removeItem(draftStorageKey)
+      window.setTimeout(() => setDraftLoaded(true), 0)
+    }
+  }, [draftStorageKey])
+
+  useEffect(() => {
+    if (!draftLoaded) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (isAutoSavePaused) {
+        return
+      }
+
+      const form = formRef.current
+
+      if (!form) {
+        return
+      }
+
+      const formData = new FormData(form)
+      const savedAt = new Date().toISOString()
+      const draft: WebtoonChannelFormDraft = {
+        title: String(formData.get('title') ?? ''),
+        description: String(formData.get('description') ?? ''),
+        coverImageUrl: String(formData.get('coverImageUrl') ?? ''),
+        category: String(formData.get('category') ?? '드라마'),
+        status: String(formData.get('status') ?? 'draft'),
+        tags: String(formData.get('tags') ?? ''),
+        serializationDays: formData
+          .getAll('serializationDays')
+          .map((value) => String(value)),
+        workScale: String(formData.get('workScale') ?? 'medium'),
+        teaserPercentage: String(formData.get('teaserPercentage') ?? '10'),
+        isFreeArchive: formData.get('isFreeArchive') === 'on',
+        isCommentEnabled: formData.get('isCommentEnabled') === 'on',
+        commentPolicyNote: String(formData.get('commentPolicyNote') ?? ''),
+        ageRating: isChannelAgeRating(String(formData.get('ageRating') ?? ''))
+          ? (String(formData.get('ageRating')) as ChannelAgeRating)
+          : 'all',
+        ratingChecklist: parseRatingChecklistJson(formData.get('ratingChecklistJson')),
+        savedAt,
+      }
+
+      try {
+        window.localStorage.setItem(draftStorageKey, JSON.stringify(draft))
+        setLastSavedAt(savedAt)
+      } catch {
+        setLastSavedAt(null)
+      }
+    }, 2000)
+
+    return () => window.clearInterval(intervalId)
+  }, [draftLoaded, draftStorageKey, isAutoSavePaused])
+
+  function clearLocalDraft() {
+    window.localStorage.removeItem(draftStorageKey)
+    setLocalDraft(null)
+    setDraftRestored(false)
+    setLastSavedAt(null)
+    setIsAutoSavePaused(true)
+  }
+
+  function resumeAutoSave() {
+    if (isAutoSavePaused) {
+      setIsAutoSavePaused(false)
+    }
+  }
+
+  if (!draftLoaded) {
+    return (
+      <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 backdrop-blur-xl">
+        저장된 작성 내용을 확인하고 있습니다.
+      </section>
+    )
+  }
+
+  const initialSerializationDays =
+    localDraft?.serializationDays.map((value) => Number.parseInt(value, 10)).filter((value) =>
+      Number.isInteger(value)
+    ) ?? initialValue?.serializationDays ?? []
+  const isFlexibleSerialization =
+    localDraft?.serializationDays.includes('flexible') ?? initialSerializationDays.length === 0
+  const initialTags =
+    localDraft?.tags ?? initialValue?.tags.filter((tag) => tag !== initialValue.category).join(', ') ?? ''
+  const initialCoverImageUrl = localDraft?.coverImageUrl ?? initialValue?.coverImageUrl ?? ''
+  const initialAgeRating = localDraft?.ageRating ?? initialValue?.ageRating ?? 'all'
+  const initialChecklist =
+    localDraft?.ratingChecklist ?? initialValue?.ratingChecklist ?? DEFAULT_RATING_CHECKLIST
 
   return (
-    <form action={formAction} className="grid gap-6">
+    <form
+      ref={formRef}
+      action={formAction}
+      onInput={resumeAutoSave}
+      onChange={resumeAutoSave}
+      className="grid gap-6"
+    >
+      <input type="hidden" name="draftStorageKey" value={draftStorageKey} />
+
       {!showContentRatingFieldset ? (
         <>
           <input type="hidden" name="ageRating" value="all" />
@@ -88,7 +315,7 @@ export function WebtoonEditorForm({
                 <input
                   name="title"
                   required
-                  defaultValue={initialValue?.title ?? ''}
+                  defaultValue={localDraft?.title ?? initialValue?.title ?? ''}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                   placeholder="웹툰 제목"
                 />
@@ -99,7 +326,7 @@ export function WebtoonEditorForm({
                 <textarea
                   name="description"
                   required
-                  defaultValue={initialValue?.description ?? ''}
+                  defaultValue={localDraft?.description ?? initialValue?.description ?? ''}
                   rows={7}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                   placeholder="작품의 세계관, 분위기, 독자에게 먼저 보여주고 싶은 맥락을 적어주세요."
@@ -108,7 +335,11 @@ export function WebtoonEditorForm({
 
               <div className="grid gap-2 text-sm text-zinc-300">
                 <span>커버 이미지</span>
-                <WebtoonCoverField channelId={channelId} initialValue={initialValue?.coverImageUrl ?? ''} />
+                <WebtoonCoverField
+                  key={initialCoverImageUrl}
+                  channelId={channelId}
+                  initialValue={initialCoverImageUrl}
+                />
               </div>
             </div>
           </div>
@@ -120,7 +351,7 @@ export function WebtoonEditorForm({
                 <span>카테고리</span>
                 <select
                   name="category"
-                  defaultValue={initialValue?.category ?? '드라마'}
+                  defaultValue={localDraft?.category ?? initialValue?.category ?? '드라마'}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 >
                   {categoryOptions.map((option) => (
@@ -135,7 +366,7 @@ export function WebtoonEditorForm({
                 <span>상태</span>
                 <select
                   name="status"
-                  defaultValue={initialValue?.status ?? 'draft'}
+                  defaultValue={localDraft?.status ?? initialValue?.status ?? 'draft'}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 >
                   {statusOptions.map((option) => (
@@ -151,9 +382,7 @@ export function WebtoonEditorForm({
               <span>탐색 태그</span>
               <input
                 name="tags"
-                defaultValue={
-                  initialValue?.tags.filter((tag) => tag !== initialValue.category).join(', ') ?? ''
-                }
+                defaultValue={initialTags}
                 className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 placeholder="도시환상, 군상극, 청춘"
               />
@@ -166,14 +395,14 @@ export function WebtoonEditorForm({
                   type="checkbox"
                   name="serializationDays"
                   value="flexible"
-                  defaultChecked={(initialValue?.serializationDays.length ?? 0) === 0}
+                  defaultChecked={isFlexibleSerialization}
                   className="h-4 w-4 rounded border-white/20 bg-black/30"
                 />
                 <span>{FLEXIBLE_SERIALIZATION_LABEL}</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {weekdayOptions.map((day) => {
-                  const checked = initialValue?.serializationDays.includes(day) ?? false
+                  const checked = initialSerializationDays.includes(day)
 
                   return (
                     <label
@@ -199,7 +428,7 @@ export function WebtoonEditorForm({
                 <span>작품 규모</span>
                 <select
                   name="workScale"
-                  defaultValue={initialValue?.workScale ?? 'medium'}
+                  defaultValue={localDraft?.workScale ?? initialValue?.workScale ?? 'medium'}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 >
                   {workScaleOptions.map((option) => (
@@ -217,27 +446,22 @@ export function WebtoonEditorForm({
                   min={3}
                   max={20}
                   name="teaserPercentage"
-                  defaultValue={initialValue?.teaserPercentage ?? 10}
+                  defaultValue={localDraft?.teaserPercentage ?? initialValue?.teaserPercentage ?? 10}
                   className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 />
               </label>
             </div>
 
-            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-              <input
-                type="checkbox"
-                name="isFreeArchive"
-                defaultChecked={initialValue?.isFreeArchive ?? false}
-                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
-              />
-              <span>이 작품 전체를 무료 아카이브로 공개합니다.</span>
-            </label>
+            <FreeArchiveConfirmField
+              key={String(localDraft?.isFreeArchive ?? initialValue?.isFreeArchive ?? false)}
+              defaultChecked={localDraft?.isFreeArchive ?? initialValue?.isFreeArchive ?? false}
+            />
           </div>
 
           {showContentRatingFieldset ? (
             <ContentRatingFieldset
-              initialAgeRating={initialValue?.ageRating ?? 'all'}
-              initialChecklist={initialValue?.ratingChecklist}
+              initialAgeRating={initialAgeRating}
+              initialChecklist={initialChecklist}
             />
           ) : (
             <div className="rounded-[32px] border border-sky-400/20 bg-sky-500/5 p-6 text-sm leading-7 text-zinc-300">
@@ -252,7 +476,7 @@ export function WebtoonEditorForm({
               <input
                 type="checkbox"
                 name="isCommentEnabled"
-                defaultChecked={initialValue?.isCommentEnabled ?? true}
+                defaultChecked={localDraft?.isCommentEnabled ?? initialValue?.isCommentEnabled ?? true}
                 className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
               />
               <span>이 작품의 댓글을 공개 상태로 운영합니다.</span>
@@ -262,7 +486,7 @@ export function WebtoonEditorForm({
               <span>댓글 안내 문구</span>
               <textarea
                 name="commentPolicyNote"
-                defaultValue={initialValue?.commentPolicyNote ?? ''}
+                defaultValue={localDraft?.commentPolicyNote ?? initialValue?.commentPolicyNote ?? ''}
                 rows={4}
                 className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
                 placeholder="감상 위주의 댓글만 허용합니다, 스포일러는 자제해 주세요 같은 운영 문구"
@@ -294,6 +518,35 @@ export function WebtoonEditorForm({
             {channelId
               ? '채널 저장 후 아래 회차 섹션에서 실제 공개용 에피소드를 추가할 수 있습니다. 커버 이미지는 Supabase Storage에 올라가고, 메타데이터는 Supabase에 남습니다.'
               : '새 웹툰 채널은 먼저 저장한 뒤, 다음 화면에서 회차 생성과 이미지 업로드까지 이어서 진행하면 됩니다.'}
+          </div>
+
+          <div className="rounded-[32px] border border-emerald-300/15 bg-emerald-500/5 p-6 text-sm leading-6 text-zinc-300">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-semibold text-emerald-100">작성 내용 자동저장</p>
+                <p className="mt-1 text-zinc-400">
+                  작품 제목, 설명, 장르, 커버 URL, 연재 요일을 이 브라우저에 자동 저장합니다. 마지막 저장:{' '}
+                  {formatDraftSavedAt(lastSavedAt)}
+                </p>
+                {isAutoSavePaused ? (
+                  <p className="mt-2 text-zinc-500">
+                    로컬 초안을 삭제했습니다. 내용을 다시 수정하면 자동저장이 재개됩니다.
+                  </p>
+                ) : null}
+                {draftRestored ? (
+                  <p className="mt-2 text-amber-100">
+                    이전에 작성하던 작품 정보를 복구했습니다. 서버 저장 전인지 확인한 뒤 저장해 주세요.
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={clearLocalDraft}
+                className="inline-flex w-fit rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 hover:text-white"
+              >
+                로컬 초안 삭제
+              </button>
+            </div>
           </div>
 
           {state.error ? (

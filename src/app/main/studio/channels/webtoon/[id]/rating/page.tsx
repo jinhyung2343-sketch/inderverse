@@ -2,14 +2,18 @@ import { notFound } from 'next/navigation'
 import { updateChannelContentRating } from '@/app/main/studio/channels/actions'
 import { ContentRatingStepForm } from '@/components/content/ContentRatingStepForm'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { ClearLocalDraftOnMount } from '@/components/studio/ClearLocalDraftOnMount'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
 
 export default async function WebtoonRatingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ clearDraftKey?: string }>
 }) {
   const { id } = await params
+  const { clearDraftKey } = await searchParams
   const webtoon = await getCreatorWebtoonById(id)
 
   if (!webtoon) {
@@ -23,6 +27,7 @@ export default async function WebtoonRatingPage({
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
+      <ClearLocalDraftOnMount storageKey={clearDraftKey} />
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <PageBackLink href={`/main/studio/channels/webtoon/${webtoon.id}/edit`} ariaLabel="툰 편집으로 돌아가기" />
 

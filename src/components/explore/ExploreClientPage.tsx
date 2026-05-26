@@ -13,6 +13,7 @@ import {
   type ExploreArtwork,
 } from '@/lib/explore'
 import type { PublicCreatorChannelSummary } from '@/lib/public-creator'
+import { matchesSearchQuery } from '@/lib/search'
 import { getWorkTypeLabel } from '@/lib/work'
 
 const workTypeFilters = ['전체 형식', 'webtoon', 'novel'] as const
@@ -101,7 +102,7 @@ export function ExploreClientPage({
   const [searchQuery, setSearchQuery] = useState('')
   const deferredQuery = useDeferredValue(searchQuery)
   const activeTags = categoryTags[activeCategory] ?? []
-  const normalizedQuery = deferredQuery.trim().toLowerCase()
+  const hasSearchQuery = deferredQuery.trim().length > 0
   const featuredCreators = initialCreators.slice(0, 4)
   const hasActiveConditions =
     activeCategory !== '전체' ||
@@ -114,25 +115,31 @@ export function ExploreClientPage({
     const matchesCategory = activeCategory === '전체' || artwork.category === activeCategory
     const matchesFilter = activeFilter === '추천' || artwork.filterTags.includes(activeFilter)
     const matchesQuery =
-      normalizedQuery.length === 0 ||
-      artwork.title.toLowerCase().includes(normalizedQuery) ||
-      artwork.authorName.toLowerCase().includes(normalizedQuery) ||
-      artwork.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
+      !hasSearchQuery ||
+      matchesSearchQuery(deferredQuery, [
+        artwork.title,
+        artwork.authorName,
+        artwork.category,
+        artwork.blurb,
+        artwork.summary,
+        ...artwork.tags,
+        ...artwork.filterTags,
+      ])
 
     return matchesWorkType && matchesCategory && matchesFilter && matchesQuery
   })
 
   const filteredCreators = initialCreators.filter((creator) => {
-    if (normalizedQuery.length === 0) {
+    if (!hasSearchQuery) {
       return true
     }
 
-    return (
-      creator.displayName.toLowerCase().includes(normalizedQuery) ||
-      creator.slug.toLowerCase().includes(normalizedQuery) ||
-      creator.bio.toLowerCase().includes(normalizedQuery) ||
-      (creator.latestArtworkTitle?.toLowerCase().includes(normalizedQuery) ?? false)
-    )
+    return matchesSearchQuery(deferredQuery, [
+      creator.displayName,
+      creator.slug,
+      creator.bio,
+      creator.latestArtworkTitle,
+    ])
   })
 
   const resetFilters = () => {

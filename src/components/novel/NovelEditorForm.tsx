@@ -1,4 +1,5 @@
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
+import { FreeArchiveConfirmField } from '@/components/studio/FreeArchiveConfirmField'
 import { categories } from '@/lib/explore'
 import type { CreatorNovelRecord } from '@/lib/novel'
 import { getNovelStatusLabel, getNovelWorkScaleLabel } from '@/lib/novel'
@@ -161,15 +162,7 @@ export function NovelEditorForm({
               </label>
             </div>
 
-            <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-              <input
-                type="checkbox"
-                name="isFreeArchive"
-                defaultChecked={initialValue?.isFreeArchive ?? false}
-                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
-              />
-              <span>이 작품 전체를 무료 아카이브로 공개합니다.</span>
-            </label>
+            <FreeArchiveConfirmField defaultChecked={initialValue?.isFreeArchive ?? false} />
           </div>
 
           {showContentRatingFieldset ? (

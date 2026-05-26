@@ -76,7 +76,7 @@ export function ContentRatingFieldset({
           <h2 className="text-2xl font-bold tracking-tight text-white">{sectionTitle}</h2>
           <p className="text-sm leading-6 text-zinc-400">
             작품 전체의 연령 등급을 먼저 정하고, 선정성·폭력성·언어 수위를 자가 체크해 주세요. 19세 이상
-            작품은 성인 인증 노출과 법적 책임 안내를 반드시 확인해야 합니다.
+            성인 작품은 성인 인증 노출과 법적 책임 안내를 반드시 확인해야 합니다.
           </p>
         </div>
 
@@ -179,7 +179,7 @@ export function ContentRatingFieldset({
 
         {ageRating === '19' ? (
           <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-            19세 이상 작품은 성인 인증 노출이 자동으로 필요해지며, 관련 법령과 게시 책임을 작가가 함께
+            19세 이상 성인 작품은 성인 인증 노출이 자동으로 필요해지며, 관련 법령과 게시 책임을 작가가 함께
             부담합니다.
           </p>
         ) : null}
@@ -189,7 +189,7 @@ export function ContentRatingFieldset({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
           <div className="w-full max-w-xl rounded-[32px] border border-rose-400/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
             <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">19+ Notice</p>
-            <h3 className="mt-3 text-2xl font-bold">19세 이상 작품 안내</h3>
+            <h3 className="mt-3 text-2xl font-bold">19세 이상 성인 작품 안내</h3>
             <div className="mt-4 grid gap-3 text-sm leading-6 text-zinc-300">
               <p>이 등급을 선택하면 작품은 성인 인증이 완료된 이용자에게만 노출됩니다.</p>
               <p>작가는 관련 법령과 플랫폼 정책에 맞는 게시 책임을 직접 확인해야 합니다.</p>

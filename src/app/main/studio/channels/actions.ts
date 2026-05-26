@@ -129,6 +129,18 @@ function readOptionalAssetUrl(formData: FormData, key: string) {
   return value
 }
 
+function appendLocalDraftClearParam(path: string, formData: FormData) {
+  const draftStorageKey = readText(formData, 'draftStorageKey')
+
+  if (!draftStorageKey.startsWith('inderverse:webtoon-channel-draft:')) {
+    return path
+  }
+
+  const separator = path.includes('?') ? '&' : '?'
+
+  return `${path}${separator}clearDraftKey=${encodeURIComponent(draftStorageKey)}`
+}
+
 function readBoolean(formData: FormData, key: string) {
   return formData.get(key) === 'on'
 }
@@ -986,7 +998,7 @@ async function createWebtoonChannelMutation(formData: FormData) {
   revalidatePath('/main/studio/channels')
   revalidatePublicContentCache()
 
-  return `/main/studio/channels/webtoon/${data.id}/rating`
+  return appendLocalDraftClearParam(`/main/studio/channels/webtoon/${data.id}/rating`, formData)
 }
 
 export async function createWebtoonChannel(formData: FormData) {
@@ -1110,7 +1122,7 @@ async function updateWebtoonChannelMutation(formData: FormData) {
   revalidatePath('/main/studio/channels')
   revalidatePublicContentCache()
 
-  return `/main/studio/channels/webtoon/${channelId}/edit`
+  return appendLocalDraftClearParam(`/main/studio/channels/webtoon/${channelId}/edit`, formData)
 }
 
 export async function updateWebtoonChannel(formData: FormData) {

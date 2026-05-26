@@ -37,8 +37,8 @@ export const AGE_RATING_OPTIONS: Array<{
   },
   {
     value: '19',
-    label: '19세',
-    description: '성인 인증이 필요한 작품으로 분류되고 법적 책임 안내가 함께 적용됩니다.',
+    label: '19세 이상 성인',
+    description: '성인 이용자만 볼 수 있는 작품으로 분류되고 성인 인증과 법적 책임 안내가 함께 적용됩니다.',
   },
 ]
 
