@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { updateChannelContentRating } from '@/app/main/studio/channels/actions'
+import { updateChannelContentRatingWithState } from '@/app/main/studio/channels/actions'
 import { ContentRatingStepForm } from '@/components/content/ContentRatingStepForm'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getCreatorSparkById } from '@/lib/server/spark'
@@ -16,11 +16,6 @@ export default async function SparkRatingPage({
     notFound()
   }
 
-  async function updateRatingForChannel(formData: FormData) {
-    'use server'
-    await updateChannelContentRating(formData)
-  }
-
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -34,7 +29,7 @@ export default async function SparkRatingPage({
         </header>
 
         <ContentRatingStepForm
-          action={updateRatingForChannel}
+          action={updateChannelContentRatingWithState}
           channelId={spark.id}
           workType="spark"
           title={`${spark.title} 등급 설정`}

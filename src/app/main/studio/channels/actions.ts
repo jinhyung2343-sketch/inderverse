@@ -50,6 +50,10 @@ export interface WebtoonChannelActionState {
   error: string | null
 }
 
+export interface ContentRatingActionState {
+  error: string | null
+}
+
 function getActionErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message
@@ -1023,7 +1027,7 @@ export async function createWebtoonChannelWithState(
   redirect(nextPath)
 }
 
-export async function updateChannelContentRating(formData: FormData) {
+async function updateChannelContentRatingMutation(formData: FormData) {
   const { supabase, userId } = await requireCreatorAccess()
   const channelId = readText(formData, 'channelId')
   const workType = readText(formData, 'workType')
@@ -1067,7 +1071,29 @@ export async function updateChannelContentRating(formData: FormData) {
     revalidatePath(`/main/explore/${channelId}`)
   }
 
-  redirect(nextPath || `/main/studio/channels/${workType}/${channelId}/edit`)
+  return nextPath || `/main/studio/channels/${workType}/${channelId}/edit`
+}
+
+export async function updateChannelContentRating(formData: FormData) {
+  redirect(await updateChannelContentRatingMutation(formData))
+}
+
+export async function updateChannelContentRatingWithState(
+  _previousState: ContentRatingActionState,
+  formData: FormData
+): Promise<ContentRatingActionState> {
+  let nextPath: string
+
+  try {
+    nextPath = await updateChannelContentRatingMutation(formData)
+  } catch (error) {
+    console.error('updateChannelContentRating failed:', error)
+    return {
+      error: getActionErrorMessage(error, '작품 등급을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+    }
+  }
+
+  redirect(nextPath)
 }
 
 async function updateWebtoonChannelMutation(formData: FormData) {

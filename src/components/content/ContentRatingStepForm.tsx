@@ -1,7 +1,28 @@
+'use client'
+
 import Link from 'next/link'
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
+import type { ContentRatingActionState } from '@/app/main/studio/channels/actions'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
 import type { ChannelAgeRating, RatingChecklist } from '@/lib/content-rating'
 import type { WorkType } from '@/lib/work'
+
+const initialActionState: ContentRatingActionState = { error: null }
+
+function RatingSubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? '저장 중...' : label}
+    </button>
+  )
+}
 
 export function ContentRatingStepForm({
   action,
@@ -12,8 +33,12 @@ export function ContentRatingStepForm({
   ratingChecklist,
   backHref,
   nextPath,
+  submitLabel = '등급 저장하고 계속하기',
 }: {
-  action: (formData: FormData) => void | Promise<void>
+  action: (
+    previousState: ContentRatingActionState,
+    formData: FormData
+  ) => ContentRatingActionState | Promise<ContentRatingActionState>
   channelId: string
   workType: WorkType
   title: string
@@ -21,9 +46,12 @@ export function ContentRatingStepForm({
   ratingChecklist: RatingChecklist
   backHref: string
   nextPath: string
+  submitLabel?: string
 }) {
+  const [state, formAction] = useActionState(action, initialActionState)
+
   return (
-    <form action={action} className="grid gap-6">
+    <form action={formAction} className="grid gap-6">
       <input type="hidden" name="channelId" value={channelId} />
       <input type="hidden" name="workType" value={workType} />
       <input type="hidden" name="nextPath" value={nextPath} />
@@ -46,13 +74,14 @@ export function ContentRatingStepForm({
       />
 
       <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+        {state.error ? (
+          <div className="mb-5 rounded-3xl border border-rose-300/25 bg-rose-500/10 p-4 text-sm leading-6 text-rose-100">
+            {state.error}
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-          >
-            등급 저장하고 계속하기
-          </button>
+          <RatingSubmitButton label={submitLabel} />
           <Link
             href={backHref}
             className="inline-flex rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm text-zinc-300 transition hover:bg-white/10"

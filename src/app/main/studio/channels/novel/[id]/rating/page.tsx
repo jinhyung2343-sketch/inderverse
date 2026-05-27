@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { updateChannelContentRating } from '@/app/main/studio/channels/actions'
+import { updateChannelContentRatingWithState } from '@/app/main/studio/channels/actions'
 import { ContentRatingStepForm } from '@/components/content/ContentRatingStepForm'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getCreatorNovelById } from '@/lib/server/novel-studio'
@@ -22,14 +22,15 @@ export default async function NovelRatingPage({
         <PageBackLink href={`/main/studio/channels/novel/${novel.id}/edit`} ariaLabel="소설 편집으로 돌아가기" />
 
         <ContentRatingStepForm
-          action={updateChannelContentRating}
+          action={updateChannelContentRatingWithState}
           channelId={novel.id}
           workType="novel"
           title={`${novel.title} 등급 설정`}
           ageRating={novel.ageRating}
           ratingChecklist={novel.ratingChecklist}
           backHref={`/main/studio/channels/novel/${novel.id}/edit`}
-          nextPath={`/main/studio/channels/novel/${novel.id}/edit`}
+          nextPath={`/main/studio/channels/novel/${novel.id}/episodes/new`}
+          submitLabel="등급 저장하고 회차 작성하기"
         />
       </div>
     </main>

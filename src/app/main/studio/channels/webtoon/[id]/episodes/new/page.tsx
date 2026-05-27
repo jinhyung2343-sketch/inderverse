@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createWebtoonEpisode } from '@/app/main/studio/channels/actions'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { StudioFlowSteps } from '@/components/studio/StudioFlowSteps'
 import { WebtoonEpisodeEditorForm } from '@/components/webtoon/WebtoonEpisodeEditorForm'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
 
@@ -25,7 +26,7 @@ export default async function NewWebtoonEpisodePage({
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <PageBackLink href={`/main/studio/channels/webtoon/${id}/edit`} ariaLabel="툰 편집으로 돌아가기" />
+        <PageBackLink href={`/main/studio/channels/webtoon/${id}/rating`} ariaLabel="등급 설정으로 돌아가기" />
 
         <header>
           <div className="space-y-2">
@@ -33,6 +34,15 @@ export default async function NewWebtoonEpisodePage({
             <p className="text-sm text-zinc-400">{webtoon.title}에 새 회차를 추가합니다.</p>
           </div>
         </header>
+
+        <StudioFlowSteps
+          currentStep={3}
+          steps={[
+            { label: '작품 정보 저장', description: '제목, 소개, 커버, 장르, 연재 요일' },
+            { label: '등급 지정', description: '연령 등급과 수위 체크리스트' },
+            { label: '회차 업로드', description: '1화 제목과 원고 이미지' },
+          ]}
+        />
 
         <WebtoonEpisodeEditorForm
           action={createEpisodeForChannel}
