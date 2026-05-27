@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { uploadEpisodeImageFile } from '@/lib/storage/upload'
 import { createClient } from '@/lib/supabase/server'
+import {
+  buildTrafficCostHeaders,
+  getUploadBudgetDecision,
+} from '@/lib/traffic-cost-control'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
+    const contentLength = Number.parseInt(req.headers.get('content-length') ?? '', 10)
+    const budgetDecision = getUploadBudgetDecision(Number.isFinite(contentLength) ? contentLength : null)
+
+    if (budgetDecision.type === 'block') {
+      return NextResponse.json(
+        { error: '업로드 요청 용량이 너무 큽니다.' },
+        {
+          status: budgetDecision.status,
+          headers: buildTrafficCostHeaders('creatorUpload', { includeCacheControl: true }),
+        }
+      )
+    }
+
     const supabase = await createClient()
     const {
       data: { user },
@@ -71,10 +88,19 @@ export async function POST(req: NextRequest) {
       file,
     })
 
-    return NextResponse.json(image, { status: 200 })
+    return NextResponse.json(image, {
+      status: 200,
+      headers: buildTrafficCostHeaders('creatorUpload', { includeCacheControl: true }),
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal Server Error'
     console.error('Webtoon episode image upload error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json(
+      { error: message },
+      {
+        status: 500,
+        headers: buildTrafficCostHeaders('creatorUpload', { includeCacheControl: true }),
+      }
+    )
   }
 }

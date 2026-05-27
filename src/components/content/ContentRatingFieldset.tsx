@@ -12,6 +12,15 @@ import {
   RATING_INTENSITY_OPTIONS,
 } from '@/lib/content-rating'
 
+const RATING_CHECKLIST_FIELDS: Array<{
+  key: keyof RatingChecklist
+  label: string
+}> = [
+  { key: 'sexualContent', label: '선정성' },
+  { key: 'violence', label: '폭력성' },
+  { key: 'language', label: '언어 수위' },
+]
+
 export function ContentRatingFieldset({
   initialAgeRating = 'all',
   initialChecklist = DEFAULT_RATING_CHECKLIST,
@@ -44,28 +53,36 @@ export function ContentRatingFieldset({
 
   const handleAgeRatingChange = (nextRating: ChannelAgeRating) => {
     if (nextRating === '19') {
-      if (ageRating !== '19') {
-        setFallbackRating(ageRating)
+      if (!adultNoticeAccepted) {
+        if (ageRating !== '19') {
+          setFallbackRating(ageRating)
+        }
+
+        setShowAdultNotice(true)
+        return
       }
 
       setAgeRating(nextRating)
-
-      if (!adultNoticeAccepted) {
-        setShowAdultNotice(true)
-      }
-
       return
     }
 
     setAgeRating(nextRating)
+    setAdultNoticeAccepted(false)
   }
 
-  const closeAdultNotice = (resetToPrevious = false) => {
+  const cancelAdultNotice = () => {
     setShowAdultNotice(false)
+    setAgeRating(fallbackRating)
+    setAdultNoticeAccepted(false)
+  }
 
-    if (resetToPrevious) {
-      setAgeRating(fallbackRating)
+  const acceptAdultNotice = () => {
+    if (!adultNoticeAccepted) {
+      return
     }
+
+    setAgeRating('19')
+    setShowAdultNotice(false)
   }
 
   return (
@@ -115,50 +132,37 @@ export function ContentRatingFieldset({
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <label className="grid gap-2 text-sm text-zinc-300">
-            <span>선정성</span>
-            <select
-              value={ratingChecklist.sexualContent}
-              onChange={(event) => updateChecklist('sexualContent', event.target.value as RatingChecklist['sexualContent'])}
-              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-            >
-              {RATING_INTENSITY_OPTIONS.map((option) => (
-                <option key={`sexual-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {RATING_CHECKLIST_FIELDS.map((field) => (
+            <fieldset key={field.key} className="grid gap-2 text-sm text-zinc-300">
+              <legend>{field.label}</legend>
+              <div className="grid grid-cols-2 gap-2">
+                {RATING_INTENSITY_OPTIONS.map((option) => {
+                  const isSelected = ratingChecklist[field.key] === option.value
 
-          <label className="grid gap-2 text-sm text-zinc-300">
-            <span>폭력성</span>
-            <select
-              value={ratingChecklist.violence}
-              onChange={(event) => updateChecklist('violence', event.target.value as RatingChecklist['violence'])}
-              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-            >
-              {RATING_INTENSITY_OPTIONS.map((option) => (
-                <option key={`violence-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-2 text-sm text-zinc-300">
-            <span>언어 수위</span>
-            <select
-              value={ratingChecklist.language}
-              onChange={(event) => updateChecklist('language', event.target.value as RatingChecklist['language'])}
-              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-            >
-              {RATING_INTENSITY_OPTIONS.map((option) => (
-                <option key={`language-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+                  return (
+                    <label
+                      key={`${field.key}-${option.value}`}
+                      className={`cursor-pointer rounded-2xl border px-3 py-3 text-center text-sm transition ${
+                        isSelected
+                          ? 'border-emerald-400/40 bg-emerald-500/15 text-white'
+                          : 'border-white/10 bg-black/25 text-zinc-400 hover:bg-white/10 hover:text-zinc-100'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`rating-${field.key}`}
+                        value={option.value}
+                        checked={isSelected}
+                        onChange={() => updateChecklist(field.key, option.value)}
+                        className="sr-only"
+                      />
+                      {option.label}
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
+          ))}
         </div>
 
         <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-500/5 p-4 text-sm leading-6 text-zinc-200">
@@ -177,7 +181,7 @@ export function ContentRatingFieldset({
           </p>
         ) : null}
 
-        {ageRating === '19' ? (
+        {ageRating === '19' && adultNoticeAccepted ? (
           <p className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
             19세 이상 성인 작품은 성인 인증 노출이 자동으로 필요해지며, 관련 법령과 게시 책임을 작가가 함께
             부담합니다.
@@ -186,10 +190,17 @@ export function ContentRatingFieldset({
       </div>
 
       {showAdultNotice ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="adult-rating-notice-title"
+        >
           <div className="w-full max-w-xl rounded-[32px] border border-rose-400/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
             <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">19+ Notice</p>
-            <h3 className="mt-3 text-2xl font-bold">19세 이상 성인 작품 안내</h3>
+            <h3 id="adult-rating-notice-title" className="mt-3 text-2xl font-bold">
+              19세 이상 성인 작품 안내
+            </h3>
             <div className="mt-4 grid gap-3 text-sm leading-6 text-zinc-300">
               <p>이 등급을 선택하면 작품은 성인 인증이 완료된 이용자에게만 노출됩니다.</p>
               <p>작가는 관련 법령과 플랫폼 정책에 맞는 게시 책임을 직접 확인해야 합니다.</p>
@@ -209,14 +220,14 @@ export function ContentRatingFieldset({
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => closeAdultNotice(true)}
+                onClick={cancelAdultNotice}
                 className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
               >
                 다시 선택하기
               </button>
               <button
                 type="button"
-                onClick={() => closeAdultNotice(false)}
+                onClick={acceptAdultNotice}
                 disabled={!adultNoticeAccepted}
                 className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
               >

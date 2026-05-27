@@ -1,9 +1,9 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useReducer, useState } from 'react'
+import { ProtectedEpisodeImage, ProtectedReaderSurface } from '@/components/content/ProtectedReaderSurface'
 import type { ArtworkEpisode } from '@/lib/explore'
 import { formatInderium } from '@/lib/billing'
 import { useAuthStore } from '@/stores/auth'
@@ -107,7 +107,12 @@ export function EpisodeAccessPanel({
 
   if (canRead) {
     return (
-      <article className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
+      <ProtectedReaderSurface
+        artworkId={artworkId}
+        episodeId={episode.id}
+        viewerId={user?.id}
+        className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8"
+      >
         {effective.accessState === 'locked' && isSubscribed ? (
           <div className="mb-5 inline-flex rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
             구독자 공개
@@ -133,19 +138,14 @@ export function EpisodeAccessPanel({
               </div>
             ) : null}
             {episode.imageUrls.map((imageUrl, index) => (
-              <div
+              <ProtectedEpisodeImage
                 key={`${imageUrl}-${index + 1}`}
-                className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
-              >
-                <Image
-                  src={imageUrl}
-                  alt={`${episode.title} 이미지 ${index + 1}`}
-                  width={1600}
-                  height={2400}
-                  sizes="100vw"
-                  className="h-auto w-full"
-                />
-              </div>
+                artworkId={artworkId}
+                episodeId={episode.id}
+                imageUrl={imageUrl}
+                index={index}
+                title={episode.title}
+              />
             ))}
           </div>
         ) : (
@@ -155,7 +155,7 @@ export function EpisodeAccessPanel({
             ))}
           </div>
         )}
-      </article>
+      </ProtectedReaderSurface>
     )
   }
 

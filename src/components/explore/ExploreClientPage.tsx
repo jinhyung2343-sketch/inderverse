@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useDeferredValue, useState, useSyncExternalStore } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import Link from 'next/link'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
@@ -18,19 +18,6 @@ import { getWorkTypeLabel } from '@/lib/work'
 
 const workTypeFilters = ['전체 형식', 'webtoon', 'novel'] as const
 type ExploreView = 'works' | 'creators'
-
-function subscribeToLocationChange(onStoreChange: () => void) {
-  window.addEventListener('popstate', onStoreChange)
-  return () => window.removeEventListener('popstate', onStoreChange)
-}
-
-function getLocationExploreView(): ExploreView {
-  return new URLSearchParams(window.location.search).get('view') === 'creators' ? 'creators' : 'works'
-}
-
-function getServerExploreView(): ExploreView {
-  return 'works'
-}
 
 function CreatorChannelCard({ creator }: { creator: PublicCreatorChannelSummary }) {
   return (
@@ -87,15 +74,7 @@ export function ExploreClientPage({
   initialCreators: PublicCreatorChannelSummary[]
   initialView?: ExploreView
 }) {
-  const routeView = useSyncExternalStore(
-    subscribeToLocationChange,
-    getLocationExploreView,
-    getServerExploreView
-  )
-  const [selectedView, setSelectedView] = useState<ExploreView | null>(
-    initialView === 'works' ? null : initialView
-  )
-  const activeView = selectedView ?? routeView
+  const [showCreatorDirectory, setShowCreatorDirectory] = useState(initialView === 'creators')
   const [activeCategory, setActiveCategory] = useState('전체')
   const [activeFilter, setActiveFilter] = useState('추천')
   const [activeWorkType, setActiveWorkType] = useState<(typeof workTypeFilters)[number]>('전체 형식')
@@ -108,12 +87,13 @@ export function ExploreClientPage({
     activeCategory !== '전체' ||
     activeFilter !== '추천' ||
     activeWorkType !== '전체 형식' ||
+    showCreatorDirectory ||
     searchQuery.trim().length > 0
 
   const filteredArtworks = initialArtworks.filter((artwork) => {
-    const matchesWorkType = activeWorkType === '전체 형식' || artwork.workType === activeWorkType
-    const matchesCategory = activeCategory === '전체' || artwork.category === activeCategory
-    const matchesFilter = activeFilter === '추천' || artwork.filterTags.includes(activeFilter)
+    const matchesWorkType = hasSearchQuery || activeWorkType === '전체 형식' || artwork.workType === activeWorkType
+    const matchesCategory = hasSearchQuery || activeCategory === '전체' || artwork.category === activeCategory
+    const matchesFilter = hasSearchQuery || activeFilter === '추천' || artwork.filterTags.includes(activeFilter)
     const matchesQuery =
       !hasSearchQuery ||
       matchesSearchQuery(deferredQuery, [
@@ -146,6 +126,7 @@ export function ExploreClientPage({
     setActiveCategory('전체')
     setActiveFilter('추천')
     setActiveWorkType('전체 형식')
+    setShowCreatorDirectory(false)
     setSearchQuery('')
   }
 
@@ -166,25 +147,6 @@ export function ExploreClientPage({
           </div>
 
           <section className="space-y-4" aria-label="작품 검색과 필터">
-            <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1">
-              {([
-                ['works', '작품'],
-                ['creators', '작가'],
-              ] as const).map(([view, label]) => (
-                <button
-                  key={view}
-                  type="button"
-                  onClick={() => setSelectedView(view)}
-                  className={`h-10 rounded-full px-5 text-sm transition ${
-                    activeView === view ? 'bg-white text-black' : 'text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
-                  }`}
-                  aria-pressed={activeView === view}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             <div className="relative">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -208,8 +170,7 @@ export function ExploreClientPage({
               />
             </div>
 
-            {activeView === 'works' ? (
-              <div className="space-y-3">
+            <div className="space-y-3">
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="작품 형식">
                 {workTypeFilters.map((workType) => {
                   const isActive = workType === activeWorkType
@@ -276,10 +237,9 @@ export function ExploreClientPage({
                   )
                 })}
               </div>
-              </div>
-            ) : null}
+            </div>
 
-            {activeView === 'works' && activeTags.length > 0 ? (
+            {activeTags.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium text-zinc-500">추천 태그</span>
                 {activeTags.map((tag) => (
@@ -297,7 +257,7 @@ export function ExploreClientPage({
           </section>
         </header>
 
-        {featuredCreators.length > 0 ? (
+        {!hasSearchQuery && !showCreatorDirectory && featuredCreators.length > 0 ? (
           <section className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
@@ -306,7 +266,7 @@ export function ExploreClientPage({
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedView('creators')}
+                onClick={() => setShowCreatorDirectory(true)}
                 className="inline-flex w-fit rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
               >
                 작가 더 보기
@@ -324,12 +284,18 @@ export function ExploreClientPage({
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">
-                {activeView === 'works' ? `${activeCategory} · ${activeFilter}` : '작가 채널'}
+                {hasSearchQuery
+                  ? '검색 결과'
+                  : showCreatorDirectory
+                    ? '작가 채널'
+                    : `${activeCategory} · ${activeFilter}`}
               </h2>
               <p className="mt-1 text-sm text-zinc-400">
-                {activeView === 'works'
-                  ? `총 ${filteredArtworks.length}개의 작품이 표시되고 있습니다.`
-                  : `총 ${filteredCreators.length}개의 작가 채널이 표시되고 있습니다.`}
+                {hasSearchQuery
+                  ? `작품 ${filteredArtworks.length}개 · 작가 ${filteredCreators.length}개가 검색되었습니다.`
+                  : showCreatorDirectory
+                    ? `총 ${filteredCreators.length}개의 작가 채널이 표시되고 있습니다.`
+                    : `총 ${filteredArtworks.length}개의 작품이 표시되고 있습니다.`}
               </p>
             </div>
 
@@ -351,7 +317,50 @@ export function ExploreClientPage({
             </div>
           </div>
 
-          {activeView === 'creators' ? (
+          {hasSearchQuery ? (
+            filteredCreators.length > 0 || filteredArtworks.length > 0 ? (
+              <div className="grid gap-8">
+                {filteredCreators.length > 0 ? (
+                  <section className="space-y-4" aria-label="작가 검색 결과">
+                    <h3 className="text-lg font-semibold text-white">작가</h3>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {filteredCreators.map((creator) => (
+                        <CreatorChannelCard key={creator.id} creator={creator} />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {filteredArtworks.length > 0 ? (
+                  <section className="space-y-4" aria-label="작품 검색 결과">
+                    <h3 className="text-lg font-semibold text-white">작품</h3>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      {filteredArtworks.map((artwork) => (
+                        <ArtworkCard
+                          key={artwork.id}
+                          title={artwork.title}
+                          authorName={artwork.authorName}
+                          authorHref={artwork.creatorSlug ? `/main/creators/${artwork.creatorSlug}` : undefined}
+                          coverImageUrl={artwork.coverImageUrl}
+                          workType={artwork.workType}
+                          status={artwork.status}
+                          isAdultOnly={artwork.isAdultOnly}
+                          isCommentEnabled={artwork.isCommentEnabled}
+                          tags={artwork.tags}
+                          href={`/main/explore/${artwork.id}`}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.04] px-6 py-12 text-center">
+                <p className="text-lg font-semibold text-white">검색 결과가 없습니다.</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">검색어를 조금 줄이거나 다른 단어로 다시 찾아보세요.</p>
+              </div>
+            )
+          ) : showCreatorDirectory ? (
             filteredCreators.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredCreators.map((creator) => (

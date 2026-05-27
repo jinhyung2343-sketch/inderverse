@@ -1,6 +1,17 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getRouteAccessDecision } from '@/lib/guest-policy'
 import { updateSession } from '@/lib/supabase/middleware'
+import {
+  buildTrafficCostHeaders,
+  getTrafficCostProfileForPath,
+  getTrafficEmergencyDecision,
+} from '@/lib/traffic-cost-control'
+
+function setResponseHeaders(response: NextResponse, headers: Record<string, string>) {
+  Object.entries(headers).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
@@ -13,7 +24,26 @@ export async function proxy(request: NextRequest) {
   })
 
   if (pathname.startsWith('/api/')) {
-    return NextResponse.next({ request })
+    const emergencyDecision = getTrafficEmergencyDecision(pathname, process.env)
+    const profile = getTrafficCostProfileForPath(pathname)
+
+    if (emergencyDecision.type === 'block') {
+      return NextResponse.json(
+        { error: emergencyDecision.message },
+        {
+          status: emergencyDecision.status,
+          headers: {
+            ...buildTrafficCostHeaders(profile, { includeCacheControl: true }),
+            'Retry-After': String(emergencyDecision.retryAfterSeconds),
+          },
+        }
+      )
+    }
+
+    const response = NextResponse.next({ request })
+    setResponseHeaders(response, buildTrafficCostHeaders(profile))
+
+    return response
   }
 
   const hasAuthCookie = request.cookies
@@ -26,6 +56,7 @@ export async function proxy(request: NextRequest) {
     }
 
     const response = NextResponse.next({ request })
+    setResponseHeaders(response, buildTrafficCostHeaders(getTrafficCostProfileForPath(pathname)))
 
     if (shouldDisableRouteCache) {
       response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
@@ -39,6 +70,8 @@ export async function proxy(request: NextRequest) {
   if (shouldDisableRouteCache) {
     response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
   }
+
+  setResponseHeaders(response, buildTrafficCostHeaders(getTrafficCostProfileForPath(pathname)))
 
   const accessDecision = getRouteAccessDecision({
     pathname,

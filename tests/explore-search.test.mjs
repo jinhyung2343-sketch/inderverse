@@ -16,8 +16,10 @@ test('matchesSearchQuery supports full Korean text and choseong searches', () =>
 
   assert.equal(matchesSearchQuery('고등', values), true)
   assert.equal(matchesSearchQuery('ㄱ', values), true)
-  assert.equal(matchesSearchQuery('ㄱㄷ', values), true)
-  assert.equal(matchesSearchQuery('ㅂㄷ', values), true)
+  assert.equal(matchesSearchQuery('고ㄷ', values), true)
+  assert.equal(matchesSearchQuery('바ㄷ', values), true)
+  assert.equal(matchesSearchQuery('ㄱㄷ', values), false)
+  assert.equal(matchesSearchQuery('ㅂㄷ', values), false)
   assert.equal(matchesSearchQuery('ㄴㄴ', values), false)
 })
 

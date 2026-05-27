@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
+import { TRAFFIC_COST_LIMITS } from '@/lib/traffic-cost-control'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export type AllowedContentType = 'image/png' | 'image/jpeg' | 'image/webp'
 
 export const SUPABASE_ASSET_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'artwork-assets'
-export const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024
+export const MAX_IMAGE_FILE_BYTES = TRAFFIC_COST_LIMITS.maxImageUploadBytes
 const COVER_IMAGE_WIDTH = 1200
 const COVER_IMAGE_WEBP_QUALITY = 85
 const WEBTOON_READER_WIDTH = 1600
