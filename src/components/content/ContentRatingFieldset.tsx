@@ -34,6 +34,7 @@ export function ContentRatingFieldset({
   const [ratingChecklist, setRatingChecklist] = useState<RatingChecklist>(initialChecklist)
   const [adultNoticeAccepted, setAdultNoticeAccepted] = useState(initialAgeRating === '19')
   const [showAdultNotice, setShowAdultNotice] = useState(false)
+  const [openChecklistKey, setOpenChecklistKey] = useState<keyof RatingChecklist | null>(null)
   const [fallbackRating, setFallbackRating] = useState<ChannelAgeRating>(
     initialAgeRating === '19' ? '15' : initialAgeRating
   )
@@ -49,6 +50,7 @@ export function ContentRatingFieldset({
       ...current,
       [key]: value,
     }))
+    setOpenChecklistKey(null)
   }
 
   const handleAgeRatingChange = (nextRating: ChannelAgeRating) => {
@@ -58,6 +60,7 @@ export function ContentRatingFieldset({
           setFallbackRating(ageRating)
         }
 
+        setAgeRating(nextRating)
         setShowAdultNotice(true)
         return
       }
@@ -68,6 +71,7 @@ export function ContentRatingFieldset({
 
     setAgeRating(nextRating)
     setAdultNoticeAccepted(false)
+    setShowAdultNotice(false)
   }
 
   const cancelAdultNotice = () => {
@@ -81,6 +85,9 @@ export function ContentRatingFieldset({
     setAgeRating('19')
     setShowAdultNotice(false)
   }
+
+  const getIntensityLabel = (value: RatingChecklist[keyof RatingChecklist]) =>
+    RATING_INTENSITY_OPTIONS.find((option) => option.value === value)?.label ?? value
 
   return (
     <>
@@ -131,32 +138,73 @@ export function ContentRatingFieldset({
           ))}
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {RATING_CHECKLIST_FIELDS.map((field) => (
-            <fieldset key={field.key} className="grid gap-2 text-sm text-zinc-300">
-              <legend>{field.label}</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {RATING_INTENSITY_OPTIONS.map((option) => {
-                  const isSelected = ratingChecklist[field.key] === option.value
+        {ageRating === '19' && showAdultNotice && !adultNoticeAccepted ? (
+          <div className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-4 text-sm leading-6 text-rose-100">
+            <p className="font-semibold text-white">19세 이상 성인 작품 안내</p>
+            <p className="mt-2 text-rose-50/90">
+              이 등급을 선택하면 작품은 성인 인증이 완료된 이용자에게만 노출됩니다. 확인하면 법적 책임과 성인
+              인증 필수 안내를 확인한 것으로 처리됩니다.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={cancelAdultNotice}
+                className="inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold text-rose-50 transition hover:bg-white/10"
+              >
+                다시 선택하기
+              </button>
+              <button
+                type="button"
+                onClick={acceptAdultNotice}
+                className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200"
+              >
+                고지 확인
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-                  return (
-                    <button
-                      key={`${field.key}-${option.value}`}
-                      type="button"
-                      onClick={() => updateChecklist(field.key, option.value)}
-                      aria-pressed={isSelected}
-                      className={`cursor-pointer rounded-2xl border px-3 py-3 text-center text-sm transition ${
-                        isSelected
-                          ? 'border-emerald-400/40 bg-emerald-500/15 text-white'
-                          : 'border-white/10 bg-black/25 text-zinc-400 hover:bg-white/10 hover:text-zinc-100'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </fieldset>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          {RATING_CHECKLIST_FIELDS.map((field) => (
+            <div key={field.key} className="relative text-sm text-zinc-300">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenChecklistKey((current) => (current === field.key ? null : field.key))
+                }
+                aria-expanded={openChecklistKey === field.key}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left transition hover:bg-white/10"
+              >
+                <span className="font-semibold text-white">{field.label}</span>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-50">
+                  {getIntensityLabel(ratingChecklist[field.key])}
+                </span>
+              </button>
+
+              {openChecklistKey === field.key ? (
+                <div className="absolute left-0 right-0 top-full z-20 mt-2 grid gap-1 rounded-2xl border border-white/10 bg-[#0b0b0b] p-2 shadow-2xl">
+                  {RATING_INTENSITY_OPTIONS.map((option) => {
+                    const isSelected = ratingChecklist[field.key] === option.value
+
+                    return (
+                      <button
+                        key={`${field.key}-${option.value}`}
+                        type="button"
+                        onClick={() => updateChecklist(field.key, option.value)}
+                        aria-pressed={isSelected}
+                        className={`cursor-pointer rounded-xl px-3 py-2 text-left text-sm transition ${
+                          isSelected
+                            ? 'bg-emerald-500/15 text-white'
+                            : 'text-zinc-400 hover:bg-white/10 hover:text-zinc-100'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
 
@@ -183,48 +231,6 @@ export function ContentRatingFieldset({
           </p>
         ) : null}
       </div>
-
-      {showAdultNotice ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="adult-rating-notice-title"
-        >
-          <div className="w-full max-w-xl rounded-[32px] border border-rose-400/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">19+ Notice</p>
-            <h3 id="adult-rating-notice-title" className="mt-3 text-2xl font-bold">
-              19세 이상 성인 작품 안내
-            </h3>
-            <div className="mt-4 grid gap-3 text-sm leading-6 text-zinc-300">
-              <p>이 등급을 선택하면 작품은 성인 인증이 완료된 이용자에게만 노출됩니다.</p>
-              <p>작가는 관련 법령과 플랫폼 정책에 맞는 게시 책임을 직접 확인해야 합니다.</p>
-              <p>등급을 낮게 설정한 채 실제 수위를 숨기면 노출 제한이나 운영 조치가 발생할 수 있습니다.</p>
-            </div>
-
-            <p className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-200">
-              확인하고 계속하면 법적 책임과 성인 인증 필수 안내를 확인한 것으로 처리됩니다.
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={cancelAdultNotice}
-                className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-              >
-                다시 선택하기
-              </button>
-              <button
-                type="button"
-                onClick={acceptAdultNotice}
-                className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-              >
-                확인하고 계속하기
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   )
 }

@@ -58,11 +58,11 @@ export function ContentRatingStepForm({
 
       <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <div className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Rating Step</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Studio / Rating</p>
           <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">{title}</h1>
           <p className="max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
-            작품의 노출 범위와 성인 인증 여부를 먼저 고정하는 단계입니다. 체크리스트 기준과 실제 선택 등급이
-            맞는지 확인한 뒤 다음 편집 단계로 넘어갈 수 있습니다.
+            작품의 노출 범위와 성인 인증 여부를 정합니다. 체크리스트 기준과 실제 선택 등급이 맞는지 확인해
+            주세요.
           </p>
         </div>
       </section>

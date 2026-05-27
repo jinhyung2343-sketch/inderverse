@@ -1,6 +1,5 @@
 import { createWebtoonChannelWithState } from '@/app/main/studio/channels/actions'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
-import { StudioFlowSteps } from '@/components/studio/StudioFlowSteps'
 import { WebtoonEditorForm } from '@/components/webtoon/WebtoonEditorForm'
 
 export default function NewWebtoonPage() {
@@ -15,15 +14,6 @@ export default function NewWebtoonPage() {
             <p className="text-sm text-zinc-400">연재 툰 작업실입니다. 커버, 회차 이미지, 공개 상태를 같은 흐름에서 쌓아갑니다.</p>
           </div>
         </header>
-
-        <StudioFlowSteps
-          currentStep={1}
-          steps={[
-            { label: '작품 정보 저장', description: '제목, 소개, 커버, 장르, 연재 요일' },
-            { label: '등급 지정', description: '연령 등급과 수위 체크리스트' },
-            { label: '회차 업로드', description: '1화 제목과 원고 이미지' },
-          ]}
-        />
 
         <WebtoonEditorForm
           action={createWebtoonChannelWithState}

@@ -3,7 +3,6 @@ import { updateChannelContentRatingWithState } from '@/app/main/studio/channels/
 import { ContentRatingStepForm } from '@/components/content/ContentRatingStepForm'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { ClearLocalDraftOnMount } from '@/components/studio/ClearLocalDraftOnMount'
-import { StudioFlowSteps } from '@/components/studio/StudioFlowSteps'
 import { getCreatorWebtoonById } from '@/lib/server/webtoon-studio'
 
 export default async function WebtoonRatingPage({
@@ -33,15 +32,6 @@ export default async function WebtoonRatingPage({
             <p className="text-sm text-zinc-400">작품 전체 등급과 성인 인증 노출 기준을 먼저 고정합니다.</p>
           </div>
         </header>
-
-        <StudioFlowSteps
-          currentStep={2}
-          steps={[
-            { label: '작품 정보 저장', description: '제목, 소개, 커버, 장르, 연재 요일' },
-            { label: '등급 지정', description: '연령 등급과 수위 체크리스트' },
-            { label: '회차 업로드', description: '1화 제목과 원고 이미지' },
-          ]}
-        />
 
         <ContentRatingStepForm
           action={updateChannelContentRatingWithState}
