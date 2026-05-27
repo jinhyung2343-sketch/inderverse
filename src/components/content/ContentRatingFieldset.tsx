@@ -77,10 +77,7 @@ export function ContentRatingFieldset({
   }
 
   const acceptAdultNotice = () => {
-    if (!adultNoticeAccepted) {
-      return
-    }
-
+    setAdultNoticeAccepted(true)
     setAgeRating('19')
     setShowAdultNotice(false)
   }
@@ -107,8 +104,11 @@ export function ContentRatingFieldset({
 
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {AGE_RATING_OPTIONS.map((option) => (
-            <label
+            <button
               key={option.value}
+              type="button"
+              onClick={() => handleAgeRatingChange(option.value)}
+              aria-pressed={ageRating === option.value}
               className={`cursor-pointer rounded-2xl border p-4 transition ${
                 ageRating === option.value
                   ? 'border-emerald-400/40 bg-emerald-500/10'
@@ -116,18 +116,18 @@ export function ContentRatingFieldset({
               }`}
             >
               <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  checked={ageRating === option.value}
-                  onChange={() => handleAgeRatingChange(option.value)}
-                  className="mt-1 h-4 w-4 border-white/20 bg-black/30"
+                <span
+                  className={`mt-1 inline-flex h-4 w-4 shrink-0 rounded-full border ${
+                    ageRating === option.value ? 'border-emerald-300 bg-emerald-300' : 'border-white/20 bg-black/30'
+                  }`}
+                  aria-hidden="true"
                 />
-                <div>
+                <div className="text-left">
                   <p className="text-sm font-semibold text-white">{option.label}</p>
                   <p className="mt-1 text-xs leading-5 text-zinc-400">{option.description}</p>
                 </div>
               </div>
-            </label>
+            </button>
           ))}
         </div>
 
@@ -140,24 +140,19 @@ export function ContentRatingFieldset({
                   const isSelected = ratingChecklist[field.key] === option.value
 
                   return (
-                    <label
+                    <button
                       key={`${field.key}-${option.value}`}
+                      type="button"
+                      onClick={() => updateChecklist(field.key, option.value)}
+                      aria-pressed={isSelected}
                       className={`cursor-pointer rounded-2xl border px-3 py-3 text-center text-sm transition ${
                         isSelected
                           ? 'border-emerald-400/40 bg-emerald-500/15 text-white'
                           : 'border-white/10 bg-black/25 text-zinc-400 hover:bg-white/10 hover:text-zinc-100'
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name={`rating-${field.key}`}
-                        value={option.value}
-                        checked={isSelected}
-                        onChange={() => updateChecklist(field.key, option.value)}
-                        className="sr-only"
-                      />
                       {option.label}
-                    </label>
+                    </button>
                   )
                 })}
               </div>
@@ -207,15 +202,9 @@ export function ContentRatingFieldset({
               <p>등급을 낮게 설정한 채 실제 수위를 숨기면 노출 제한이나 운영 조치가 발생할 수 있습니다.</p>
             </div>
 
-            <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-200">
-              <input
-                type="checkbox"
-                checked={adultNoticeAccepted}
-                onChange={(event) => setAdultNoticeAccepted(event.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-white/20 bg-black/30"
-              />
-              <span>법적 책임과 성인 인증 필수 안내를 확인했습니다.</span>
-            </label>
+            <p className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-200">
+              확인하고 계속하면 법적 책임과 성인 인증 필수 안내를 확인한 것으로 처리됩니다.
+            </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <button
@@ -228,8 +217,7 @@ export function ContentRatingFieldset({
               <button
                 type="button"
                 onClick={acceptAdultNotice}
-                disabled={!adultNoticeAccepted}
-                className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
                 확인하고 계속하기
               </button>
