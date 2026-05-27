@@ -5,6 +5,7 @@ import {
   buildTrafficCostHeaders,
   getUploadBudgetDecision,
 } from '@/lib/traffic-cost-control'
+import type { Json } from '@/lib/supabase/types'
 
 export const runtime = 'nodejs'
 
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
     const channelId = formData.get('channelId')
     const episodeId = formData.get('episodeId')
     const sortOrderValue = formData.get('sortOrder')
+    const shouldPersistImage = formData.get('persistImage') === 'on'
     const file = formData.get('file')
 
     if (typeof channelId !== 'string' || channelId.trim().length === 0) {
@@ -87,6 +89,39 @@ export async function POST(req: NextRequest) {
       sortOrder,
       file,
     })
+
+    if (shouldPersistImage) {
+      await supabase
+        .from('episode_images')
+        .delete()
+        .eq('episode_id', episodeId)
+        .eq('sort_order', sortOrder)
+
+      const { error: imageInsertError } = await supabase.from('episode_images').insert({
+        episode_id: episodeId,
+        image_url: image.imageUrl,
+        original_image_url: image.originalImageUrl,
+        optimized_image_url: image.optimizedImageUrl,
+        thumbnail_image_url: image.thumbnailImageUrl,
+        sort_order: sortOrder,
+        width: image.width,
+        height: image.height,
+        file_size_bytes: image.fileSizeBytes,
+        content_type: image.contentType,
+        derivatives: image.derivatives as Json,
+        is_verified: true,
+        processing_status: image.processingStatus,
+        processing_error: image.processingError,
+        cleanup_status: image.cleanupStatus,
+        original_file_path: image.originalFilePath,
+        optimized_file_path: image.optimizedFilePath,
+        thumbnail_file_path: image.thumbnailFilePath,
+      })
+
+      if (imageInsertError) {
+        throw new Error(imageInsertError.message)
+      }
+    }
 
     return NextResponse.json(image, {
       status: 200,

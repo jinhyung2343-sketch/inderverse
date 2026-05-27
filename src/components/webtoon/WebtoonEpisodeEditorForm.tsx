@@ -3,7 +3,7 @@
 import { EpisodeImagesField } from '@/components/webtoon/EpisodeImagesField'
 import type { CreatorWebtoonEpisodeRecord } from '@/lib/webtoon'
 import { getEpisodeStatusLabel } from '@/lib/webtoon'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 const statusOptions = ['draft', 'published', 'hidden'] as const
 
@@ -59,6 +59,10 @@ export function WebtoonEpisodeEditorForm({
   const [draftRestored, setDraftRestored] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [isAutoSavePaused, setIsAutoSavePaused] = useState(false)
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [createdEpisodePath, setCreatedEpisodePath] = useState<string | null>(null)
+  const [isSubmittingNewEpisode, setIsSubmittingNewEpisode] = useState(false)
   const draftStorageKey = useMemo(
     () => `inderverse:webtoon-episode-draft:${channelId}:${episodeId ?? 'new'}`,
     [channelId, episodeId]
@@ -179,6 +183,107 @@ export function WebtoonEpisodeEditorForm({
     clearLocalDraft()
   }
 
+  function getPendingEpisodeImageFiles(formData: FormData) {
+    return formData
+      .getAll('pendingEpisodeImageFiles')
+      .filter((value): value is File => value instanceof File && value.size > 0)
+  }
+
+  async function uploadPersistedEpisodeImage({
+    createdEpisodeId,
+    file,
+    sortOrder,
+  }: {
+    createdEpisodeId: string
+    file: File
+    sortOrder: number
+  }) {
+    const uploadFormData = new FormData()
+    uploadFormData.set('channelId', channelId)
+    uploadFormData.set('episodeId', createdEpisodeId)
+    uploadFormData.set('sortOrder', String(sortOrder))
+    uploadFormData.set('persistImage', 'on')
+    uploadFormData.set('file', file)
+
+    const uploadResponse = await fetch('/api/upload/webtoon-episode-image', {
+      method: 'POST',
+      body: uploadFormData,
+    })
+    const uploadPayload = (await uploadResponse.json()) as { error?: string; imageUrl?: string }
+
+    if (!uploadResponse.ok || !uploadPayload.imageUrl) {
+      throw new Error(uploadPayload.error || `${sortOrder + 1}번째 이미지 업로드에 실패했습니다.`)
+    }
+  }
+
+  async function handleNewEpisodeSubmit(event: FormEvent<HTMLFormElement>) {
+    if (episodeId) {
+      return
+    }
+
+    event.preventDefault()
+
+    const form = formRef.current
+
+    if (!form || isSubmittingNewEpisode) {
+      return
+    }
+
+    const formData = new FormData(form)
+    const pendingFiles = getPendingEpisodeImageFiles(formData)
+
+    setSubmitError(null)
+    setSubmitMessage('회차 정보를 먼저 저장하고 있습니다.')
+    setCreatedEpisodePath(null)
+    setIsSubmittingNewEpisode(true)
+
+    try {
+      const createResponse = await fetch('/api/studio/webtoon-episodes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          channelId,
+          title: String(formData.get('title') ?? ''),
+          episodeNumber: String(formData.get('episodeNumber') ?? ''),
+          pricingType: String(formData.get('pricingType') ?? 'paid'),
+          coinPrice: String(formData.get('coinPrice') ?? '0'),
+          status: String(formData.get('status') ?? 'draft'),
+          pendingImageCount: pendingFiles.length,
+        }),
+      })
+      const createPayload = (await createResponse.json()) as {
+        editPath?: string
+        episodeId?: string
+        error?: string
+      }
+
+      if (!createResponse.ok || !createPayload.episodeId || !createPayload.editPath) {
+        throw new Error(createPayload.error || '회차를 저장하지 못했습니다.')
+      }
+
+      setCreatedEpisodePath(createPayload.editPath)
+
+      for (const [index, file] of pendingFiles.entries()) {
+        setSubmitMessage(`${pendingFiles.length}장 중 ${index + 1}번째 이미지를 업로드하고 있습니다.`)
+        await uploadPersistedEpisodeImage({
+          createdEpisodeId: createPayload.episodeId,
+          file,
+          sortOrder: index,
+        })
+      }
+
+      clearLocalDraft()
+      window.location.assign(`${createPayload.editPath}?saved=1`)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : '회차 저장 중 문제가 발생했습니다.')
+      setSubmitMessage(null)
+    } finally {
+      setIsSubmittingNewEpisode(false)
+    }
+  }
+
   function resumeAutoSave() {
     if (isAutoSavePaused) {
       setIsAutoSavePaused(false)
@@ -188,7 +293,8 @@ export function WebtoonEpisodeEditorForm({
   return (
     <form
       ref={formRef}
-      action={handleFormAction}
+      action={episodeId ? handleFormAction : undefined}
+      onSubmit={handleNewEpisodeSubmit}
       onInput={resumeAutoSave}
       onChange={resumeAutoSave}
       className="grid gap-6"
@@ -284,14 +390,36 @@ export function WebtoonEpisodeEditorForm({
           </div>
 
           <div className="rounded-[24px] border border-sky-400/20 bg-sky-500/5 p-5 text-sm leading-6 text-zinc-300">
-            작품 등급과 공개 기준은 이전 단계에서 정한 값을 따릅니다. 이 화면에서는 이번 회차의 제목, 번호, 원고 이미지만 정리합니다.
+            작품 등급과 공개 기준은 이전 단계에서 정한 값을 따릅니다. 새 회차는 먼저 회차 정보를 저장한 뒤,
+            선택한 이미지를 한 장씩 안정적으로 업로드합니다.
           </div>
+
+          {submitMessage ? (
+            <div className="rounded-[24px] border border-emerald-300/15 bg-emerald-500/5 p-5 text-sm leading-6 text-emerald-100">
+              {submitMessage}
+            </div>
+          ) : null}
+
+          {submitError ? (
+            <div className="rounded-[24px] border border-rose-300/25 bg-rose-500/10 p-5 text-sm leading-6 text-rose-100">
+              <p>{submitError}</p>
+              {createdEpisodePath ? (
+                <a
+                  href={createdEpisodePath}
+                  className="mt-3 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold text-rose-50 transition hover:bg-white/10"
+                >
+                  저장된 회차 편집으로 이동
+                </a>
+              ) : null}
+            </div>
+          ) : null}
 
           <button
             type="submit"
-            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+            disabled={isSubmittingNewEpisode}
+            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitLabel}
+            {isSubmittingNewEpisode ? '회차 저장 중...' : submitLabel}
           </button>
         </div>
 
