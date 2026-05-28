@@ -42,7 +42,7 @@ export interface ExploreArtwork {
   episodes: ArtworkEpisode[]
 }
 
-export const categories = ['전체', '드라마', '판타지', '로맨스', '액션', 'SF', '무협', '스릴러', '공포', '코믹', 'BL', 'GL']
+export const categories = ['전체', '드라마', '판타지', '로맨스', '액션', 'SF', '무협', '스릴러', '공포', '오컬트', '코믹', 'BL', 'GL']
 
 export const quickFilters = ['추천', '최신', '인기', '완결', '맛보기 공개']
 
@@ -56,6 +56,7 @@ export const categoryTags: Record<string, string[]> = {
   무협: ['강호', '문파', '수련', '비급'],
   스릴러: ['추적', '반전', '심리전', '밀실'],
   공포: ['괴담', '오컬트', '폐쇄공간', '심령'],
+  오컬트: ['의식', '금서', '주술', '초자연'],
   코믹: ['일상개그', '병맛', '가벼움', '캐릭터성'],
   BL: ['서사 중심', '긴장감', '관계 변화', '감정 폭발'],
   GL: ['섬세한 감정', '청춘', '서로의 구원', '여운'],

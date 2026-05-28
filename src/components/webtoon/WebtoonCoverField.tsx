@@ -10,6 +10,7 @@ import {
 import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
 
 type CoverUploadPhase = 'idle' | 'compressing' | 'uploading' | 'ready'
+type CoverImageIntent = 'keep' | 'set' | 'clear'
 
 function getCoverUploadPhaseLabel(phase: CoverUploadPhase) {
   if (phase === 'compressing') {
@@ -30,10 +31,12 @@ function getCoverUploadPhaseLabel(phase: CoverUploadPhase) {
 export function WebtoonCoverField({
   channelId,
   initialValue,
+  onUploadStateChange,
   workLabel = '웹툰',
 }: {
   channelId?: string
   initialValue?: string | null
+  onUploadStateChange?: (isUploading: boolean) => void
   workLabel?: string
 }) {
   const [value, setValue] = useState(initialValue ?? '')
@@ -41,6 +44,7 @@ export function WebtoonCoverField({
   const localPreviewUrlRef = useRef<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [inspectionMessages, setInspectionMessages] = useState<string[]>([])
+  const [coverImageIntent, setCoverImageIntent] = useState<CoverImageIntent>('keep')
   const [isUploading, setIsUploading] = useState(false)
   const [uploadPhase, setUploadPhase] = useState<CoverUploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -55,6 +59,10 @@ export function WebtoonCoverField({
       }
     }
   }, [])
+
+  useEffect(() => {
+    onUploadStateChange?.(isUploading)
+  }, [isUploading, onUploadStateChange])
 
   function replaceLocalPreviewUrl(nextUrl: string | null) {
     if (localPreviewUrlRef.current) {
@@ -139,6 +147,7 @@ export function WebtoonCoverField({
 
     replaceLocalPreviewUrl(null)
     setValue(signedUrlPayload.publicUrl)
+    setCoverImageIntent('set')
     setUploadPhase('ready')
     setUploadProgress(100)
     setMessage(`커버 이미지가 ${formatFileSize(file.size)} WebP로 업로드되어 저장 대기 상태로 반영되었습니다.`)
@@ -174,6 +183,7 @@ export function WebtoonCoverField({
 
   function clearCoverImage() {
     setValue('')
+    setCoverImageIntent('clear')
     replaceLocalPreviewUrl(null)
     setInspectionMessages([])
     setUploadPhase('idle')
@@ -184,6 +194,7 @@ export function WebtoonCoverField({
   return (
     <div className="grid gap-4">
       <input type="hidden" name="coverImageUrl" value={value} readOnly />
+      <input type="hidden" name="coverImageIntent" value={coverImageIntent} readOnly />
 
       <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-zinc-500">
         {guideItems.map((item) => (
@@ -244,7 +255,9 @@ export function WebtoonCoverField({
             <input
               value={value}
               onChange={(event) => {
-                setValue(event.target.value)
+                const nextValue = event.target.value
+                setValue(nextValue)
+                setCoverImageIntent(nextValue.trim().length > 0 ? 'set' : 'clear')
                 replaceLocalPreviewUrl(null)
                 setUploadPhase('idle')
                 setUploadProgress(0)

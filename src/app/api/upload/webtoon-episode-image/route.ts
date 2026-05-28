@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath, revalidateTag } from 'next/cache'
+import { PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
 import { uploadEpisodeImageFile } from '@/lib/storage/upload'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -8,6 +10,13 @@ import {
 import type { Json } from '@/lib/supabase/types'
 
 export const runtime = 'nodejs'
+
+function revalidatePublicContentCache() {
+  revalidateTag(PUBLIC_CACHE_TAGS.artworks, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.creators, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.navigation, 'max')
+  revalidateTag(PUBLIC_CACHE_TAGS.sparks, 'max')
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -121,6 +130,11 @@ export async function POST(req: NextRequest) {
       if (imageInsertError) {
         throw new Error(imageInsertError.message)
       }
+
+      revalidatePath('/main/explore')
+      revalidatePath(`/main/explore/${channelId}`)
+      revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
+      revalidatePublicContentCache()
     }
 
     return NextResponse.json(image, {

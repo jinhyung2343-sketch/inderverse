@@ -7,6 +7,7 @@ import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
 import { getPublicArtworkById, getPublicArtworkList, getRelatedArtworks } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
+import { getViewerSession } from '@/lib/server/viewer-session'
 import { getWorkTypeLabel } from '@/lib/work'
 
 export const revalidate = 60
@@ -20,14 +21,19 @@ const sectionLinks = [
 
 export default async function ArtworkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const artwork = await getPublicArtworkById(id)
+  const viewer = await getViewerSession()
+  const visibility = {
+    includeAdultContent: viewer.isAdultVerified,
+    viewerId: viewer.userId,
+  }
+  const artwork = await getPublicArtworkById(id, visibility)
 
   if (!artwork) {
     notFound()
   }
 
-  const feed = await getPublicArtworkList()
-  const relatedArtworks = await getRelatedArtworks(artwork, 4)
+  const feed = await getPublicArtworkList(visibility)
+  const relatedArtworks = await getRelatedArtworks(artwork, 4, visibility)
   const backendCoverage = getArtworkBackendCoverage(artwork)
   const savedArtworkIds = await getSavedArtworkIds()
   const savedArtworkId = artwork.backendChannelId ?? artwork.id

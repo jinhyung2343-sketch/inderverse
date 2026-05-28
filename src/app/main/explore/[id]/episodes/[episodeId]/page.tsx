@@ -5,6 +5,7 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getEpisodeById } from '@/lib/explore'
 import { checkEpisodeDynamicAccess } from '@/lib/server/dynamic-access'
 import { getPublicArtworkById } from '@/lib/server/explore'
+import { getViewerSession } from '@/lib/server/viewer-session'
 import { getWorkTypeLabel } from '@/lib/work'
 
 export const revalidate = 60
@@ -15,7 +16,11 @@ export default async function EpisodeReaderPage({
   params: Promise<{ id: string; episodeId: string }>
 }) {
   const { id, episodeId } = await params
-  const artwork = await getPublicArtworkById(id)
+  const viewer = await getViewerSession()
+  const artwork = await getPublicArtworkById(id, {
+    includeAdultContent: viewer.isAdultVerified,
+    viewerId: viewer.userId,
+  })
 
   if (!artwork) {
     notFound()

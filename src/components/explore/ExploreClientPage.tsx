@@ -19,6 +19,23 @@ import { getWorkTypeLabel } from '@/lib/work'
 const workTypeFilters = ['전체 형식', 'webtoon', 'novel'] as const
 type ExploreView = 'works' | 'creators'
 
+const exploreViewOptions: Array<{
+  href: string
+  label: string
+  value: ExploreView
+}> = [
+  {
+    href: '/main/explore',
+    label: '작품보기',
+    value: 'works',
+  },
+  {
+    href: '/main/explore?view=creators',
+    label: '작가보기',
+    value: 'creators',
+  },
+]
+
 function CreatorChannelCard({ creator }: { creator: PublicCreatorChannelSummary }) {
   return (
     <Link
@@ -74,7 +91,7 @@ export function ExploreClientPage({
   initialCreators: PublicCreatorChannelSummary[]
   initialView?: ExploreView
 }) {
-  const [showCreatorDirectory, setShowCreatorDirectory] = useState(initialView === 'creators')
+  const [activeView, setActiveView] = useState<ExploreView>(initialView)
   const [activeCategory, setActiveCategory] = useState('전체')
   const [activeFilter, setActiveFilter] = useState('추천')
   const [activeWorkType, setActiveWorkType] = useState<(typeof workTypeFilters)[number]>('전체 형식')
@@ -82,13 +99,13 @@ export function ExploreClientPage({
   const deferredQuery = useDeferredValue(searchQuery)
   const activeTags = categoryTags[activeCategory] ?? []
   const hasSearchQuery = deferredQuery.trim().length > 0
-  const featuredCreators = initialCreators.slice(0, 4)
-  const hasActiveConditions =
-    activeCategory !== '전체' ||
-    activeFilter !== '추천' ||
-    activeWorkType !== '전체 형식' ||
-    showCreatorDirectory ||
-    searchQuery.trim().length > 0
+  const isCreatorView = activeView === 'creators'
+  const hasActiveConditions = isCreatorView
+    ? searchQuery.trim().length > 0
+    : activeCategory !== '전체' ||
+      activeFilter !== '추천' ||
+      activeWorkType !== '전체 형식' ||
+      searchQuery.trim().length > 0
 
   const filteredArtworks = initialArtworks.filter((artwork) => {
     const matchesWorkType = hasSearchQuery || activeWorkType === '전체 형식' || artwork.workType === activeWorkType
@@ -126,7 +143,6 @@ export function ExploreClientPage({
     setActiveCategory('전체')
     setActiveFilter('추천')
     setActiveWorkType('전체 형식')
-    setShowCreatorDirectory(false)
     setSearchQuery('')
   }
 
@@ -142,11 +158,36 @@ export function ExploreClientPage({
           <div className="space-y-3">
             <h1 className="text-4xl font-black tracking-tight md:text-5xl">{BRAND.name} 작품보기</h1>
             <p className="max-w-2xl text-sm leading-7 text-zinc-400 md:text-base">
-              작품을 바로 찾거나, 마음에 드는 작가 채널을 따라 다른 작품까지 이어서 둘러보세요.
+              먼저 작품을 볼지, 작가를 볼지 선택한 뒤 원하는 목록만 차분하게 탐색하세요.
             </p>
           </div>
 
-          <section className="space-y-4" aria-label="작품 검색과 필터">
+          <div className="flex w-full flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1 sm:w-fit sm:flex-row">
+            {exploreViewOptions.map((option) => {
+              const isActive = option.value === activeView
+
+              return (
+                <Link
+                  key={option.value}
+                  href={option.href}
+                  onClick={() => {
+                    setActiveView(option.value)
+                    resetFilters()
+                  }}
+                  className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-white text-black'
+                      : 'text-zinc-400 hover:bg-white/10 hover:text-zinc-100'
+                  }`}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  {option.label}
+                </Link>
+              )
+            })}
+          </div>
+
+          <section className="space-y-4" aria-label={isCreatorView ? '작가 검색' : '작품 검색과 필터'}>
             <div className="relative">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -165,81 +206,83 @@ export function ExploreClientPage({
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="작품명, 작가명, 태그로 검색"
+                placeholder={isCreatorView ? '작가명, 채널명으로 검색' : '작품명, 작가명, 태그로 검색'}
                 className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.06] pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-white/25"
               />
             </div>
 
-            <div className="space-y-3">
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="작품 형식">
-                {workTypeFilters.map((workType) => {
-                  const isActive = workType === activeWorkType
-                  const label = workType === '전체 형식' ? workType : getWorkTypeLabel(workType)
+            {!isCreatorView ? (
+              <div className="space-y-3">
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="작품 형식">
+                  {workTypeFilters.map((workType) => {
+                    const isActive = workType === activeWorkType
+                    const label = workType === '전체 형식' ? workType : getWorkTypeLabel(workType)
 
-                  return (
-                    <button
-                      key={workType}
-                      type="button"
-                      onClick={() => setActiveWorkType(workType)}
-                      className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
-                        isActive
-                          ? 'border-violet-400/40 bg-violet-500/15 text-violet-100'
-                          : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
+                    return (
+                      <button
+                        key={workType}
+                        type="button"
+                        onClick={() => setActiveWorkType(workType)}
+                        className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
+                          isActive
+                            ? 'border-violet-400/40 bg-violet-500/15 text-violet-100'
+                            : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="카테고리">
+                  {categories.map((category) => {
+                    const isActive = category === activeCategory
+
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setActiveCategory(category)}
+                        className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
+                          isActive
+                            ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-100'
+                            : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {category}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="작품 상태">
+                  {quickFilters.map((filter) => {
+                    const isActive = filter === activeFilter
+
+                    return (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setActiveFilter(filter)}
+                        className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
+                          isActive
+                            ? 'border-white/25 bg-white text-black'
+                            : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {filter}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
+            ) : null}
 
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="카테고리">
-                {categories.map((category) => {
-                  const isActive = category === activeCategory
-
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setActiveCategory(category)}
-                      className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
-                        isActive
-                          ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-100'
-                          : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {category}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="작품 상태">
-                {quickFilters.map((filter) => {
-                  const isActive = filter === activeFilter
-
-                  return (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setActiveFilter(filter)}
-                      className={`h-10 shrink-0 rounded-full border px-4 text-sm transition ${
-                        isActive
-                          ? 'border-white/25 bg-white text-black'
-                          : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      {filter}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {activeTags.length > 0 ? (
+            {!isCreatorView && activeTags.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium text-zinc-500">추천 태그</span>
                 {activeTags.map((tag) => (
@@ -257,45 +300,16 @@ export function ExploreClientPage({
           </section>
         </header>
 
-        {!hasSearchQuery && !showCreatorDirectory && featuredCreators.length > 0 ? (
-          <section className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">Creator Channels</p>
-                <h2 className="mt-2 text-2xl font-bold tracking-tight">추천 작가 채널</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCreatorDirectory(true)}
-                className="inline-flex w-fit rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-              >
-                작가 더 보기
-              </button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {featuredCreators.map((creator) => (
-                <CreatorChannelCard key={creator.id} creator={creator} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
         <section className="space-y-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">
-                {hasSearchQuery
-                  ? '검색 결과'
-                  : showCreatorDirectory
-                    ? '작가 채널'
-                    : `${activeCategory} · ${activeFilter}`}
+                {hasSearchQuery ? '검색 결과' : isCreatorView ? '작가보기' : `${activeCategory} · ${activeFilter}`}
               </h2>
               <p className="mt-1 text-sm text-zinc-400">
-                {hasSearchQuery
-                  ? `작품 ${filteredArtworks.length}개 · 작가 ${filteredCreators.length}개가 검색되었습니다.`
-                  : showCreatorDirectory
-                    ? `총 ${filteredCreators.length}개의 작가 채널이 표시되고 있습니다.`
-                    : `총 ${filteredArtworks.length}개의 작품이 표시되고 있습니다.`}
+                {isCreatorView
+                  ? `총 ${filteredCreators.length}개의 작가 채널이 표시되고 있습니다.`
+                  : `총 ${filteredArtworks.length}개의 작품이 표시되고 있습니다.`}
               </p>
             </div>
 
@@ -317,50 +331,7 @@ export function ExploreClientPage({
             </div>
           </div>
 
-          {hasSearchQuery ? (
-            filteredCreators.length > 0 || filteredArtworks.length > 0 ? (
-              <div className="grid gap-8">
-                {filteredCreators.length > 0 ? (
-                  <section className="space-y-4" aria-label="작가 검색 결과">
-                    <h3 className="text-lg font-semibold text-white">작가</h3>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {filteredCreators.map((creator) => (
-                        <CreatorChannelCard key={creator.id} creator={creator} />
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {filteredArtworks.length > 0 ? (
-                  <section className="space-y-4" aria-label="작품 검색 결과">
-                    <h3 className="text-lg font-semibold text-white">작품</h3>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                      {filteredArtworks.map((artwork) => (
-                        <ArtworkCard
-                          key={artwork.id}
-                          title={artwork.title}
-                          authorName={artwork.authorName}
-                          authorHref={artwork.creatorSlug ? `/main/creators/${artwork.creatorSlug}` : undefined}
-                          coverImageUrl={artwork.coverImageUrl}
-                          workType={artwork.workType}
-                          status={artwork.status}
-                          isAdultOnly={artwork.isAdultOnly}
-                          isCommentEnabled={artwork.isCommentEnabled}
-                          tags={artwork.tags}
-                          href={`/main/explore/${artwork.id}`}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.04] px-6 py-12 text-center">
-                <p className="text-lg font-semibold text-white">검색 결과가 없습니다.</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">검색어를 조금 줄이거나 다른 단어로 다시 찾아보세요.</p>
-              </div>
-            )
-          ) : showCreatorDirectory ? (
+          {isCreatorView ? (
             filteredCreators.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredCreators.map((creator) => (

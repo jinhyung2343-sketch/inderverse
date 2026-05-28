@@ -32,7 +32,7 @@ const MENUS = [
   },
   {
     id: 'creators',
-    title: '작가 채널',
+    title: '작가보기',
     path: '/main/explore?view=creators',
     wash: 'from-fuchsia-500/20 via-white/[0.03] to-transparent',
     dot: 'bg-fuchsia-300',
@@ -138,23 +138,12 @@ export function MainHubClient({ initialAuth }: { initialAuth: InitialHubAuth }) 
 
   const isCreator = resolvedIsLoggedIn && (resolvedProfile?.role === 'creator' || resolvedProfile?.role === 'admin');
   const menus = MENUS.flatMap((menu) => {
-    if (menu.id === 'creators') {
+    if (menu.id === 'studio') {
       return isCreator
         ? [{
           ...menu,
-          id: 'creator-operations',
           title: 'My Bottega',
-          path: '/main/studio',
-          wash: 'from-emerald-500/20 via-white/[0.03] to-transparent',
-          dot: 'bg-emerald-300',
-          text: 'group-hover:text-emerald-100',
         }]
-        : [];
-    }
-
-    if (menu.id === 'studio') {
-      return isCreator
-        ? []
         : [{
           ...menu,
           title: 'Bottega',

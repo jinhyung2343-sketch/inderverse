@@ -131,10 +131,15 @@ const getCachedPublicCreatorChannelRowBySlug = unstable_cache(
   }
 )
 
-export async function getPublicCreatorChannelList() {
+export async function getPublicCreatorChannelList(
+  options: {
+    includeAdultContent?: boolean
+    viewerId?: string | null
+  } = {}
+) {
   try {
     const channels = await getCachedPublicCreatorChannelRows()
-    const artworks = await getPublicArtworkList()
+    const artworks = await getPublicArtworkList(options)
     const artworkCounts = new Map<string, { total: number; webtoon: number; novel: number; latestTitle: string | null }>()
 
     artworks.forEach((artwork) => {
@@ -179,7 +184,13 @@ export async function getPublicCreatorChannelList() {
   }
 }
 
-export async function getPublicCreatorChannelPage(slug: string) {
+export async function getPublicCreatorChannelPage(
+  slug: string,
+  options: {
+    includeAdultContent?: boolean
+    viewerId?: string | null
+  } = {}
+) {
   if (!/^[a-z0-9][a-z0-9-]{2,62}$/.test(slug)) {
     return null
   }
@@ -191,7 +202,7 @@ export async function getPublicCreatorChannelPage(slug: string) {
       return null
     }
 
-    const artworks = await getPublicArtworkList()
+    const artworks = await getPublicArtworkList(options)
     const creatorArtworks = artworks.filter((artwork) => artwork.creatorSlug === channel.slug)
 
     return {

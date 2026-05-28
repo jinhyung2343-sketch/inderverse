@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { useFormStatus } from 'react-dom'
 import type { WebtoonChannelActionState } from '@/app/main/studio/channels/actions'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
@@ -104,16 +105,25 @@ function parseRatingChecklistJson(value: FormDataEntryValue | null) {
   }
 }
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({
+  disabled = false,
+  disabledLabel,
+  label,
+}: {
+  disabled?: boolean
+  disabledLabel?: string
+  label: string
+}) {
   const { pending } = useFormStatus()
+  const isDisabled = pending || disabled
 
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={isDisabled}
       className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {pending ? '저장 중...' : label}
+      {pending ? '저장 중...' : disabled ? (disabledLabel ?? label) : label}
     </button>
   )
 }
@@ -144,6 +154,8 @@ export function WebtoonEditorForm({
   const [draftRestored, setDraftRestored] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [isAutoSavePaused, setIsAutoSavePaused] = useState(false)
+  const [isCoverUploading, setIsCoverUploading] = useState(false)
+  const [coverUploadWarning, setCoverUploadWarning] = useState<string | null>(null)
   const [localDraft, setLocalDraft] = useState<WebtoonChannelFormDraft | null>(null)
   const draftStorageKey = useMemo(
     () => `${WEBTOON_CHANNEL_DRAFT_KEY_PREFIX}${channelId ?? 'new'}`,
@@ -162,6 +174,9 @@ export function WebtoonEditorForm({
         url.searchParams.delete('saved')
         window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
         window.setTimeout(() => {
+          setLocalDraft(null)
+          setDraftRestored(false)
+          setLastSavedAt(null)
           setIsAutoSavePaused(true)
           setDraftLoaded(true)
         }, 0)
@@ -254,6 +269,55 @@ export function WebtoonEditorForm({
     }
   }
 
+  const handleCoverUploadStateChange = useCallback((nextIsUploading: boolean) => {
+    setIsCoverUploading(nextIsUploading)
+
+    if (!nextIsUploading) {
+      setCoverUploadWarning(null)
+    }
+  }, [])
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (!isCoverUploading) {
+      return
+    }
+
+    event.preventDefault()
+    setCoverUploadWarning('커버 이미지 업로드가 끝난 뒤 저장해 주세요.')
+  }
+
+  function handleFlexibleSerializationChange(checked: boolean) {
+    if (!checked) {
+      return
+    }
+
+    const form = formRef.current
+
+    if (!form) {
+      return
+    }
+
+    form.querySelectorAll<HTMLInputElement>('input[name="serializationDays"]').forEach((input) => {
+      if (input.value !== 'flexible') {
+        input.checked = false
+      }
+    })
+  }
+
+  function handleWeekdaySerializationChange(checked: boolean) {
+    if (!checked) {
+      return
+    }
+
+    const flexibleInput = formRef.current?.querySelector<HTMLInputElement>(
+      'input[name="serializationDays"][value="flexible"]'
+    )
+
+    if (flexibleInput) {
+      flexibleInput.checked = false
+    }
+  }
+
   if (!draftLoaded) {
     return (
       <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 text-sm text-zinc-300 backdrop-blur-xl">
@@ -281,6 +345,7 @@ export function WebtoonEditorForm({
       action={formAction}
       onInput={resumeAutoSave}
       onChange={resumeAutoSave}
+      onSubmit={handleSubmit}
       className="grid gap-6"
     >
       <input type="hidden" name="draftStorageKey" value={draftStorageKey} />
@@ -339,6 +404,7 @@ export function WebtoonEditorForm({
                   key={initialCoverImageUrl}
                   channelId={channelId}
                   initialValue={initialCoverImageUrl}
+                  onUploadStateChange={handleCoverUploadStateChange}
                 />
               </div>
             </div>
@@ -390,15 +456,17 @@ export function WebtoonEditorForm({
 
             <div className="mt-4 grid gap-3 text-sm text-zinc-300">
               <p className="text-white">연재 요일</p>
-              <label className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-emerald-50">
+              <label className="inline-flex w-fit cursor-pointer">
                 <input
                   type="checkbox"
                   name="serializationDays"
                   value="flexible"
                   defaultChecked={isFlexibleSerialization}
-                  className="h-4 w-4 rounded border-white/20 bg-black/30"
+                  onChange={(event) => handleFlexibleSerializationChange(event.currentTarget.checked)}
+                  aria-label={FLEXIBLE_SERIALIZATION_LABEL}
+                  title={FLEXIBLE_SERIALIZATION_LABEL}
+                  className="h-10 w-10 cursor-pointer appearance-none rounded-full border border-emerald-300/25 bg-emerald-500/10 transition hover:bg-emerald-500/15 checked:border-emerald-300 checked:bg-emerald-300"
                 />
-                <span>{FLEXIBLE_SERIALIZATION_LABEL}</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {weekdayOptions.map((day) => {
@@ -407,16 +475,18 @@ export function WebtoonEditorForm({
                   return (
                     <label
                       key={day}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2"
+                      className="inline-flex cursor-pointer"
                     >
                       <input
                         type="checkbox"
                         name="serializationDays"
                         value={String(day)}
                         defaultChecked={checked}
-                        className="h-4 w-4 rounded border-white/20 bg-black/30"
+                        onChange={(event) => handleWeekdaySerializationChange(event.currentTarget.checked)}
+                        aria-label={getSerializationDayLabel(day)}
+                        title={getSerializationDayLabel(day)}
+                        className="h-10 w-10 cursor-pointer appearance-none rounded-full border border-white/15 bg-black/20 transition hover:bg-white/10 checked:border-white checked:bg-white"
                       />
-                      <span>{getSerializationDayLabel(day)}</span>
                     </label>
                   )
                 })}
@@ -555,7 +625,17 @@ export function WebtoonEditorForm({
             </div>
           ) : null}
 
-          <SubmitButton label={submitLabel} />
+          {coverUploadWarning ? (
+            <div className="rounded-3xl border border-amber-300/25 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
+              {coverUploadWarning}
+            </div>
+          ) : null}
+
+          <SubmitButton
+            label={submitLabel}
+            disabled={isCoverUploading}
+            disabledLabel="커버 업로드 중..."
+          />
         </div>
       </section>
     </form>

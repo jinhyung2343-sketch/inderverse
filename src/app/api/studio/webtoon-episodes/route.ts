@@ -108,6 +108,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (statusValue === 'published') {
+      const { error: publishChannelError } = await supabase
+        .from('channels')
+        .update({ status: 'publishing' })
+        .eq('id', channelId)
+        .eq('creator_id', user.id)
+        .eq('work_type', 'webtoon')
+        .eq('status', 'draft')
+
+      if (publishChannelError) {
+        return NextResponse.json(
+          { error: publishChannelError.message || '작품 공개 상태를 갱신하지 못했습니다.' },
+          { status: 500 }
+        )
+      }
+    }
+
     revalidatePath('/main/explore')
     revalidatePath(`/main/explore/${channelId}`)
     revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)

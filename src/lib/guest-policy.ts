@@ -16,7 +16,7 @@ export type RouteAccessDecision =
   | { type: 'allow' }
   | { type: 'redirect'; location: string; reason: 'login_required' | 'guardian_pending' | 'creator_required' | 'admin_required' | 'already_logged_in' }
 
-const guestAllowedMainMenuIds = ['explore', 'spark', 'community', 'library', 'store', 'studio']
+const guestAllowedMainMenuIds = ['explore', 'creators', 'spark', 'community', 'library', 'store', 'studio']
 const loginRequiredMainPaths = ['/main/store/checkout']
 
 export function canGuestOpenMainMenu(menuId: string) {

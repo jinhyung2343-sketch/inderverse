@@ -54,6 +54,10 @@ export interface ContentRatingActionState {
   error: string | null
 }
 
+export interface DeleteToonWorkActionState {
+  error: string | null
+}
+
 function getActionErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message
@@ -113,6 +117,78 @@ export async function selectPrimaryBottega(formData: FormData) {
   redirect(getBottegaHref(workType))
 }
 
+async function deleteToonWorkMutation(formData: FormData) {
+  const { supabase, userId } = await requireCreatorAccess()
+  const channelId = readText(formData, 'channelId')
+  const workType = readText(formData, 'workType')
+
+  if (!channelId) {
+    throw new Error('삭제할 작품을 찾지 못했습니다.')
+  }
+
+  if (workType !== 'webtoon' && workType !== 'spark') {
+    throw new Error('툰 보테가에서 삭제할 수 있는 작품 유형이 아닙니다.')
+  }
+
+  const { data: channel, error: channelError } = await supabase
+    .from('channels')
+    .select('id')
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', workType)
+    .maybeSingle()
+
+  if (channelError) {
+    throw new Error(channelError.message)
+  }
+
+  if (!channel) {
+    throw new Error('내 작품 목록에서 삭제할 작품을 찾지 못했습니다.')
+  }
+
+  const { error: deleteError } = await supabase
+    .from('channels')
+    .delete()
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', workType)
+
+  if (deleteError) {
+    throw new Error(deleteError.message)
+  }
+
+  revalidatePath('/main/studio')
+  revalidatePath('/main/studio/channels')
+  revalidatePath('/main/studio/channels/webtoon')
+  revalidatePath(`/main/studio/channels/${workType}/${channelId}/edit`)
+  revalidatePath(`/main/studio/channels/${workType}/${channelId}/rating`)
+  revalidatePath('/main/explore')
+  revalidatePath(`/main/explore/${channelId}`)
+  revalidatePath('/main/spark')
+  revalidatePath(`/main/spark/${channelId}`)
+  revalidatePublicContentCache()
+
+  return '/main/studio/channels/webtoon?deleted=1'
+}
+
+export async function deleteToonWorkWithState(
+  _previousState: DeleteToonWorkActionState,
+  formData: FormData
+): Promise<DeleteToonWorkActionState> {
+  let nextPath: string
+
+  try {
+    nextPath = await deleteToonWorkMutation(formData)
+  } catch (error) {
+    console.error('deleteToonWork failed:', error)
+    return {
+      error: getActionErrorMessage(error, '작품을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+    }
+  }
+
+  redirect(nextPath)
+}
+
 function readText(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === 'string' ? value.trim() : ''
@@ -131,6 +207,12 @@ function readOptionalAssetUrl(formData: FormData, key: string) {
   }
 
   return value
+}
+
+function readCoverImageIntent(formData: FormData) {
+  const value = readText(formData, 'coverImageIntent')
+
+  return value === 'set' || value === 'clear' ? value : 'keep'
 }
 
 function appendLocalDraftClearParam(path: string, formData: FormData) {
@@ -582,6 +664,28 @@ async function uploadOptionalChannelCoverFile({
   }
 }
 
+async function markWebtoonChannelAsPublishing({
+  channelId,
+  supabase,
+  userId,
+}: {
+  channelId: string
+  supabase: Awaited<ReturnType<typeof createClient>>
+  userId: string
+}) {
+  const { error } = await supabase
+    .from('channels')
+    .update({ status: 'publishing' })
+    .eq('id', channelId)
+    .eq('creator_id', userId)
+    .eq('work_type', 'webtoon')
+    .eq('status', 'draft')
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
 function parseSparkDraft(formData: FormData): SparkDraftInput {
   const title = readText(formData, 'title')
   const description = readText(formData, 'description')
@@ -719,6 +823,13 @@ function buildWebtoonChannelPayload(
     teaser_percentage: input.teaserPercentage,
     is_free_archive: input.isFreeArchive,
   }
+}
+
+function omitCoverImageUrl<T extends { cover_image_url: string | null }>(payload: T) {
+  const nextPayload: Partial<T> = { ...payload }
+  delete nextPayload.cover_image_url
+
+  return nextPayload
 }
 
 function parseNovelDraft(formData: FormData): NovelDraftInput {
@@ -1106,8 +1217,13 @@ async function updateWebtoonChannelMutation(formData: FormData) {
   }
 
   const input = parseWebtoonDraft(formData)
-  const payload = buildWebtoonChannelPayload(input, userId, creatorChannel.id)
+  const payloadWithCover = buildWebtoonChannelPayload(input, userId, creatorChannel.id)
+  const coverImageIntent = readCoverImageIntent(formData)
   const pendingCoverImageFile = readOptionalImageFile(formData, 'coverImageFile')
+  const payload =
+    coverImageIntent !== 'clear' && !input.coverImageUrl
+      ? omitCoverImageUrl(payloadWithCover)
+      : payloadWithCover
 
   const { error } = await supabase
     .from('channels')
@@ -1146,6 +1262,7 @@ async function updateWebtoonChannelMutation(formData: FormData) {
   revalidatePath('/main/explore')
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath('/main/studio/channels')
+  revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
   revalidatePublicContentCache()
 
   return appendLocalDraftClearParam(`/main/studio/channels/webtoon/${channelId}/edit`, formData)
@@ -1490,11 +1607,17 @@ export async function createWebtoonEpisode(formData: FormData) {
         }))
     )
 
-    const { error: uploadedImagesError } = await supabase.from('episode_images').insert(uploadedImages)
+    const { error: uploadedImagesError } = await supabase
+      .from('episode_images')
+      .insert(uploadedImages)
 
     if (uploadedImagesError) {
       throw new Error(uploadedImagesError.message)
     }
+  }
+
+  if (input.status === 'published') {
+    await markWebtoonChannelAsPublishing({ channelId, supabase, userId })
   }
 
   revalidatePath('/main/explore')
@@ -1580,6 +1703,10 @@ export async function updateWebtoonEpisode(formData: FormData) {
 
   if (updateEpisodeError) {
     throw new Error(updateEpisodeError.message)
+  }
+
+  if (input.status === 'published') {
+    await markWebtoonChannelAsPublishing({ channelId, supabase, userId })
   }
 
   revalidatePath('/main/explore')

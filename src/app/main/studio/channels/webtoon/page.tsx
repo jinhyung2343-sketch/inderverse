@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { DeleteToonWorkButton } from '@/components/studio/DeleteToonWorkButton'
 import { getAgeRatingLabel } from '@/lib/content-rating'
 import { getCreatorSparkList } from '@/lib/server/spark'
 import { getCreatorWebtoonList } from '@/lib/server/webtoon-studio'
@@ -38,7 +39,12 @@ function formatUpdatedAt(value: string) {
   }).format(date)
 }
 
-export default async function ToonBottegaPage() {
+export default async function ToonBottegaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deleted?: string }>
+}) {
+  const { deleted } = await searchParams
   const [webtoonChannels, sparkChannels] = await Promise.all([
     getCreatorWebtoonList(),
     getCreatorSparkList(),
@@ -53,6 +59,7 @@ export default async function ToonBottegaPage() {
       kindLabel: '연재 툰',
       statusLabel: getWebtoonStatusLabel(channel.status),
       ageRatingLabel: getAgeRatingLabel(channel.ageRating),
+      workType: 'webtoon' as const,
       itemSummary: `회차 ${channel.episodeCount}개`,
       summary: '이미지 회차 기반 연재 작품',
       updatedAt: channel.updatedAt,
@@ -66,6 +73,7 @@ export default async function ToonBottegaPage() {
       kindLabel: '스파크',
       statusLabel: getSparkStatusLabel(spark.status),
       ageRatingLabel: getAgeRatingLabel(spark.ageRating),
+      workType: 'spark' as const,
       itemSummary: getSparkFormatLabel(spark.format),
       summary: spark.caption,
       updatedAt: spark.updatedAt,
@@ -123,20 +131,27 @@ export default async function ToonBottegaPage() {
             <h2 className="mt-2 text-2xl font-bold tracking-tight">툰 작업물</h2>
           </div>
 
+          {deleted === '1' ? (
+            <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              작품을 삭제했습니다.
+            </div>
+          ) : null}
+
           {toonWorks.length > 0 ? (
             <div className="grid gap-3">
               {toonWorks.map((work) => (
-                <Link
+                <article
                   key={`${work.kindLabel}-${work.id}`}
-                  href={work.href}
                   className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.055] p-4 transition hover:border-white/25 hover:bg-white/[0.085] md:grid-cols-[88px_1fr_auto] md:items-center"
                 >
-                  <div
-                    className="flex aspect-[4/5] w-full items-end rounded-md border border-white/10 bg-zinc-900 bg-cover bg-center p-3 md:w-[88px]"
-                    style={work.coverImageUrl ? { backgroundImage: `url(${work.coverImageUrl})` } : undefined}
-                  >
-                    {!work.coverImageUrl ? <span className="text-2xl font-black text-zinc-500">툰</span> : null}
-                  </div>
+                  <Link href={work.href} aria-label={`${work.title} 편집`}>
+                    <div
+                      className="flex aspect-[4/5] w-full items-end rounded-md border border-white/10 bg-zinc-900 bg-cover bg-center p-3 md:w-[88px]"
+                      style={work.coverImageUrl ? { backgroundImage: `url(${work.coverImageUrl})` } : undefined}
+                    >
+                      {!work.coverImageUrl ? <span className="text-2xl font-black text-zinc-500">툰</span> : null}
+                    </div>
+                  </Link>
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap gap-2 text-xs text-zinc-300">
@@ -144,7 +159,11 @@ export default async function ToonBottegaPage() {
                       <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{work.statusLabel}</span>
                       <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{work.ageRatingLabel}</span>
                     </div>
-                    <h3 className="mt-3 truncate text-xl font-bold text-white">{work.title}</h3>
+                    <h3 className="mt-3 truncate text-xl font-bold text-white">
+                      <Link href={work.href} className="transition hover:text-zinc-200">
+                        {work.title}
+                      </Link>
+                    </h3>
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-400">
                       {work.category} · {work.itemSummary} · {work.summary}
                     </p>
@@ -152,9 +171,18 @@ export default async function ToonBottegaPage() {
 
                   <div className="flex flex-row items-center justify-between gap-3 border-t border-white/10 pt-4 text-sm text-zinc-400 md:flex-col md:items-end md:border-t-0 md:pt-0">
                     <span>{formatUpdatedAt(work.updatedAt)}</span>
-                    <span className="font-semibold text-white">편집하기</span>
+                    <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                      <Link href={work.href} className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200">
+                        편집
+                      </Link>
+                      <DeleteToonWorkButton
+                        channelId={work.id}
+                        title={work.title}
+                        workType={work.workType}
+                      />
+                    </div>
                   </div>
-                </Link>
+                </article>
               ))}
             </div>
           ) : (

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import { getPublicCreatorChannelPage } from '@/lib/server/public-creator-channels'
+import { getViewerSession } from '@/lib/server/viewer-session'
 import { getWorkTypeLabel } from '@/lib/work'
 
 export const revalidate = 60
@@ -14,7 +15,11 @@ export default async function PublicCreatorChannelPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const page = await getPublicCreatorChannelPage(slug)
+  const viewer = await getViewerSession()
+  const page = await getPublicCreatorChannelPage(slug, {
+    includeAdultContent: viewer.isAdultVerified,
+    viewerId: viewer.userId,
+  })
 
   if (!page) {
     notFound()
