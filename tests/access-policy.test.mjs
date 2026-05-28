@@ -11,12 +11,12 @@ import {
 
 test('guest main menu access is limited to public browsing areas', () => {
   assert.equal(canGuestOpenMainMenu('explore'), true)
-  assert.equal(canGuestOpenMainMenu('creators'), true)
   assert.equal(canGuestOpenMainMenu('spark'), true)
   assert.equal(canGuestOpenMainMenu('community'), true)
   assert.equal(canGuestOpenMainMenu('studio'), true)
   assert.equal(canGuestOpenMainMenu('library'), true)
   assert.equal(canGuestOpenMainMenu('store'), true)
+  assert.equal(canGuestOpenMainMenu('creators'), false)
 })
 
 test('join prompt next paths are normalized to internal routes', () => {

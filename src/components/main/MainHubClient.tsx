@@ -31,14 +31,6 @@ const MENUS = [
     text: 'group-hover:text-violet-100',
   },
   {
-    id: 'creators',
-    title: '작가보기',
-    path: '/main/explore?view=creators',
-    wash: 'from-fuchsia-500/20 via-white/[0.03] to-transparent',
-    dot: 'bg-fuchsia-300',
-    text: 'group-hover:text-fuchsia-100',
-  },
-  {
     id: 'spark',
     title: 'Spark',
     path: '/main/spark',
