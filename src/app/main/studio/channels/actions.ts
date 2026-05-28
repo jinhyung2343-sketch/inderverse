@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { SparkDraftInput, SparkFormat, SparkPanel, SparkStatus } from '@/lib/spark'
 import { buildSparkMeta, getSparkPanelCount, sanitizeSparkTags } from '@/lib/spark'
 import { isWorkType } from '@/lib/work'
+import { isValidWorkDraftKey, isWorkDraftType } from '@/lib/work-drafts'
 import type {
   NovelDraftInput,
   NovelEpisodeDraftInput,
@@ -225,6 +226,30 @@ function appendLocalDraftClearParam(path: string, formData: FormData) {
   const separator = path.includes('?') ? '&' : '?'
 
   return `${path}${separator}clearDraftKey=${encodeURIComponent(draftStorageKey)}`
+}
+
+async function deleteServerWorkDraft(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  formData: FormData
+) {
+  const draftType = readText(formData, 'serverDraftType')
+  const draftKey = readText(formData, 'serverDraftKey')
+
+  if (!isWorkDraftType(draftType) || !isValidWorkDraftKey(draftKey)) {
+    return
+  }
+
+  const { error } = await supabase
+    .from('creator_work_drafts')
+    .delete()
+    .eq('owner_id', userId)
+    .eq('draft_type', draftType)
+    .eq('draft_key', draftKey)
+
+  if (error) {
+    console.warn('Failed to delete saved work draft:', error.message)
+  }
 }
 
 function readBoolean(formData: FormData, key: string) {
@@ -1112,6 +1137,7 @@ async function createWebtoonChannelMutation(formData: FormData) {
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/channels')
   revalidatePublicContentCache()
+  await deleteServerWorkDraft(supabase, userId, formData)
 
   return appendLocalDraftClearParam(`/main/studio/channels/webtoon/${data.id}/rating`, formData)
 }
@@ -1264,6 +1290,7 @@ async function updateWebtoonChannelMutation(formData: FormData) {
   revalidatePath('/main/studio/channels')
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
   revalidatePublicContentCache()
+  await deleteServerWorkDraft(supabase, userId, formData)
 
   return appendLocalDraftClearParam(`/main/studio/channels/webtoon/${channelId}/edit`, formData)
 }
@@ -1624,6 +1651,7 @@ export async function createWebtoonEpisode(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}`)
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
   revalidatePublicContentCache()
+  await deleteServerWorkDraft(supabase, userId, formData)
   redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episode.id}/edit?saved=1`)
 }
 
@@ -1714,5 +1742,6 @@ export async function updateWebtoonEpisode(formData: FormData) {
   revalidatePath(`/main/explore/${channelId}/episodes/${episodeId}`)
   revalidatePath(`/main/studio/channels/webtoon/${channelId}/edit`)
   revalidatePublicContentCache()
+  await deleteServerWorkDraft(supabase, userId, formData)
   redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${episodeId}/edit?saved=1`)
 }

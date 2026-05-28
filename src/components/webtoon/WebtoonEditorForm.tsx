@@ -22,6 +22,11 @@ import {
   getWorkScaleLabel,
 } from '@/lib/webtoon'
 import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
+import type { Json } from '@/lib/supabase/types'
+import {
+  getWebtoonChannelDraftKey,
+  type WorkDraftRecord,
+} from '@/lib/work-drafts'
 
 const weekdayOptions = [0, 1, 2, 3, 4, 5, 6] as const
 const statusOptions = ['draft', 'publishing', 'completed'] as const
@@ -29,6 +34,7 @@ const categoryOptions = categories.filter((category) => category !== '전체')
 const workScaleOptions = ['short', 'medium', 'long'] as const
 const initialActionState: WebtoonChannelActionState = { error: null }
 const WEBTOON_CHANNEL_DRAFT_KEY_PREFIX = 'inderverse:webtoon-channel-draft:'
+const WEBTOON_CHANNEL_DRAFT_TYPE = 'webtoon_channel'
 
 interface WebtoonChannelFormDraft {
   title: string
@@ -91,6 +97,79 @@ function parseDraft(rawDraft: string) {
     ratingChecklist: sanitizeRatingChecklist(parsed.ratingChecklist),
     savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
   } satisfies WebtoonChannelFormDraft
+}
+
+function getDraftTimestamp(draft: WebtoonChannelFormDraft | null | undefined) {
+  if (!draft?.savedAt) {
+    return 0
+  }
+
+  const time = new Date(draft.savedAt).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
+function isServerChannelDraftPayload(value: Json) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+async function fetchServerChannelDraft(draftKey: string) {
+  const params = new URLSearchParams({
+    draftType: WEBTOON_CHANNEL_DRAFT_TYPE,
+    draftKey,
+  })
+  const response = await fetch(`/api/studio/work-drafts?${params.toString()}`, {
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = (await response.json()) as {
+    draft?: WorkDraftRecord<Json> | null
+  }
+
+  if (!payload.draft || !isServerChannelDraftPayload(payload.draft.payload)) {
+    return null
+  }
+
+  return parseDraft(JSON.stringify(payload.draft.payload))
+}
+
+async function saveServerChannelDraft({
+  channelId,
+  draft,
+  draftKey,
+}: {
+  channelId?: string
+  draft: WebtoonChannelFormDraft
+  draftKey: string
+}) {
+  await fetch('/api/studio/work-drafts', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      channelId,
+      draftType: WEBTOON_CHANNEL_DRAFT_TYPE,
+      draftKey,
+      payload: draft,
+    }),
+  })
+}
+
+async function deleteServerChannelDraft(draftKey: string) {
+  await fetch('/api/studio/work-drafts', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      draftType: WEBTOON_CHANNEL_DRAFT_TYPE,
+      draftKey,
+    }),
+  })
 }
 
 function parseRatingChecklistJson(value: FormDataEntryValue | null) {
@@ -157,52 +236,85 @@ export function WebtoonEditorForm({
   const [isCoverUploading, setIsCoverUploading] = useState(false)
   const [coverUploadWarning, setCoverUploadWarning] = useState<string | null>(null)
   const [localDraft, setLocalDraft] = useState<WebtoonChannelFormDraft | null>(null)
+  const lastServerDraftJsonRef = useRef<string | null>(null)
   const draftStorageKey = useMemo(
     () => `${WEBTOON_CHANNEL_DRAFT_KEY_PREFIX}${channelId ?? 'new'}`,
     [channelId]
   )
+  const serverDraftKey = useMemo(
+    () => getWebtoonChannelDraftKey(channelId),
+    [channelId]
+  )
 
   useEffect(() => {
-    try {
-      const url = new URL(window.location.href)
-      const clearDraftKey = url.searchParams.get('clearDraftKey')
-      const shouldClearSavedDraft = clearDraftKey === draftStorageKey || url.searchParams.get('saved') === '1'
+    let isMounted = true
 
-      if (shouldClearSavedDraft) {
-        window.localStorage.removeItem(draftStorageKey)
-        url.searchParams.delete('clearDraftKey')
-        url.searchParams.delete('saved')
-        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-        window.setTimeout(() => {
-          setLocalDraft(null)
-          setDraftRestored(false)
-          setLastSavedAt(null)
-          setIsAutoSavePaused(true)
-          setDraftLoaded(true)
-        }, 0)
-        return
-      }
+    async function loadDraft() {
+      let shouldDeleteServerDraft = false
 
-      const rawDraft = window.localStorage.getItem(draftStorageKey)
+      try {
+        const url = new URL(window.location.href)
+        const clearDraftKey = url.searchParams.get('clearDraftKey')
+        const shouldClearSavedDraft = clearDraftKey === draftStorageKey || url.searchParams.get('saved') === '1'
 
-      if (!rawDraft) {
-        window.setTimeout(() => setDraftLoaded(true), 0)
-        return
-      }
+        if (shouldClearSavedDraft) {
+          window.localStorage.removeItem(draftStorageKey)
+          shouldDeleteServerDraft = true
+          url.searchParams.delete('clearDraftKey')
+          url.searchParams.delete('saved')
+          window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
 
-      const draft = parseDraft(rawDraft)
+          if (isMounted) {
+            setLocalDraft(null)
+            setDraftRestored(false)
+            setLastSavedAt(null)
+            setIsAutoSavePaused(true)
+            setDraftLoaded(true)
+          }
+          return
+        }
 
-      window.setTimeout(() => {
-        setLocalDraft(draft)
-        setLastSavedAt(draft.savedAt || null)
-        setDraftRestored(true)
+        const rawLocalDraft = window.localStorage.getItem(draftStorageKey)
+        const localDraft = rawLocalDraft ? parseDraft(rawLocalDraft) : null
+        const serverDraft = await fetchServerChannelDraft(serverDraftKey)
+        const nextDraft =
+          getDraftTimestamp(serverDraft) > getDraftTimestamp(localDraft)
+            ? serverDraft
+            : localDraft
+
+        if (!isMounted) {
+          return
+        }
+
+        if (nextDraft) {
+          setLocalDraft(nextDraft)
+          setLastSavedAt(nextDraft.savedAt || null)
+          setDraftRestored(true)
+          lastServerDraftJsonRef.current = JSON.stringify(nextDraft)
+        }
+
         setDraftLoaded(true)
-      }, 0)
-    } catch {
-      window.localStorage.removeItem(draftStorageKey)
-      window.setTimeout(() => setDraftLoaded(true), 0)
+      } catch {
+        window.localStorage.removeItem(draftStorageKey)
+
+        if (isMounted) {
+          setDraftLoaded(true)
+        }
+      } finally {
+        if (shouldDeleteServerDraft) {
+          deleteServerChannelDraft(serverDraftKey).catch(() => {
+            // Server draft cleanup is best-effort after a confirmed save.
+          })
+        }
+      }
     }
-  }, [draftStorageKey])
+
+    loadDraft()
+
+    return () => {
+      isMounted = false
+    }
+  }, [draftStorageKey, serverDraftKey])
 
   useEffect(() => {
     if (!draftLoaded) {
@@ -245,18 +357,35 @@ export function WebtoonEditorForm({
       }
 
       try {
-        window.localStorage.setItem(draftStorageKey, JSON.stringify(draft))
+        const draftJson = JSON.stringify(draft)
+
+        window.localStorage.setItem(draftStorageKey, draftJson)
         setLastSavedAt(savedAt)
+
+        if (lastServerDraftJsonRef.current !== draftJson) {
+          lastServerDraftJsonRef.current = draftJson
+          saveServerChannelDraft({
+            channelId,
+            draft,
+            draftKey: serverDraftKey,
+          }).catch(() => {
+            lastServerDraftJsonRef.current = null
+          })
+        }
       } catch {
         setLastSavedAt(null)
       }
     }, 2000)
 
     return () => window.clearInterval(intervalId)
-  }, [draftLoaded, draftStorageKey, isAutoSavePaused])
+  }, [channelId, draftLoaded, draftStorageKey, isAutoSavePaused, serverDraftKey])
 
   function clearLocalDraft() {
     window.localStorage.removeItem(draftStorageKey)
+    deleteServerChannelDraft(serverDraftKey).catch(() => {
+      // Server draft cleanup is best-effort from the browser.
+    })
+    lastServerDraftJsonRef.current = null
     setLocalDraft(null)
     setDraftRestored(false)
     setLastSavedAt(null)
@@ -349,6 +478,8 @@ export function WebtoonEditorForm({
       className="grid gap-6"
     >
       <input type="hidden" name="draftStorageKey" value={draftStorageKey} />
+      <input type="hidden" name="serverDraftType" value={WEBTOON_CHANNEL_DRAFT_TYPE} />
+      <input type="hidden" name="serverDraftKey" value={serverDraftKey} />
 
       {!showContentRatingFieldset ? (
         <>
@@ -593,19 +724,19 @@ export function WebtoonEditorForm({
           <div className="rounded-[32px] border border-emerald-300/15 bg-emerald-500/5 p-6 text-sm leading-6 text-zinc-300">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="font-semibold text-emerald-100">작성 내용 자동저장</p>
+                <p className="font-semibold text-emerald-100">계정 초안 자동저장</p>
                 <p className="mt-1 text-zinc-400">
-                  작품 제목, 설명, 장르, 커버 URL, 연재 요일을 이 브라우저에 자동 저장합니다. 마지막 저장:{' '}
+                  작품 제목, 설명, 장르, 커버 URL, 연재 요일을 계정 서버 초안과 이 브라우저에 함께 저장합니다. 마지막 저장:{' '}
                   {formatDraftSavedAt(lastSavedAt)}
                 </p>
                 {isAutoSavePaused ? (
                   <p className="mt-2 text-zinc-500">
-                    로컬 초안을 삭제했습니다. 내용을 다시 수정하면 자동저장이 재개됩니다.
+                    초안을 삭제했습니다. 내용을 다시 수정하면 자동저장이 재개됩니다.
                   </p>
                 ) : null}
                 {draftRestored ? (
                   <p className="mt-2 text-amber-100">
-                    이전에 작성하던 작품 정보를 복구했습니다. 서버 저장 전인지 확인한 뒤 저장해 주세요.
+                    이전에 작성하던 작품 정보를 복구했습니다. 다른 기기에서 이어 작성한 내용일 수 있으니 확인한 뒤 저장해 주세요.
                   </p>
                 ) : null}
               </div>
@@ -614,7 +745,7 @@ export function WebtoonEditorForm({
                 onClick={clearLocalDraft}
                 className="inline-flex w-fit rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 hover:text-white"
               >
-                로컬 초안 삭제
+                초안 삭제
               </button>
             </div>
           </div>

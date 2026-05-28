@@ -492,6 +492,64 @@ export type Database = {
           },
         ]
       }
+      creator_work_drafts: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          draft_key: string
+          draft_type: string
+          episode_id: string | null
+          id: string
+          owner_id: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          draft_key: string
+          draft_type: string
+          episode_id?: string | null
+          id?: string
+          owner_id: string
+          payload?: Json
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          draft_key?: string
+          draft_type?: string
+          episode_id?: string | null
+          id?: string
+          owner_id?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_work_drafts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_work_drafts_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_work_drafts_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_agreement_consents: {
         Row: {
           agreed_at: string

@@ -1,11 +1,17 @@
 'use client'
 
 import { EpisodeImagesField } from '@/components/webtoon/EpisodeImagesField'
+import type { Json } from '@/lib/supabase/types'
 import type { CreatorWebtoonEpisodeRecord } from '@/lib/webtoon'
 import { getEpisodeStatusLabel } from '@/lib/webtoon'
+import {
+  getWebtoonEpisodeDraftKey,
+  type WorkDraftRecord,
+} from '@/lib/work-drafts'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 const statusOptions = ['draft', 'published', 'hidden'] as const
+const WEBTOON_EPISODE_DRAFT_TYPE = 'webtoon_episode'
 
 interface EpisodeFormDraft {
   title: string
@@ -13,6 +19,7 @@ interface EpisodeFormDraft {
   pricingType: string
   coinPrice: string
   status: string
+  images: Json[]
   savedAt: string
 }
 
@@ -32,6 +39,127 @@ function formatDraftSavedAt(value: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  })
+}
+
+function getDraftTimestamp(draft: Partial<EpisodeFormDraft> | null | undefined) {
+  if (!draft?.savedAt) {
+    return 0
+  }
+
+  const time = new Date(draft.savedAt).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
+function parseEpisodeDraft(rawDraft: string, rawImages: string | null): EpisodeFormDraft {
+  const draft = JSON.parse(rawDraft) as Partial<EpisodeFormDraft>
+
+  return {
+    title: typeof draft.title === 'string' ? draft.title : '',
+    episodeNumber: typeof draft.episodeNumber === 'string' ? draft.episodeNumber : '',
+    pricingType: typeof draft.pricingType === 'string' ? draft.pricingType : 'paid',
+    coinPrice: typeof draft.coinPrice === 'string' ? draft.coinPrice : '0',
+    status: typeof draft.status === 'string' ? draft.status : 'draft',
+    images: Array.isArray(draft.images)
+      ? draft.images
+      : parseSerializableImages(rawImages),
+    savedAt: typeof draft.savedAt === 'string' ? draft.savedAt : '',
+  }
+}
+
+function parseSerializableImages(value: FormDataEntryValue | string | null): Json[] {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown
+
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+      .map((entry, index) => {
+        const imageUrl = typeof entry.imageUrl === 'string' && !entry.imageUrl.startsWith('blob:')
+          ? entry.imageUrl
+          : ''
+
+        return {
+          ...entry,
+          imageUrl,
+          sortOrder: index,
+          status: imageUrl ? entry.status : 'empty',
+          pendingFile: null,
+          errorMessage: null,
+        } as Json
+      })
+  } catch {
+    return []
+  }
+}
+
+async function fetchServerEpisodeDraft(draftKey: string) {
+  const params = new URLSearchParams({
+    draftType: WEBTOON_EPISODE_DRAFT_TYPE,
+    draftKey,
+  })
+  const response = await fetch(`/api/studio/work-drafts?${params.toString()}`, {
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = (await response.json()) as {
+    draft?: WorkDraftRecord<Json> | null
+  }
+
+  if (!payload.draft || typeof payload.draft.payload !== 'object' || !payload.draft.payload || Array.isArray(payload.draft.payload)) {
+    return null
+  }
+
+  return parseEpisodeDraft(JSON.stringify(payload.draft.payload), null)
+}
+
+async function saveServerEpisodeDraft({
+  channelId,
+  draft,
+  draftKey,
+  episodeId,
+}: {
+  channelId: string
+  draft: EpisodeFormDraft
+  draftKey: string
+  episodeId?: string
+}) {
+  await fetch('/api/studio/work-drafts', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      channelId,
+      episodeId,
+      draftType: WEBTOON_EPISODE_DRAFT_TYPE,
+      draftKey,
+      payload: draft,
+    }),
+  })
+}
+
+async function deleteServerEpisodeDraft(draftKey: string) {
+  await fetch('/api/studio/work-drafts', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      draftType: WEBTOON_EPISODE_DRAFT_TYPE,
+      draftKey,
+    }),
   })
 }
 
@@ -63,74 +191,113 @@ export function WebtoonEpisodeEditorForm({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [createdEpisodePath, setCreatedEpisodePath] = useState<string | null>(null)
   const [isSubmittingNewEpisode, setIsSubmittingNewEpisode] = useState(false)
+  const lastServerDraftJsonRef = useRef<string | null>(null)
   const draftStorageKey = useMemo(
     () => `inderverse:webtoon-episode-draft:${channelId}:${episodeId ?? 'new'}`,
+    [channelId, episodeId]
+  )
+  const serverDraftKey = useMemo(
+    () => getWebtoonEpisodeDraftKey(channelId, episodeId),
     [channelId, episodeId]
   )
   const imagesDraftStorageKey = `${draftStorageKey}:images`
 
   useEffect(() => {
-    const form = formRef.current
+    let isMounted = true
 
-    if (!form) {
-      return
-    }
+    async function loadDraft() {
+      const form = formRef.current
 
-    try {
-      const url = new URL(window.location.href)
-      const shouldClearSavedDraft = url.searchParams.get('saved') === '1'
+      if (!form) {
+        return
+      }
 
-      if (shouldClearSavedDraft) {
-        const newEpisodeDraftKey = `inderverse:webtoon-episode-draft:${channelId}:new`
+      try {
+        const url = new URL(window.location.href)
+        const shouldClearSavedDraft = url.searchParams.get('saved') === '1'
 
-        window.localStorage.removeItem(newEpisodeDraftKey)
-        window.localStorage.removeItem(`${newEpisodeDraftKey}:images`)
+        if (shouldClearSavedDraft) {
+          const newEpisodeDraftKey = `inderverse:webtoon-episode-draft:${channelId}:new`
+
+          window.localStorage.removeItem(newEpisodeDraftKey)
+          window.localStorage.removeItem(`${newEpisodeDraftKey}:images`)
+          window.localStorage.removeItem(draftStorageKey)
+          window.localStorage.removeItem(imagesDraftStorageKey)
+          deleteServerEpisodeDraft(getWebtoonEpisodeDraftKey(channelId, 'new')).catch(() => {
+            // Server draft cleanup is best-effort after a confirmed save.
+          })
+          deleteServerEpisodeDraft(serverDraftKey).catch(() => {
+            // Server draft cleanup is best-effort after a confirmed save.
+          })
+          url.searchParams.delete('saved')
+          window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+
+          if (isMounted) {
+            setIsAutoSavePaused(true)
+            setDraftLoaded(true)
+          }
+          return
+        }
+
+        const rawLocalDraft = window.localStorage.getItem(draftStorageKey)
+        const rawLocalImages = window.localStorage.getItem(imagesDraftStorageKey)
+        const localDraft = rawLocalDraft ? parseEpisodeDraft(rawLocalDraft, rawLocalImages) : null
+        const serverDraft = await fetchServerEpisodeDraft(serverDraftKey)
+        const nextDraft =
+          getDraftTimestamp(serverDraft) > getDraftTimestamp(localDraft)
+            ? serverDraft
+            : localDraft
+
+        if (!isMounted) {
+          return
+        }
+
+        if (!nextDraft) {
+          setDraftLoaded(true)
+          return
+        }
+
+        const textFields = ['title', 'episodeNumber', 'pricingType', 'coinPrice', 'status'] as const
+
+        textFields.forEach((name) => {
+          const element = form.elements.namedItem(name)
+          const value = nextDraft[name]
+
+          if (
+            element instanceof HTMLInputElement ||
+            element instanceof HTMLSelectElement ||
+            element instanceof HTMLTextAreaElement
+          ) {
+            if (typeof value === 'string' && value.length > 0) {
+              element.value = value
+            }
+          }
+        })
+
+        if (nextDraft.images.length > 0) {
+          window.localStorage.setItem(imagesDraftStorageKey, JSON.stringify(nextDraft.images))
+        }
+
+        setLastSavedAt(nextDraft.savedAt || null)
+        setDraftRestored(true)
+        lastServerDraftJsonRef.current = JSON.stringify(nextDraft)
+        setDraftLoaded(true)
+      } catch {
         window.localStorage.removeItem(draftStorageKey)
-        window.localStorage.removeItem(imagesDraftStorageKey)
-        url.searchParams.delete('saved')
-        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-        window.setTimeout(() => {
+
+        if (isMounted) {
           setIsAutoSavePaused(true)
           setDraftLoaded(true)
-        }, 0)
-        return
-      }
-
-      const rawDraft = window.localStorage.getItem(draftStorageKey)
-
-      if (!rawDraft) {
-        window.setTimeout(() => setDraftLoaded(true), 0)
-        return
-      }
-
-      const draft = JSON.parse(rawDraft) as Partial<EpisodeFormDraft>
-      const textFields = ['title', 'episodeNumber', 'pricingType', 'coinPrice', 'status'] as const
-
-      textFields.forEach((name) => {
-        const element = form.elements.namedItem(name)
-        const value = draft[name]
-
-        if (
-          element instanceof HTMLInputElement ||
-          element instanceof HTMLSelectElement ||
-          element instanceof HTMLTextAreaElement
-        ) {
-          if (typeof value === 'string') {
-            element.value = value
-          }
         }
-      })
-
-      window.setTimeout(() => {
-        setLastSavedAt(typeof draft.savedAt === 'string' ? draft.savedAt : null)
-        setDraftRestored(true)
-      }, 0)
-    } catch {
-      window.localStorage.removeItem(draftStorageKey)
-    } finally {
-      window.setTimeout(() => setDraftLoaded(true), 0)
+      }
     }
-  }, [channelId, draftStorageKey, imagesDraftStorageKey])
+
+    loadDraft()
+
+    return () => {
+      isMounted = false
+    }
+  }, [channelId, draftStorageKey, imagesDraftStorageKey, serverDraftKey])
 
   useEffect(() => {
     if (!draftLoaded) {
@@ -156,23 +323,42 @@ export function WebtoonEpisodeEditorForm({
         pricingType: String(formData.get('pricingType') ?? 'free'),
         coinPrice: String(formData.get('coinPrice') ?? ''),
         status: String(formData.get('status') ?? 'draft'),
+        images: parseSerializableImages(formData.get('imagesJson')),
         savedAt,
       }
 
       try {
-        window.localStorage.setItem(draftStorageKey, JSON.stringify(draft))
+        const draftJson = JSON.stringify(draft)
+
+        window.localStorage.setItem(draftStorageKey, draftJson)
         setLastSavedAt(savedAt)
+
+        if (lastServerDraftJsonRef.current !== draftJson) {
+          lastServerDraftJsonRef.current = draftJson
+          saveServerEpisodeDraft({
+            channelId,
+            draft,
+            draftKey: serverDraftKey,
+            episodeId,
+          }).catch(() => {
+            lastServerDraftJsonRef.current = null
+          })
+        }
       } catch {
         setLastSavedAt(null)
       }
     }, 2000)
 
     return () => window.clearInterval(intervalId)
-  }, [draftLoaded, draftStorageKey, isAutoSavePaused])
+  }, [channelId, draftLoaded, draftStorageKey, episodeId, isAutoSavePaused, serverDraftKey])
 
   function clearLocalDraft() {
     window.localStorage.removeItem(draftStorageKey)
     window.localStorage.removeItem(imagesDraftStorageKey)
+    deleteServerEpisodeDraft(serverDraftKey).catch(() => {
+      // Server draft cleanup is best-effort from the browser.
+    })
+    lastServerDraftJsonRef.current = null
     setDraftRestored(false)
     setLastSavedAt(null)
     setIsAutoSavePaused(true)
@@ -275,6 +461,7 @@ export function WebtoonEpisodeEditorForm({
       }
 
       clearLocalDraft()
+      await deleteServerEpisodeDraft(serverDraftKey)
       window.location.assign(`${createPayload.editPath}?saved=1`)
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : '회차 저장 중 문제가 발생했습니다.')
@@ -299,6 +486,8 @@ export function WebtoonEpisodeEditorForm({
       onChange={resumeAutoSave}
       className="grid gap-6"
     >
+      <input type="hidden" name="serverDraftType" value={WEBTOON_EPISODE_DRAFT_TYPE} />
+      <input type="hidden" name="serverDraftKey" value={serverDraftKey} />
       <section className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
@@ -364,18 +553,19 @@ export function WebtoonEpisodeEditorForm({
           <div className="rounded-[24px] border border-emerald-300/15 bg-emerald-500/5 p-5 text-sm leading-6 text-zinc-300">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="font-semibold text-emerald-100">로컬 자동저장</p>
+                <p className="font-semibold text-emerald-100">계정 초안 자동저장</p>
                 <p className="mt-1 text-zinc-400">
-                  입력값과 이미지 순서를 이 브라우저에 자동 저장합니다. 마지막 저장: {formatDraftSavedAt(lastSavedAt)}
+                  회차 입력값과 업로드 완료 이미지 순서를 계정 서버 초안과 이 브라우저에 함께 저장합니다. 마지막 저장:{' '}
+                  {formatDraftSavedAt(lastSavedAt)}
                 </p>
                 {isAutoSavePaused ? (
                   <p className="mt-2 text-zinc-500">
-                    로컬 초안을 삭제했습니다. 내용을 다시 수정하면 자동저장이 재개됩니다.
+                    초안을 삭제했습니다. 내용을 다시 수정하면 자동저장이 재개됩니다.
                   </p>
                 ) : null}
                 {draftRestored ? (
                   <p className="mt-2 text-amber-100">
-                    이전에 저장된 초안을 복구했습니다. 서버에 올라가지 않은 로컬 파일은 다시 선택해 주세요.
+                    이전에 저장된 초안을 복구했습니다. 업로드 완료 이미지는 다른 기기에서도 이어지고, 아직 업로드 전인 로컬 파일은 다시 선택해야 합니다.
                   </p>
                 ) : null}
               </div>
@@ -384,7 +574,7 @@ export function WebtoonEpisodeEditorForm({
                 onClick={clearLocalDraft}
                 className="inline-flex w-fit rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 hover:text-white"
               >
-                로컬 초안 삭제
+                초안 삭제
               </button>
             </div>
           </div>
@@ -426,12 +616,18 @@ export function WebtoonEpisodeEditorForm({
         <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:p-6">
           <h2 className="text-xl font-bold text-white">회차 이미지</h2>
           <div className="mt-5">
-            <EpisodeImagesField
-              channelId={channelId}
-              episodeId={episodeId}
-              initialImages={initialValue?.images ?? []}
-              draftStorageKey={imagesDraftStorageKey}
-            />
+            {draftLoaded ? (
+              <EpisodeImagesField
+                channelId={channelId}
+                episodeId={episodeId}
+                initialImages={initialValue?.images ?? []}
+                draftStorageKey={imagesDraftStorageKey}
+              />
+            ) : (
+              <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
+                저장된 회차 초안을 확인하고 있습니다.
+              </div>
+            )}
           </div>
         </div>
       </section>
