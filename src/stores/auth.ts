@@ -140,7 +140,13 @@ export const useAuthStore = create<AuthState>((set) => ({
             .single()
           const {
             data: { session },
-          } = await supabase.auth.getSession()
+            error: sessionError,
+          } = await supabase.auth.refreshSession()
+
+          if (sessionError) {
+            console.warn('Unable to refresh verified auth session:', sessionError)
+          }
+
           const verifiedSession = session?.user.id === user.id ? session : null
           const storedAccounts = verifiedSession
             ? rememberAccountSession({ profile, session: verifiedSession, user })

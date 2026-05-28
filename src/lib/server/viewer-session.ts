@@ -36,11 +36,15 @@ export const getViewerSession = cache(async () => {
     return getGuestViewerSession()
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('is_adult_verified')
     .eq('id', user.id)
     .single()
+
+  if (profileError) {
+    console.warn('Unable to load viewer profile:', profileError)
+  }
 
   return {
     userId: user.id,

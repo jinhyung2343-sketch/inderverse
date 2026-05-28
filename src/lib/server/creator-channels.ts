@@ -5,6 +5,11 @@ import { isPrimaryBottegaWorkType } from '@/lib/bottega'
 import type { CreatorChannelExternalLink, CreatorChannelRecord, WorkType } from '@/lib/work'
 import type { Json } from '@/lib/supabase/types'
 
+const CREATOR_CHANNEL_SELECT_WITH_PRIMARY =
+  'id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, primary_work_type, external_links, status'
+const CREATOR_CHANNEL_SELECT_WITHOUT_PRIMARY =
+  'id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status'
+
 function buildDefaultCreatorSlug(userId: string) {
   return `creator-${userId.replaceAll('-', '').slice(0, 12)}`
 }
@@ -76,7 +81,7 @@ export async function getCreatorChannelByOwnerId(ownerId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('creator_channels')
-    .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, primary_work_type, external_links, status')
+    .select(CREATOR_CHANNEL_SELECT_WITH_PRIMARY)
     .eq('owner_id', ownerId)
     .maybeSingle()
 
@@ -84,7 +89,7 @@ export async function getCreatorChannelByOwnerId(ownerId: string) {
     if (isMissingPrimaryWorkTypeColumnError(error)) {
       const fallback = await supabase
         .from('creator_channels')
-        .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status')
+        .select(CREATOR_CHANNEL_SELECT_WITHOUT_PRIMARY)
         .eq('owner_id', ownerId)
         .maybeSingle()
 
@@ -119,31 +124,32 @@ export async function ensureDefaultCreatorChannel(ownerId: string) {
     throw new Error(`Failed to load creator profile: ${profileError.message}`)
   }
 
+  const defaultChannel = {
+    owner_id: ownerId,
+    slug: buildDefaultCreatorSlug(ownerId),
+    display_name: profile?.display_name?.trim() || '작가',
+    avatar_url: profile?.avatar_url ?? null,
+    status: 'active',
+  }
   const { data, error } = await supabase
     .from('creator_channels')
-    .insert({
-      owner_id: ownerId,
-      slug: buildDefaultCreatorSlug(ownerId),
-      display_name: profile?.display_name?.trim() || '작가',
-      avatar_url: profile?.avatar_url ?? null,
-      status: 'active',
+    .upsert(defaultChannel, {
+      onConflict: 'owner_id',
+      ignoreDuplicates: true,
     })
-    .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, primary_work_type, external_links, status')
-    .single()
+    .select(CREATOR_CHANNEL_SELECT_WITH_PRIMARY)
+    .maybeSingle()
 
   if (error) {
     if (isMissingPrimaryWorkTypeColumnError(error)) {
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('creator_channels')
-        .insert({
-          owner_id: ownerId,
-          slug: buildDefaultCreatorSlug(ownerId),
-          display_name: profile?.display_name?.trim() || '작가',
-          avatar_url: profile?.avatar_url ?? null,
-          status: 'active',
+        .upsert(defaultChannel, {
+          onConflict: 'owner_id',
+          ignoreDuplicates: true,
         })
-        .select('id, owner_id, slug, display_name, bio, avatar_url, cover_image_url, external_links, status')
-        .single()
+        .select(CREATOR_CHANNEL_SELECT_WITHOUT_PRIMARY)
+        .maybeSingle()
 
       if (!fallbackError && fallbackData) {
         return mapCreatorChannelRow({ ...fallbackData, primary_work_type: null })
@@ -161,10 +167,24 @@ export async function ensureDefaultCreatorChannel(ownerId: string) {
     }
 
     if (error.code === '23505') {
+      const fallback = await getCreatorChannelByOwnerId(ownerId)
+
+      if (fallback) {
+        return fallback
+      }
+
       throw new Error('이미 사용 중인 작가 채널 주소입니다. 잠시 후 다시 시도해 주세요.')
     }
 
     throw new Error(error.message || '작가 채널을 만들지 못했습니다.')
+  }
+
+  if (!data) {
+    const fallback = await getCreatorChannelByOwnerId(ownerId)
+
+    if (fallback) {
+      return fallback
+    }
   }
 
   if (!data) {

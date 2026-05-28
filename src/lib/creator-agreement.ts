@@ -1,3 +1,5 @@
+import { BRAND } from '@/lib/brand'
+
 export const CREATOR_AGREEMENT_VERSION = 'creator_agreement_v1.0'
 
 export const CREATOR_AGREEMENT_TITLE = '작가 등록 및 작품 게시 기본 동의서'
@@ -81,12 +83,12 @@ export const creatorAgreementSections: CreatorAgreementSection[] = [
     id: 'settlement',
     title: '제6조 수익배분 및 정산',
     items: [
-      '플랫폼 내 작품 유료 열람, 대여, 소장, 후원, 구독, 기타 콘텐츠 판매로 발생한 순수익은 작가 70%, 회사 30%의 비율로 배분한다.',
+      `플랫폼 내 작품 유료 열람, 대여, 소장, 후원, 구독, 기타 콘텐츠 판매로 발생한 순수익은 작가 ${BRAND.creatorSharePct}%, 회사 ${BRAND.platformSharePct}%의 비율로 배분한다.`,
       '“순수익”이란 결제대행 수수료, 앱마켓 수수료, 환불액, 부가가치세, 기타 법정 공제액 및 필수 처리 비용을 제외한 금액을 의미한다.',
       '회사는 정산 내역을 작가가 확인할 수 있는 방식으로 제공한다.',
       '정산 주기, 최소 지급 기준액, 지급 방식, 세금 공제 방식, 환불 처리 방식 등 구체적인 사항은 별도의 정산 정책에 따른다.',
       '작가는 정산을 위해 필요한 실명, 계좌정보, 사업자 정보, 세금 관련 정보를 정확히 제공해야 한다.',
-      '제작지원, 외부 유통, 2차 사업 등 별도 계약이 필요한 사안은 별도 계약으로 정하되, 플랫폼 내 일반 정산 수익 분배 기준은 작가 70%, 회사 30%로 유지한다.',
+      `제작지원, 외부 유통, 2차 사업 등 별도 계약이 필요한 사안은 별도 계약으로 정하되, 플랫폼 내 일반 정산 수익 분배 기준은 작가 ${BRAND.creatorSharePct}%, 회사 ${BRAND.platformSharePct}%로 유지한다.`,
     ],
   },
   {
@@ -271,7 +273,7 @@ export const creatorAgreementDocuments: Record<string, CreatorAgreementDocument>
     title: '정산 기준 및 정보 제공 책임',
     version: CREATOR_AGREEMENT_VERSION,
     summary:
-      '플랫폼 일반 정산 70:30 기준, 정산 정보 제공, 개인정보 및 세금 처리 책임을 함께 정리했습니다.',
+      `플랫폼 일반 정산 ${BRAND.creatorSharePct}:${BRAND.platformSharePct} 기준, 정산 정보 제공, 개인정보 및 세금 처리 책임을 함께 정리했습니다.`,
     sections: pickCreatorAgreementSections(['settlement', 'privacy', 'termination', 'dispute']),
   },
   creator_operations_policy: {

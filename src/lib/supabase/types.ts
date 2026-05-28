@@ -627,6 +627,105 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          billing_period: string
+          created_at: string
+          description: string | null
+          features: Json
+          id: string
+          name: string
+          price_krw: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          billing_period: string
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id: string
+          name: string
+          price_krw: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          billing_period?: string
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          name?: string
+          price_krw?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          metadata: Json
+          plan_id: string
+          provider: string | null
+          provider_subscription_id: string | null
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end: string
+          current_period_start?: string
+          id?: string
+          metadata?: Json
+          plan_id: string
+          provider?: string | null
+          provider_subscription_id?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          metadata?: Json
+          plan_id?: string
+          provider?: string | null
+          provider_subscription_id?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       minor_guardian_consents: {
         Row: {
           consent_version: string

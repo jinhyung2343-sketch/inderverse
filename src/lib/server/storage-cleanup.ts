@@ -89,7 +89,11 @@ async function deleteStorageFile(filePath: string) {
   const admin = createAdminClient()
   const { error } = await admin.storage.from(SUPABASE_ASSET_BUCKET).remove([filePath])
 
-  if (error && !error.message.toLowerCase().includes('not found')) {
+  if (error) {
+    if (error.message.toLowerCase().includes('not found')) {
+      return 'already_missing'
+    }
+
     throw new Error(error.message)
   }
 

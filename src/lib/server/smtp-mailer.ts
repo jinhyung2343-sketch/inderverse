@@ -5,12 +5,21 @@ import net from 'node:net'
 import tls from 'node:tls'
 
 type SmtpSocket = net.Socket | tls.TLSSocket
+const SMTP_SOCKET_TIMEOUT_MS = 10_000
 
 export interface MailMessage {
   to: string
   subject: string
   html: string
   text: string
+}
+
+function configureSmtpSocket<T extends SmtpSocket>(socket: T) {
+  socket.setTimeout(SMTP_SOCKET_TIMEOUT_MS, () => {
+    socket.destroy(new Error('SMTP connection timed out'))
+  })
+
+  return socket
 }
 
 function readSmtpResponse(socket: SmtpSocket): Promise<string> {
@@ -62,14 +71,14 @@ async function sendSmtpCommand(socket: SmtpSocket, command: string, expectedCode
 function connectSmtp(host: string, port: number) {
   return new Promise<SmtpSocket>((resolve, reject) => {
     if (port === 465) {
-      const socket = tls.connect({ host, port, servername: host })
+      const socket = configureSmtpSocket(tls.connect({ host, port, servername: host }))
 
       socket.once('secureConnect', () => resolve(socket))
       socket.once('error', reject)
       return
     }
 
-    const socket = net.createConnection({ host, port })
+    const socket = configureSmtpSocket(net.createConnection({ host, port }))
 
     socket.once('connect', () => resolve(socket))
     socket.once('error', reject)
@@ -78,10 +87,10 @@ function connectSmtp(host: string, port: number) {
 
 function upgradeToTls(socket: SmtpSocket, host: string) {
   return new Promise<tls.TLSSocket>((resolve, reject) => {
-    const secureSocket = tls.connect({
+    const secureSocket = configureSmtpSocket(tls.connect({
       socket,
       servername: host,
-    })
+    }))
 
     secureSocket.once('secureConnect', () => resolve(secureSocket))
     secureSocket.once('error', reject)

@@ -13,50 +13,67 @@ function setResponseHeaders(response: NextResponse, headers: Record<string, stri
   })
 }
 
+function isApiPath(pathname: string) {
+  return pathname.startsWith('/api/')
+}
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
+}
+
+function buildPassThroughResponse(request: NextRequest, pathname: string) {
+  const response = NextResponse.next({ request })
+  setResponseHeaders(response, buildTrafficCostHeaders(getTrafficCostProfileForPath(pathname)))
+
+  return response
+}
+
+function handleApiRequest(request: NextRequest, pathname: string) {
+  const emergencyDecision = getTrafficEmergencyDecision(pathname, process.env)
+  const profile = getTrafficCostProfileForPath(pathname)
+
+  if (emergencyDecision.type === 'block') {
+    return NextResponse.json(
+      { error: emergencyDecision.message },
+      {
+        status: emergencyDecision.status,
+        headers: {
+          ...buildTrafficCostHeaders(profile, { includeCacheControl: true }),
+          'Retry-After': String(emergencyDecision.retryAfterSeconds),
+        },
+      }
+    )
+  }
+
+  const response = NextResponse.next({ request })
+  setResponseHeaders(response, buildTrafficCostHeaders(profile))
+
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   const shouldDisableRouteCache =
     pathname === '/' || pathname === '/join-prompt' || pathname.startsWith('/auth/')
+
+  if (isApiPath(pathname)) {
+    return handleApiRequest(request, pathname)
+  }
+
   const guestAccessDecision = getRouteAccessDecision({
     pathname,
     search,
     isLoggedIn: false,
   })
 
-  if (pathname.startsWith('/api/')) {
-    const emergencyDecision = getTrafficEmergencyDecision(pathname, process.env)
-    const profile = getTrafficCostProfileForPath(pathname)
-
-    if (emergencyDecision.type === 'block') {
-      return NextResponse.json(
-        { error: emergencyDecision.message },
-        {
-          status: emergencyDecision.status,
-          headers: {
-            ...buildTrafficCostHeaders(profile, { includeCacheControl: true }),
-            'Retry-After': String(emergencyDecision.retryAfterSeconds),
-          },
-        }
-      )
-    }
-
-    const response = NextResponse.next({ request })
-    setResponseHeaders(response, buildTrafficCostHeaders(profile))
-
-    return response
-  }
-
-  const hasAuthCookie = request.cookies
-    .getAll()
-    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
-
-  if (!hasAuthCookie) {
+  if (!hasSupabaseAuthCookie(request)) {
     if (guestAccessDecision.type === 'redirect') {
       return NextResponse.redirect(new URL(guestAccessDecision.location, request.url))
     }
 
-    const response = NextResponse.next({ request })
-    setResponseHeaders(response, buildTrafficCostHeaders(getTrafficCostProfileForPath(pathname)))
+    const response = buildPassThroughResponse(request, pathname)
 
     if (shouldDisableRouteCache) {
       response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')

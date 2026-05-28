@@ -43,10 +43,21 @@ export default async function StudioPage() {
 
   const role = profile?.role as UserRole | undefined
   const canEnterCreatorTools = role === 'creator' || role === 'admin'
+  let creatorChannelError: string | null = null
+  let creatorChannelPath: string | null = null
 
   if (canEnterCreatorTools && user) {
-    const channel = await ensureDefaultCreatorChannel(user.id)
-    redirect(getBottegaHref(channel.primaryWorkType))
+    try {
+      const channel = await ensureDefaultCreatorChannel(user.id)
+      creatorChannelPath = getBottegaHref(channel.primaryWorkType)
+    } catch (error) {
+      console.warn('Unable to ensure default creator channel:', error)
+      creatorChannelError = 'Bottega를 여는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+    }
+  }
+
+  if (creatorChannelPath) {
+    redirect(creatorChannelPath)
   }
 
   const creatorName = profile?.display_name ?? '지금 계정'
@@ -76,6 +87,11 @@ export default async function StudioPage() {
               작가 등록을 완료하면 개인 공방인 My Bottega가 생성됩니다. 이후 툰, 소설, 음악처럼 장르를 고르면
               그 장르에 맞는 작업대와 대시보드로 바로 이어집니다.
             </p>
+            {creatorChannelError ? (
+              <p className="mt-4 rounded-lg border border-rose-300/25 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
+                {creatorChannelError}
+              </p>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
               {user ? (

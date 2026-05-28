@@ -46,11 +46,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient()
 
   if (action === 'cancel') {
-    const adminTables = admin as unknown as {
-      from: (table: string) => ReturnType<typeof admin.from>
-    }
-
-    await adminTables
+    await admin
       .from('user_subscriptions')
       .update({
         status: 'canceled',
@@ -91,11 +87,7 @@ export async function POST(request: NextRequest) {
     periodEnd.setMonth(periodEnd.getMonth() + 1)
   }
 
-  const adminTables = admin as unknown as {
-    from: (table: string) => ReturnType<typeof admin.from>
-  }
-
-  await adminTables
+  await admin
     .from('user_subscriptions')
     .update({
       status: 'canceled',
@@ -105,7 +97,7 @@ export async function POST(request: NextRequest) {
     .eq('user_id', user.id)
     .in('status', ['active', 'trialing'])
 
-  const { error: subscriptionError } = await adminTables
+  const { error: subscriptionError } = await admin
     .from('user_subscriptions')
     .insert({
       user_id: user.id,
