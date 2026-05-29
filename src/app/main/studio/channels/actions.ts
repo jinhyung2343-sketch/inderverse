@@ -1194,6 +1194,17 @@ async function updateChannelContentRatingMutation(formData: FormData) {
     throw new Error(error.message)
   }
 
+  if (workType === 'webtoon' || workType === 'novel') {
+    const { error: episodeRatingError } = await supabase
+      .from('episodes')
+      .update({ is_adult_only: contentRating.isAdultOnly })
+      .eq('channel_id', channelId)
+
+    if (episodeRatingError) {
+      throw new Error(episodeRatingError.message)
+    }
+  }
+
   revalidatePath('/main/explore')
   revalidatePath('/main/spark')
   revalidatePath('/main/studio')

@@ -17,8 +17,14 @@ export type StoredInderverseAccount = {
   updatedAt: string
 }
 
-const ACCOUNT_REGISTRY_KEY = 'inderverse:account-registry:v1'
+const ACCOUNT_REGISTRY_KEY_PREFIX = 'inderverse:account-registry:v2'
 const MAX_STORED_ACCOUNTS = 6
+
+function getAccountRegistryKey() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || 'default'
+
+  return `${ACCOUNT_REGISTRY_KEY_PREFIX}:${supabaseUrl}`
+}
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
@@ -59,7 +65,7 @@ export function readStoredAccounts(): StoredInderverseAccount[] {
     return []
   }
 
-  const rawValue = window.localStorage.getItem(ACCOUNT_REGISTRY_KEY)
+  const rawValue = window.localStorage.getItem(getAccountRegistryKey())
 
   if (!rawValue) {
     return []
@@ -87,7 +93,7 @@ function writeStoredAccounts(accounts: StoredInderverseAccount[]) {
   }
 
   window.localStorage.setItem(
-    ACCOUNT_REGISTRY_KEY,
+    getAccountRegistryKey(),
     JSON.stringify(accounts.slice(0, MAX_STORED_ACCOUNTS))
   )
 }
