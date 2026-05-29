@@ -252,6 +252,31 @@ async function deleteServerWorkDraft(
   }
 }
 
+async function syncChannelEpisodeAdultVisibility({
+  channelId,
+  isAdultOnly,
+  supabase,
+  workType,
+}: {
+  channelId: string
+  isAdultOnly: boolean
+  supabase: Awaited<ReturnType<typeof createClient>>
+  workType: string
+}) {
+  if (workType !== 'webtoon' && workType !== 'novel') {
+    return
+  }
+
+  const { error } = await supabase
+    .from('episodes')
+    .update({ is_adult_only: isAdultOnly })
+    .eq('channel_id', channelId)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
 function readBoolean(formData: FormData, key: string) {
   return formData.get(key) === 'on'
 }
@@ -1194,16 +1219,12 @@ async function updateChannelContentRatingMutation(formData: FormData) {
     throw new Error(error.message)
   }
 
-  if (workType === 'webtoon' || workType === 'novel') {
-    const { error: episodeRatingError } = await supabase
-      .from('episodes')
-      .update({ is_adult_only: contentRating.isAdultOnly })
-      .eq('channel_id', channelId)
-
-    if (episodeRatingError) {
-      throw new Error(episodeRatingError.message)
-    }
-  }
+  await syncChannelEpisodeAdultVisibility({
+    channelId,
+    isAdultOnly: contentRating.isAdultOnly,
+    supabase,
+    workType,
+  })
 
   revalidatePath('/main/explore')
   revalidatePath('/main/spark')
@@ -1272,6 +1293,13 @@ async function updateWebtoonChannelMutation(formData: FormData) {
   if (error) {
     throw new Error(error.message)
   }
+
+  await syncChannelEpisodeAdultVisibility({
+    channelId,
+    isAdultOnly: input.isAdultOnly,
+    supabase,
+    workType: 'webtoon',
+  })
 
   await syncChannelTags(channelId, input.category, input.tags)
 
@@ -1395,6 +1423,13 @@ export async function updateNovelChannel(formData: FormData) {
   if (error) {
     throw new Error(error.message)
   }
+
+  await syncChannelEpisodeAdultVisibility({
+    channelId,
+    isAdultOnly: input.isAdultOnly,
+    supabase,
+    workType: 'novel',
+  })
 
   await syncChannelTags(channelId, input.category, input.tags)
 
