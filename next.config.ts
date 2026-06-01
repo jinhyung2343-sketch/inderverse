@@ -57,6 +57,20 @@ const nextConfig: NextConfig = {
         hostname: supabaseStorageHostname,
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        // Local Supabase Storage public assets
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "54321",
+        pathname: "/storage/v1/object/public/**",
+      },
+      {
+        // Local Supabase Storage public assets
+        protocol: "http",
+        hostname: "localhost",
+        port: "54321",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   webpack: (config, { dev }) => {

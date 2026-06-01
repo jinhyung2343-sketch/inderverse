@@ -1,11 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
-import { ArtworkCard } from '@/components/ui/ArtworkCard'
 import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
-import { getPublicArtworkById, getPublicArtworkList, getRelatedArtworks } from '@/lib/server/explore'
+import { getPublicArtworkById } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
 import { getViewerSession } from '@/lib/server/viewer-session'
 import { getWorkTypeLabel } from '@/lib/work'
@@ -16,7 +15,6 @@ const sectionLinks = [
   { id: 'overview', label: '작품 소개' },
   { id: 'episodes', label: '회차 목록' },
   { id: 'comments', label: '댓글' },
-  { id: 'related', label: '추천작' },
 ]
 
 export default async function ArtworkDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,16 +30,11 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
     notFound()
   }
 
-  const feed = await getPublicArtworkList(visibility)
-  const relatedArtworks = await getRelatedArtworks(artwork, 4, visibility)
   const backendCoverage = getArtworkBackendCoverage(artwork)
   const savedArtworkIds = await getSavedArtworkIds()
   const savedArtworkId = artwork.backendChannelId ?? artwork.id
   const isSaved = savedArtworkIds.includes(savedArtworkId) || savedArtworkIds.includes(artwork.id)
   const firstEpisode = artwork.episodes[0] ?? null
-
-  const fallbackRelated = feed.filter((item) => item.id !== artwork.id).slice(0, 4)
-  const recommended = relatedArtworks.length > 0 ? relatedArtworks : fallbackRelated
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
@@ -204,36 +197,6 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
               </div>
             </section>
 
-            <section id="related" className="scroll-mt-24 rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-              <div className="border-b border-white/10 pb-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Related</p>
-                <h2 className="mt-2 text-2xl font-bold tracking-tight">추천작</h2>
-              </div>
-
-              {recommended.length > 0 ? (
-                <div className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
-                  {recommended.map((item) => (
-                    <ArtworkCard
-                      key={item.id}
-                      title={item.title}
-                      authorName={item.authorName}
-                      authorHref={item.creatorSlug ? `/main/creators/${item.creatorSlug}` : undefined}
-                      coverImageUrl={item.coverImageUrl}
-                      workType={item.workType}
-                      status={item.status}
-                      isAdultOnly={item.isAdultOnly}
-                      isCommentEnabled={item.isCommentEnabled}
-                      tags={item.tags}
-                      href={`/main/explore/${item.id}`}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-sm leading-6 text-zinc-400">
-                  아직 함께 보여줄 추천작이 충분하지 않습니다. 더 많은 공개 채널이 쌓이면 이 영역이 자연스럽게 채워집니다.
-                </div>
-              )}
-            </section>
           </div>
         </section>
       </div>
