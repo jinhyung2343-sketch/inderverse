@@ -21,7 +21,7 @@ const webtoonFormats = [
   {
     href: '/main/studio/channels/spark/new',
     label: '스파크',
-    description: '단독 컷이나 4컷처럼 짧고 빠르게 공개하는 만화형 포맷입니다.',
+    description: '싱글 스파크나 4컷 스파크처럼 짧고 빠르게 공개하는 만화형 포맷입니다.',
   },
 ]
 

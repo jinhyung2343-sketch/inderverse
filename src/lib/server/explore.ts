@@ -238,15 +238,11 @@ function buildNovelEpisodeBody(bodyText: string) {
 
 function buildGenericEpisodeBody(artworkTitle: string, episodeTitle: string, hasImages: boolean) {
   if (hasImages) {
-    return [
-      `${artworkTitle}의 ${episodeTitle} 이미지가 아래에 표시됩니다.`,
-      '현재는 회차 본문 텍스트 대신 업로드된 이미지 자산을 우선 렌더링하는 구조로 연결했습니다.',
-    ]
+    return []
   }
 
   return [
-    `${artworkTitle}의 ${episodeTitle}는 실제 채널 데이터에 연결되어 있습니다.`,
-    '아직 이미지나 본문 자산이 등록되지 않아 기본 안내 문구를 먼저 표시합니다.',
+    `${artworkTitle}의 ${episodeTitle} 회차 이미지가 아직 준비되지 않았습니다.`,
   ]
 }
 

@@ -8,7 +8,7 @@ import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public
 import { createClient } from '@/lib/supabase/server'
 import { withPublicDataRetry } from '@/lib/server/public-data-retry'
 import { getViewerSession } from '@/lib/server/viewer-session'
-import type { SparkRecord, SparkStatus } from '@/lib/spark'
+import type { SparkFormat, SparkRecord, SparkStatus } from '@/lib/spark'
 import { getSparkPanelCount, parseSparkMeta } from '@/lib/spark'
 import type { Database } from '@/lib/supabase/types'
 
@@ -38,8 +38,11 @@ interface SparkChannelQueryRow
 }
 type SparkQueryResult = {
   data: unknown
+  count?: number | null
   error: { message: string } | null
 }
+
+export const SPARK_FEED_PAGE_SIZE = 24
 
 export interface SparkDetailContext {
   spark: SparkRecord
@@ -55,6 +58,16 @@ export interface SparkEngagementSummary {
   saveCount: number
   viewerHasSaved: boolean
   viewerCanSave: boolean
+}
+
+export interface PublicSparkListPage {
+  sparks: SparkRecord[]
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
 }
 
 const EMPTY_SPARK_ENGAGEMENT: SparkEngagementSummary = {
@@ -173,6 +186,22 @@ function getPublicStatuses(): SparkStatus[] {
   return ['publishing', 'completed']
 }
 
+function normalizePage(value: number | undefined) {
+  if (!value || !Number.isFinite(value)) {
+    return 1
+  }
+
+  return Math.max(1, Math.floor(value))
+}
+
+function normalizePageSize(value: number | undefined) {
+  if (!value || !Number.isFinite(value)) {
+    return SPARK_FEED_PAGE_SIZE
+  }
+
+  return Math.min(48, Math.max(1, Math.floor(value)))
+}
+
 async function loadPublicSparkList(isAdultVerified: boolean) {
   const admin = createAdminClient()
   const runQuery = () => {
@@ -229,6 +258,94 @@ const getCachedPublicSparkList = unstable_cache(
   }
 )
 
+async function loadPublicSparkListPage({
+  format,
+  isAdultVerified,
+  page,
+  pageSize,
+}: {
+  format: SparkFormat
+  isAdultVerified: boolean
+  page: number
+  pageSize: number
+}): Promise<PublicSparkListPage> {
+  const admin = createAdminClient()
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+  const runQuery = () => {
+    let query = admin
+      .from('channels')
+      .select(
+        `
+          id,
+          title,
+          description,
+          cover_image_url,
+          age_rating,
+          is_adult_only,
+          rating_checklist,
+          status,
+          spark_caption,
+          spark_format,
+          spark_panel_count,
+          spark_meta,
+          creator_id,
+          created_at,
+          updated_at
+        `,
+        { count: 'exact' }
+      )
+      .eq('work_type', 'spark')
+      .eq('spark_format', format)
+      .in('status', getPublicStatuses())
+      .order('updated_at', { ascending: false })
+      .range(from, to)
+
+    if (!isAdultVerified) {
+      query = query.eq('is_adult_only', false)
+    }
+
+    return query
+  }
+
+  const { data, count, error } = await withPublicDataTimeout(
+    withPublicDataRetry(runQuery, isRecoverablePublicDataError)
+  ) as SparkQueryResult
+
+  if (error) {
+    throw new Error(`Failed to load spark feed page: ${error.message}`)
+  }
+
+  const rows = await attachSparkCreators((data ?? []) as SparkChannelQueryRow[])
+  const totalCount = count ?? rows.length
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  return {
+    sparks: rows.map(mapSparkRow),
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+    hasPreviousPage: page > 1,
+    hasNextPage: page < totalPages,
+  }
+}
+
+const getCachedPublicSparkListPage = unstable_cache(
+  async (isAdultVerified: boolean, format: SparkFormat, page: number, pageSize: number) =>
+    loadPublicSparkListPage({
+      format,
+      isAdultVerified,
+      page,
+      pageSize,
+    }),
+  ['public-spark-list-page-v1'],
+  {
+    revalidate: PUBLIC_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_CACHE_TAGS.navigation, PUBLIC_CACHE_TAGS.sparks],
+  }
+)
+
 export async function getPublicSparkList({
   includeAdultContent = false,
 }: {
@@ -247,6 +364,51 @@ export async function getPublicSparkList({
 
     console.warn('Falling back to mock spark feed:', error)
     return fallbackSparkRecords.filter((spark) => !spark.isAdultOnly)
+  }
+}
+
+export async function getPublicSparkListPage({
+  format,
+  includeAdultContent = false,
+  page,
+  pageSize,
+}: {
+  format: SparkFormat
+  includeAdultContent?: boolean
+  page?: number
+  pageSize?: number
+}) {
+  const normalizedPage = normalizePage(page)
+  const normalizedPageSize = normalizePageSize(pageSize)
+
+  try {
+    return await getCachedPublicSparkListPage(includeAdultContent, format, normalizedPage, normalizedPageSize)
+  } catch (error) {
+    if (isNextRuntimeSignal(error)) {
+      throw error
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      throw error
+    }
+
+    console.warn('Falling back to mock spark feed page:', error)
+    const sparks = fallbackSparkRecords
+      .filter((spark) => spark.format === format && !spark.isAdultOnly)
+      .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+    const from = (normalizedPage - 1) * normalizedPageSize
+    const totalCount = sparks.length
+    const totalPages = Math.max(1, Math.ceil(totalCount / normalizedPageSize))
+
+    return {
+      sparks: sparks.slice(from, from + normalizedPageSize),
+      page: normalizedPage,
+      pageSize: normalizedPageSize,
+      totalCount,
+      totalPages,
+      hasPreviousPage: normalizedPage > 1,
+      hasNextPage: normalizedPage < totalPages,
+    }
   }
 }
 

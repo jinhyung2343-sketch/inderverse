@@ -9,8 +9,8 @@ export function LibraryShelf({ artworks, isGuest = false }: { artworks: ExploreA
     return (
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm leading-6 text-zinc-300">
         {isGuest
-          ? '담아둔 작품과 구매/해금 상태는 로그인 후 계정 기준으로 표시됩니다. 게스트 모드에서는 서재 구조만 확인할 수 있습니다.'
-          : '아직 담아둔 작품이 없습니다. 작품 상세에서 `라이브러리에 담기`를 누르면 서버 라이브러리에 쌓입니다.'}
+          ? '저장한 작품과 구매/해금 상태는 로그인 후 계정 기준으로 표시됩니다. 게스트 모드에서는 서재 구조만 확인할 수 있습니다.'
+          : '아직 저장한 작품이 없습니다. 작품 상세에서 `라이브러리에 저장`을 누르면 서버 라이브러리에 쌓입니다.'}
       </section>
     )
   }
@@ -18,7 +18,7 @@ export function LibraryShelf({ artworks, isGuest = false }: { artworks: ExploreA
   return (
     <section className="grid gap-4">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-zinc-300">
-        저장한 작품 {savedArtworks.length}개가 라이브러리에 담겨 있습니다.
+        저장한 작품 {savedArtworks.length}개가 라이브러리에 있습니다.
       </div>
 
       <div className="grid grid-cols-2 gap-5 md:grid-cols-3">

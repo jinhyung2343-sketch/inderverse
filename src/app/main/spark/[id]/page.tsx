@@ -5,7 +5,7 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { SparkCard } from '@/components/spark/SparkCard'
 import { SparkEngagementPanel } from '@/components/spark/SparkEngagementPanel'
 import { getPublicSparkDetailContext } from '@/lib/server/spark'
-import { getSparkAccentClassName, getSparkFormatLabel } from '@/lib/spark'
+import { getSparkAccentClassName, getSparkDisplayTitle, getSparkFormatLabel } from '@/lib/spark'
 
 export const revalidate = 60
 
@@ -34,11 +34,12 @@ export default async function SparkDetailPage({
   const { spark, previousSpark, nextSpark, relatedSparks, engagement } = context
 
   const accentClassName = getSparkAccentClassName(spark)
+  const displayTitle = getSparkDisplayTitle(spark.title)
 
   return (
     <main className="min-h-[100dvh] overflow-hidden bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <PageBackLink href="/main/spark" ariaLabel="스파크로 돌아가기" />
+        <PageBackLink href={`/main/spark?format=${spark.format}`} ariaLabel="스파크로 돌아가기" />
 
         <header className="space-y-4 rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -51,19 +52,14 @@ export default async function SparkDetailPage({
               {getSparkFormatLabel(spark.format)}
             </span>
           </div>
-
-          <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">{spark.topic}</p>
-            <h1 className="text-4xl font-black tracking-tight md:text-5xl">{spark.title}</h1>
-            <p className="max-w-3xl text-sm leading-7 text-zinc-300 md:text-base">{spark.caption}</p>
-          </div>
+          <h1 className="text-4xl font-black tracking-tight md:text-5xl">{displayTitle}</h1>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="grid gap-6 lg:grid-cols-[1.55fr_0.45fr]">
           <article className="overflow-hidden rounded-[32px] border border-white/10 bg-white/5 backdrop-blur-xl">
             {spark.panels.length > 0 ? (
               <div
-                className={`grid gap-3 p-4 md:p-6 ${
+                className={`grid gap-2 p-3 md:p-4 ${
                   spark.format === 'four_cut' ? 'md:grid-cols-2' : 'grid-cols-1'
                 }`}
               >
@@ -72,20 +68,15 @@ export default async function SparkDetailPage({
                     key={`${spark.id}-panel-${index}`}
                     className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20"
                   >
-                    <div className={`relative w-full ${spark.format === 'four_cut' ? 'h-64' : 'h-[420px]'}`}>
+                    <div className={`relative w-full ${spark.format === 'four_cut' ? 'h-72' : 'h-[560px]'}`}>
                       <Image
                         src={panel.imageUrl}
-                        alt={`${spark.title} ${index + 1}번 컷`}
+                        alt={`${displayTitle} ${index + 1}번 컷`}
                         fill
                         sizes={spark.format === 'four_cut' ? '(min-width: 768px) 40vw, 100vw' : '100vw'}
                         className="object-cover"
                       />
                     </div>
-                    {panel.caption ? (
-                      <figcaption className="border-t border-white/10 px-4 py-3 text-sm leading-6 text-zinc-300">
-                        {panel.caption}
-                      </figcaption>
-                    ) : null}
                   </figure>
                 ))}
               </div>
@@ -93,7 +84,7 @@ export default async function SparkDetailPage({
               <div className="relative h-[360px] w-full">
                 <Image
                   src={spark.coverImageUrl}
-                  alt={spark.title}
+                  alt={displayTitle}
                   fill
                   sizes="100vw"
                   className="object-cover"
@@ -102,25 +93,16 @@ export default async function SparkDetailPage({
             ) : (
               <div className={`flex h-[360px] items-end bg-gradient-to-br ${accentClassName} p-6`}>
                 <div className="rounded-[24px] border border-white/10 bg-black/30 p-5 backdrop-blur-sm">
-                  <p className="text-sm uppercase tracking-[0.3em] text-zinc-400">{spark.topic}</p>
-                  <h2 className="mt-3 text-3xl font-black text-white">{spark.title}</h2>
+                  <p className="text-sm text-zinc-400">{displayTitle} 컷 준비 중</p>
                 </div>
               </div>
             )}
-
-            <div className="space-y-5 p-6 md:p-8">
-              <p className="text-lg leading-8 text-zinc-100">{spark.description}</p>
-              <div className="rounded-[28px] border border-white/10 bg-black/20 p-5">
-                <p className="text-sm uppercase tracking-[0.25em] text-zinc-500">Punchline</p>
-                <p className="mt-3 text-xl font-semibold leading-8 text-white">“{spark.punchline}”</p>
-              </div>
-            </div>
           </article>
 
           <aside className="space-y-6">
             <SparkEngagementPanel
               sparkId={spark.id}
-              sparkTitle={spark.title}
+              sparkTitle={displayTitle}
               initialState={{
                 viewCount: engagement.viewCount,
                 applauseCount: engagement.applauseCount,
@@ -131,42 +113,15 @@ export default async function SparkDetailPage({
             />
 
             <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Spark Notes</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Info</p>
               <div className="mt-4 grid gap-3 text-sm text-zinc-300">
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">컷 수: {spark.panelCount}컷</div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">등록된 패널: {spark.panels.length}개</div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">톤: {spark.tone ?? '미지정'}</div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                   성인 구분: {spark.isAdultOnly ? '성인 인증 필요' : '전체 공개'}
                 </div>
               </div>
             </section>
-
-            <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Tags</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {spark.tags.length > 0 ? (
-                  spark.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-zinc-300">
-                      #{tag}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-sm text-zinc-500">아직 태그가 없습니다.</p>
-                )}
-              </div>
-            </section>
-
-            {spark.externalUrl ? (
-              <a
-                href={spark.externalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
-              >
-                관련 링크 열기
-              </a>
-            ) : null}
           </aside>
         </section>
 
@@ -177,8 +132,7 @@ export default async function SparkDetailPage({
               className="rounded-[32px] border border-white/10 bg-white/5 p-6 transition hover:bg-white/10"
             >
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Previous Spark</p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">{previousSpark.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{previousSpark.caption}</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">{getSparkDisplayTitle(previousSpark.title)}</h2>
             </Link>
           ) : (
             <div className="rounded-[32px] border border-dashed border-white/10 bg-black/20 p-6 text-sm leading-6 text-zinc-500">
@@ -192,8 +146,7 @@ export default async function SparkDetailPage({
               className="rounded-[32px] border border-white/10 bg-white/5 p-6 transition hover:bg-white/10"
             >
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Next Spark</p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">{nextSpark.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{nextSpark.caption}</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">{getSparkDisplayTitle(nextSpark.title)}</h2>
             </Link>
           ) : (
             <div className="rounded-[32px] border border-dashed border-white/10 bg-black/20 p-6 text-sm leading-6 text-zinc-500">

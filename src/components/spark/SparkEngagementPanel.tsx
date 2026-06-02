@@ -131,7 +131,7 @@ export function SparkEngagementPanel({
       if (action === 'applause') {
         setStatusMessage(`"${sparkTitle}"에 박수를 보냈습니다.`)
       } else {
-        setStatusMessage(payload.summary.viewerHasSaved ? '이 스파크를 저장했습니다.' : '저장을 해제했습니다.')
+        setStatusMessage(payload.summary.viewerHasSaved ? '라이브러리에 저장했습니다.' : '라이브러리에서 제거했습니다.')
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '처리 중 문제가 발생했습니다.'
@@ -173,7 +173,7 @@ export function SparkEngagementPanel({
       <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Engagement</p>
       <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">읽은 흐름과 반응</h2>
       <p className="mt-3 text-sm leading-6 text-zinc-400">
-        이제 조회, 박수, 저장 수치를 서버 기준으로 집계합니다. 저장은 로그인한 사용자에게만 연결됩니다.
+        이제 조회, 박수, 라이브러리 저장 수치를 서버 기준으로 집계합니다. 저장은 로그인한 사용자에게만 연결됩니다.
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -188,7 +188,7 @@ export function SparkEngagementPanel({
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
           <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Saves</p>
           <p className="mt-2 text-2xl font-black text-white">{engagement.saveCount}</p>
-          <p className="mt-2 text-sm text-zinc-400">{engagement.saved ? '내 저장 목록에 있음' : '아직 저장 안 함'}</p>
+          <p className="mt-2 text-sm text-zinc-400">{engagement.saved ? '라이브러리에 저장됨' : '아직 저장 안 함'}</p>
         </div>
       </div>
 
@@ -207,7 +207,7 @@ export function SparkEngagementPanel({
           disabled={isPending}
           className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
         >
-          {engagement.saved ? '저장 해제' : '스파크 저장'}
+          {engagement.saved ? '라이브러리에서 제거' : '라이브러리에 저장'}
         </button>
         <button
           type="button"

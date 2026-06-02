@@ -77,7 +77,7 @@ export function LibraryToggleButton({
             : 'border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
         } disabled:cursor-not-allowed disabled:opacity-70`}
       >
-        {isPending ? '처리 중...' : saved ? '라이브러리에 저장됨' : '라이브러리에 담기'}
+        {isPending ? '처리 중...' : saved ? '라이브러리에 저장됨' : '라이브러리에 저장'}
       </button>
       {feedback ? <p className="text-xs leading-5 text-zinc-500">{feedback}</p> : null}
     </div>

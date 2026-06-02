@@ -11,7 +11,7 @@ export default function NewSparkPage() {
         <header>
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">My Bottega / Toon / Spark</p>
-            <p className="text-sm text-zinc-400">단독 컷과 4컷 만평을 Toon Bottega 안에서 빠르게 공개합니다.</p>
+            <p className="text-sm text-zinc-400">싱글 스파크와 4컷 스파크를 Toon Bottega 안에서 빠르게 공개합니다.</p>
           </div>
         </header>
 

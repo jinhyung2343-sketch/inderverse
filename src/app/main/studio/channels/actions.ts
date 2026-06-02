@@ -737,7 +737,7 @@ async function markWebtoonChannelAsPublishing({
 }
 
 function parseSparkDraft(formData: FormData): SparkDraftInput {
-  const title = readText(formData, 'title')
+  const title = readText(formData, 'title') || '무제'
   const description = readText(formData, 'description')
   const caption = readText(formData, 'caption')
   const topic = readText(formData, 'topic')
@@ -747,7 +747,7 @@ function parseSparkDraft(formData: FormData): SparkDraftInput {
   const panelsJson = readText(formData, 'panelsJson')
   const pendingPanelFiles = readImageFiles(formData, 'pendingSparkPanelFiles')
 
-  if (!title || !description || !caption || !topic || !punchline) {
+  if (!description || !caption || !topic || !punchline) {
     throw new Error('필수 항목이 비어 있습니다.')
   }
 

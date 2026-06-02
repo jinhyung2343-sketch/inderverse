@@ -174,7 +174,13 @@ export function getSparkPanelCount(format: SparkFormat) {
 }
 
 export function getSparkFormatLabel(format: SparkFormat) {
-  return format === 'four_cut' ? '4컷 스트립' : '단독 컷'
+  return format === 'four_cut' ? '4컷 스파크' : '싱글 스파크'
+}
+
+export function getSparkDisplayTitle(title: string) {
+  const trimmedTitle = title.trim()
+
+  return !trimmedTitle || trimmedTitle === 'Spark' ? '무제' : trimmedTitle
 }
 
 export function getSparkStatusLabel(status: SparkStatus) {

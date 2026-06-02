@@ -37,7 +37,7 @@ export const sparkRecords: SparkRecord[] = [
     caption: '잠깐 확인하려던 피드가 밤 전체를 가져가는 순간.',
     summary: '짧은 4컷 흐름으로 피드, 알림, 수면 리듬 사이의 이상한 균형을 다룹니다.',
     description:
-      '하나의 알림에서 시작해 끝없이 이어지는 피드 소비를 4컷 스트립으로 압축했습니다. 가볍지만 익숙해서 조금 따끔한 장면입니다.',
+      '하나의 알림에서 시작해 끝없이 이어지는 피드 소비를 4컷 스파크로 압축했습니다. 가볍지만 익숙해서 조금 따끔한 장면입니다.',
     ageRating: '12',
     ratingChecklist: {
       sexualContent: 'none',

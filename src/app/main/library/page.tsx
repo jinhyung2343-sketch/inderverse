@@ -39,7 +39,7 @@ export default async function LibraryPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm leading-6 text-zinc-300 backdrop-blur">
             <p className="font-semibold text-white">게스트 모드에서는 라이브러리 구조를 둘러볼 수 있습니다.</p>
             <p className="mt-2">
-              저장한 스파크, 담아둔 작품, 구매/해금 상태는 계정 기준으로 기록됩니다. 저장이나 이어보기 기록을 남기려면 로그인이 필요합니다.
+              저장한 스파크, 저장한 작품, 구매/해금 상태는 계정 기준으로 기록됩니다. 저장이나 이어보기 기록을 남기려면 로그인이 필요합니다.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link
@@ -64,7 +64,7 @@ export default async function LibraryPage() {
           <div className="grid gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Saved Artworks</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">담아둔 작품</h2>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">저장한 작품</h2>
             </div>
             <LibraryShelf artworks={savedArtworks} isGuest={isGuest} />
           </div>

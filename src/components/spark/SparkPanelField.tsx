@@ -1,10 +1,23 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { FilePickerButton, ImageUploadDropzone } from '@/components/upload/ImageUploadDropzone'
 import type { SparkFormat, SparkPanel } from '@/lib/spark'
 import { getSparkFormatLabel } from '@/lib/spark'
 import { uploadToSupabaseSignedUrl } from '@/lib/storage/client-upload'
+
+const formatOptions = [
+  {
+    value: 'single_cut',
+    label: '싱글 스파크',
+    summary: '한 장으로 완결되는 짧은 스파크',
+  },
+  {
+    value: 'four_cut',
+    label: '4컷 스파크',
+    summary: '네 칸으로 이어지는 짧은 서사',
+  },
+] as const
 
 const emptyPanels = Array.from({ length: 4 }, () => ({
   imageUrl: '',
@@ -18,7 +31,7 @@ function getRequiredPanelCount(format: SparkFormat) {
 function normalizePanels(initialPanels: SparkPanel[]) {
   const merged = [...emptyPanels].map((panel, index) => ({
     imageUrl: initialPanels[index]?.imageUrl ?? panel.imageUrl,
-    caption: initialPanels[index]?.caption ?? panel.caption,
+    caption: panel.caption,
   }))
 
   return merged.slice(0, 4)
@@ -39,26 +52,6 @@ export function SparkPanelField({
   const [isBatchUploading, setIsBatchUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const activePanelCount = getRequiredPanelCount(format)
-
-  useEffect(() => {
-    const selectElement = document.querySelector<HTMLSelectElement>('select[name="format"]')
-
-    if (!selectElement) {
-      return
-    }
-
-    const syncFormat = () => {
-      const nextValue = selectElement.value === 'four_cut' ? 'four_cut' : 'single_cut'
-      setFormat(nextValue)
-    }
-
-    syncFormat()
-    selectElement.addEventListener('change', syncFormat)
-
-    return () => {
-      selectElement.removeEventListener('change', syncFormat)
-    }
-  }, [])
 
   const panelsJson = useMemo(() => JSON.stringify(panels), [panels])
 
@@ -179,26 +172,53 @@ export function SparkPanelField({
 
   return (
     <div className="grid gap-4">
+      <input type="hidden" name="format" value={format} readOnly />
       <input type="hidden" name="panelsJson" value={panelsJson} readOnly />
 
-      <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
-        현재 포맷은 <span className="font-semibold text-white">{getSparkFormatLabel(format)}</span> 입니다.
-        {format === 'single_cut'
-          ? ' 첫 번째 컷만 실제 공개 패널로 사용됩니다.'
-          : ' 4개의 컷이 모두 공개 패널로 사용됩니다.'}
+      <div className="grid gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Format</p>
+          <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">제작 형식</h3>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {formatOptions.map((option) => {
+            const isSelected = option.value === format
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setFormat(option.value)}
+                aria-pressed={isSelected}
+                className={`rounded-3xl border p-5 text-left transition ${
+                  isSelected
+                    ? 'border-white/40 bg-white text-black'
+                    : 'border-white/10 bg-black/20 text-zinc-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="text-lg font-bold">{option.label}</span>
+                <span className={`mt-2 block text-sm leading-6 ${isSelected ? 'text-zinc-700' : 'text-zinc-500'}`}>
+                  {option.summary}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <ImageUploadDropzone
-        title="컷 이미지 올리기"
+        title={format === 'single_cut' ? '대표 컷 올리기' : '4컷 이미지 올리기'}
         description={
           channelId
             ? format === 'single_cut'
-              ? '한 장을 바로 대표 컷으로 올릴 수 있습니다. 여러 장을 선택하면 첫 번째 파일만 현재 공개 컷에 반영됩니다.'
+              ? '한 장을 대표 컷으로 사용합니다.'
               : '여러 장을 한 번에 선택하면 1번 컷부터 차례대로 채워집니다.'
-            : '새 스파크 단계에서도 먼저 컷 이미지를 골라 배치를 확인할 수 있습니다. 저장 시 실제 업로드가 이어집니다.'
+            : format === 'single_cut'
+              ? '저장 전 대표 컷을 미리 확인합니다.'
+              : '저장 전 4컷 배치를 미리 확인합니다.'
         }
         disabled={false}
-        multiple
+        multiple={format === 'four_cut'}
         isUploading={isBatchUploading || uploadingIndex !== null}
         buttonLabel={format === 'single_cut' ? '대표 컷 고르기' : '컷 여러 장 고르기'}
         inputName={channelId ? undefined : 'pendingSparkPanelFiles'}
@@ -207,26 +227,17 @@ export function SparkPanelField({
       />
 
       <div className="grid gap-4">
-        {panels.map((panel, index) => {
-          const isActivePanel = index < activePanelCount
-
+        {panels.slice(0, activePanelCount).map((panel, index) => {
           return (
             <section
               key={`panel-${index}`}
-              className={`rounded-3xl border p-4 transition ${
-                isActivePanel
-                  ? 'border-white/10 bg-white/5'
-                  : 'border-white/5 bg-black/20 opacity-60'
-              }`}
+              className="rounded-3xl border border-white/10 bg-white/5 p-4 transition"
             >
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-white">{index + 1}번 컷</p>
-                    <p className="text-xs text-zinc-500">
-                      {isActivePanel
-                        ? '이 컷은 현재 포맷에서 실제 공개 대상입니다.'
-                        : '포맷을 4컷으로 바꾸면 이 컷도 공개 대상에 포함됩니다.'}
+                    <p className="text-sm font-semibold text-white">
+                      {format === 'single_cut' ? getSparkFormatLabel(format) : `${index + 1}번 컷`}
                     </p>
                   </div>
                   <FilePickerButton
@@ -250,17 +261,6 @@ export function SparkPanelField({
                     ? '이 컷 이미지는 업로드되었거나 직접 입력되어 준비된 상태입니다.'
                     : '파일 업로드를 기본으로 사용하고, 필요할 때만 아래 고급 옵션에서 직접 주소를 입력하세요.'}
                 </div>
-
-                <label className="grid gap-2 text-sm text-zinc-300">
-                  <span>컷 설명 / 자막</span>
-                  <textarea
-                    value={panel.caption}
-                    onChange={(event) => updatePanel(index, 'caption', event.target.value)}
-                    rows={3}
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                    placeholder="컷 아래에 보일 설명이나 짧은 자막"
-                  />
-                </label>
 
                 <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/20">
                   {panel.imageUrl ? (
