@@ -4,7 +4,7 @@ import { DeleteToonWorkButton } from '@/components/studio/DeleteToonWorkButton'
 import { getAgeRatingLabel } from '@/lib/content-rating'
 import { getCreatorSparkList } from '@/lib/server/spark'
 import { getCreatorWebtoonList } from '@/lib/server/webtoon-studio'
-import { getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
+import { getSparkDisplayTitle, getSparkFormatLabel, getSparkStatusLabel } from '@/lib/spark'
 import { getWebtoonStatusLabel } from '@/lib/webtoon'
 
 const webtoonFormats = [
@@ -66,7 +66,7 @@ export default async function ToonBottegaPage({
     })),
     ...sparkChannels.map((spark) => ({
       id: spark.id,
-      title: spark.title,
+      title: getSparkDisplayTitle(spark.title),
       href: `/main/studio/channels/spark/${spark.id}/edit`,
       coverImageUrl: spark.coverImageUrl,
       category: spark.topic,

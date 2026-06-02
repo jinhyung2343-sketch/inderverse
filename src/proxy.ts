@@ -62,13 +62,13 @@ export async function proxy(request: NextRequest) {
     return handleApiRequest(request, pathname)
   }
 
-  const guestAccessDecision = getRouteAccessDecision({
-    pathname,
-    search,
-    isLoggedIn: false,
-  })
-
   if (!hasSupabaseAuthCookie(request)) {
+    const guestAccessDecision = getRouteAccessDecision({
+      pathname,
+      search,
+      isLoggedIn: false,
+    })
+
     if (guestAccessDecision.type === 'redirect') {
       return NextResponse.redirect(new URL(guestAccessDecision.location, request.url))
     }

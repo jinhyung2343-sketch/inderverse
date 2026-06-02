@@ -161,6 +161,10 @@ export async function sendSmtpMail(message: MailMessage) {
     throw new Error('SMTP 환경 변수가 설정되지 않았습니다.')
   }
 
+  if (process.env.NODE_ENV === 'production' && port !== 465 && port !== 587) {
+    throw new Error('Production SMTP must use TLS port 465 or STARTTLS port 587.')
+  }
+
   let socket = await connectSmtp(host, port)
 
   try {

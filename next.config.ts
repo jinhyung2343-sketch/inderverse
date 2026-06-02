@@ -19,6 +19,13 @@ function parseUrl(value: string | undefined) {
   }
 }
 
+function parseCsv(value: string | undefined) {
+  return value
+    ?.split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean) ?? [];
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabasePublicUrl = parseUrl(supabaseUrl);
 const supabaseHostname = supabasePublicUrl?.hostname ?? "127.0.0.1";
@@ -35,7 +42,7 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: [
     "127.0.0.1",
-    "192.168.219.101",
+    ...parseCsv(process.env.NEXT_ALLOWED_DEV_ORIGINS),
   ],
   images: {
     remotePatterns: [

@@ -78,6 +78,10 @@ export function decryptBankInfo(value: string | null | undefined): BankInfoInput
   const key = getKey()
 
   if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('BANK_INFO_ENCRYPTION_SECRET is required to decrypt bank info.')
+    }
+
     console.warn('BANK_INFO_ENCRYPTION_SECRET is missing; encrypted bank info cannot be decrypted.')
     return null
   }

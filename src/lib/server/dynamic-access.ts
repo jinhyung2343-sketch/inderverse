@@ -21,6 +21,18 @@ export type DynamicAccessDecision = {
   triggerSubscriptionPrompt: boolean
 }
 
+const VALID_DYNAMIC_ACCESS_REASONS = new Set<DynamicAccessReason>([
+  'free_archive',
+  'teaser',
+  'purchased',
+  'subscriber',
+  'subscription_required',
+  'not_published',
+  'episode_not_found',
+  'work_not_found',
+  'unknown',
+])
+
 function readBoolean(value: unknown) {
   return typeof value === 'boolean' ? value : false
 }
@@ -30,7 +42,9 @@ function readNumber(value: unknown) {
 }
 
 function readReason(value: unknown): DynamicAccessReason {
-  return typeof value === 'string' ? (value as DynamicAccessReason) : 'unknown'
+  return typeof value === 'string' && VALID_DYNAMIC_ACCESS_REASONS.has(value as DynamicAccessReason)
+    ? (value as DynamicAccessReason)
+    : 'unknown'
 }
 
 export async function checkEpisodeDynamicAccess({

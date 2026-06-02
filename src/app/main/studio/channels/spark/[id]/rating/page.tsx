@@ -3,6 +3,7 @@ import { updateChannelContentRatingWithState } from '@/app/main/studio/channels/
 import { ContentRatingStepForm } from '@/components/content/ContentRatingStepForm'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getCreatorSparkById } from '@/lib/server/spark'
+import { getSparkDisplayTitle } from '@/lib/spark'
 
 export default async function SparkRatingPage({
   params,
@@ -15,6 +16,8 @@ export default async function SparkRatingPage({
   if (!spark) {
     notFound()
   }
+
+  const displayTitle = getSparkDisplayTitle(spark.title)
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
@@ -32,7 +35,7 @@ export default async function SparkRatingPage({
           action={updateChannelContentRatingWithState}
           channelId={spark.id}
           workType="spark"
-          title={`${spark.title} 등급 설정`}
+          title={`${displayTitle} 등급 설정`}
           ageRating={spark.ageRating}
           ratingChecklist={spark.ratingChecklist}
           backHref={`/main/studio/channels/spark/${spark.id}/edit`}

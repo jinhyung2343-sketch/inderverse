@@ -19,6 +19,8 @@ export type StoredInderverseAccount = {
 
 const ACCOUNT_REGISTRY_KEY_PREFIX = 'inderverse:account-registry:v2'
 const MAX_STORED_ACCOUNTS = 6
+const LOCAL_ACCOUNT_SESSION_STORAGE_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_LOCAL_ACCOUNT_SESSION_STORAGE === 'true'
 
 function getAccountRegistryKey() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || 'default'
@@ -28,6 +30,18 @@ function getAccountRegistryKey() {
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+}
+
+function clearStoredAccounts() {
+  if (!canUseStorage()) {
+    return
+  }
+
+  window.localStorage.removeItem(getAccountRegistryKey())
+}
+
+function isAccountExpired(account: StoredInderverseAccount) {
+  return typeof account.expiresAt === 'number' && account.expiresAt <= Math.floor(Date.now() / 1000)
 }
 
 function normalizeAccount(value: unknown): StoredInderverseAccount | null {
@@ -65,6 +79,11 @@ export function readStoredAccounts(): StoredInderverseAccount[] {
     return []
   }
 
+  if (!LOCAL_ACCOUNT_SESSION_STORAGE_ENABLED) {
+    clearStoredAccounts()
+    return []
+  }
+
   const rawValue = window.localStorage.getItem(getAccountRegistryKey())
 
   if (!rawValue) {
@@ -78,10 +97,16 @@ export function readStoredAccounts(): StoredInderverseAccount[] {
       return []
     }
 
-    return parsedValue.flatMap((value) => {
+    const accounts = parsedValue.flatMap((value) => {
       const account = normalizeAccount(value)
-      return account ? [account] : []
+      return account && !isAccountExpired(account) ? [account] : []
     })
+
+    if (accounts.length !== parsedValue.length) {
+      writeStoredAccounts(accounts)
+    }
+
+    return accounts
   } catch {
     return []
   }
@@ -89,6 +114,11 @@ export function readStoredAccounts(): StoredInderverseAccount[] {
 
 function writeStoredAccounts(accounts: StoredInderverseAccount[]) {
   if (!canUseStorage()) {
+    return
+  }
+
+  if (!LOCAL_ACCOUNT_SESSION_STORAGE_ENABLED) {
+    clearStoredAccounts()
     return
   }
 
@@ -107,6 +137,11 @@ export function rememberAccountSession({
   session: Session
   user: User
 }) {
+  if (!LOCAL_ACCOUNT_SESSION_STORAGE_ENABLED) {
+    clearStoredAccounts()
+    return []
+  }
+
   const email = user.email?.trim().toLowerCase()
 
   if (!email || !session.access_token || !session.refresh_token) {

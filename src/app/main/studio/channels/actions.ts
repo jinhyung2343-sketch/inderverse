@@ -1100,15 +1100,17 @@ export async function updateSparkChannel(formData: FormData) {
   const input = parseSparkDraft(formData)
   const payload = buildSparkChannelPayload(input, userId, creatorChannel.id)
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('channels')
     .update(payload)
     .eq('id', channelId)
     .eq('creator_id', userId)
     .eq('work_type', 'spark')
+    .select('id')
+    .single()
 
-  if (error) {
-    throw new Error(error.message)
+  if (error || !data) {
+    throw new Error(error?.message || '수정 대상 스파크를 찾지 못했습니다.')
   }
 
   revalidatePath('/main/spark')

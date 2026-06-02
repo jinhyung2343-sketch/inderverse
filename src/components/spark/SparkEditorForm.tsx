@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ContentRatingFieldset } from '@/components/content/ContentRatingFieldset'
+import { FormSubmitButton } from '@/components/forms/FormSubmitButton'
 import type { SparkRecord } from '@/lib/spark'
 import { getSparkStatusLabel } from '@/lib/spark'
 import { SparkPanelField } from '@/components/spark/SparkPanelField'
@@ -153,12 +154,10 @@ export function SparkEditorForm({
             )}
           </div>
 
-          <button
-            type="submit"
-            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-          >
-            {submitLabel}
-          </button>
+          <FormSubmitButton
+            className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+            label={submitLabel}
+          />
         </div>
       </section>
     </form>

@@ -98,7 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       return sessionCheckPromise
     }
 
-    sessionCheckPromise = (async () => {
+    const currentSessionCheck = (async () => {
       set({ isLoading: true })
       try {
         const supabase = createClient()
@@ -168,8 +168,10 @@ export const useAuthStore = create<AuthState>((set) => ({
             userNickname: profile?.display_name || fallbackNickname,
             storedAccounts,
           })
-          await syncViewerAccountGroup()
-          await syncLinkedStoredAccounts(user.id, storedAccounts)
+          await Promise.all([
+            syncViewerAccountGroup(),
+            syncLinkedStoredAccounts(user.id, storedAccounts),
+          ])
         } else {
           set({
             user: null,
@@ -197,10 +199,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         })
       }
     })().finally(() => {
-      sessionCheckPromise = null
+      if (sessionCheckPromise === currentSessionCheck) {
+        sessionCheckPromise = null
+      }
     })
+    sessionCheckPromise = currentSessionCheck
 
-    return sessionCheckPromise
+    return currentSessionCheck
   },
 
   refreshStoredAccounts: () => {
@@ -238,12 +243,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
-    const supabase = createClient()
     await fetch('/api/auth/sign-out', {
       method: 'POST',
       cache: 'no-store',
     }).catch(() => null)
-    await supabase.auth.signOut()
     set({
       user: null,
       profile: null,
