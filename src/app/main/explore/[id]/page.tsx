@@ -2,8 +2,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
+import { ArtworkCommentsPanel } from '@/components/comments/ArtworkCommentsPanel'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
+import {
+  ARTWORK_COMMENT_MAX_LENGTH,
+  getPublicArtworkComments,
+} from '@/lib/server/artwork-comments'
 import { getPublicArtworkById } from '@/lib/server/explore'
 import { getSavedArtworkIds } from '@/lib/server/library'
 import { getViewerSession } from '@/lib/server/viewer-session'
@@ -40,6 +45,9 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
   const savedArtworkIds = await getSavedArtworkIds()
   const savedArtworkId = artwork.backendChannelId ?? artwork.id
   const isSaved = savedArtworkIds.includes(savedArtworkId) || savedArtworkIds.includes(artwork.id)
+  const commentState = artwork.backendChannelId
+    ? await getPublicArtworkComments(artwork.backendChannelId)
+    : { comments: [], isReady: false }
   const firstEpisode = artwork.episodes[0] ?? null
   const isShortForm = artwork.workScale === 'short'
   const sectionLinks = isShortForm ? shortSectionLinks : serialSectionLinks
@@ -236,9 +244,14 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                 </span>
               </div>
 
-              <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-5">
-                <p className="text-sm leading-7 text-zinc-300">{artwork.commentPreview}</p>
-              </div>
+              <ArtworkCommentsPanel
+                artworkId={artwork.id}
+                comments={commentState.comments}
+                isCommentEnabled={artwork.isCommentEnabled}
+                policyNote={artwork.commentPreview}
+                canStoreComments={Boolean(artwork.backendChannelId)}
+                maxLength={ARTWORK_COMMENT_MAX_LENGTH}
+              />
             </section>
 
           </div>

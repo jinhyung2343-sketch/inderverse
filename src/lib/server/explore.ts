@@ -262,7 +262,17 @@ function buildGenericEpisodeBody(
 }
 
 function buildGenericCommentPreview(title: string) {
-  return `${title}의 댓글 흐름은 아직 실제 댓글 시스템과 연결되지 않았습니다. 현재는 작품 상세 구조를 점검하기 위한 안내 상태입니다.`
+  return `${title}에 대한 감상을 남겨 주세요. 작품과 작가를 존중하는 댓글 문화를 함께 만들어갑니다.`
+}
+
+function getPublicCommentPreview(title: string, commentPolicyNote: string | null) {
+  const note = commentPolicyNote?.trim()
+
+  if (!note || note.includes('실제 댓글 시스템과 연결되지 않았습니다')) {
+    return buildGenericCommentPreview(title)
+  }
+
+  return note
 }
 
 function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
@@ -310,9 +320,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
     blurb: summary,
     summary,
     intro,
-    commentPreview:
-      bundle.channel.comment_policy_note?.trim() ||
-      buildGenericCommentPreview(title),
+    commentPreview: getPublicCommentPreview(title, bundle.channel.comment_policy_note),
     totalEpisodes,
     workScale,
     teaserPercentage: bundle.channel.teaser_percentage,
