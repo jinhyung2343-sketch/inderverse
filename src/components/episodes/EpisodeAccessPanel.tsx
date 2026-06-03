@@ -18,9 +18,11 @@ import { getUserScope } from '@/lib/mock/user-scope-client'
 export function EpisodeAccessPanel({
   artworkId,
   episode,
+  isShortForm = false,
 }: {
   artworkId: string
   episode: ArtworkEpisode
+  isShortForm?: boolean
 }) {
   const router = useRouter()
   const [, forceRender] = useReducer((value: number) => value + 1, 0)
@@ -52,7 +54,7 @@ export function EpisodeAccessPanel({
 
   function handleLocalSubscriberPreview() {
     unlockEpisodeLocally(scope, artworkId, episode.id)
-    setActionMessage('구독자 접근권한으로 회차를 열었습니다.')
+    setActionMessage(isShortForm ? '구독자 접근권한으로 작품을 열었습니다.' : '구독자 접근권한으로 회차를 열었습니다.')
   }
 
   async function handleInderiumPurchase() {
@@ -62,7 +64,11 @@ export function EpisodeAccessPanel({
     }
 
     if (!episode.backendEpisodeId) {
-      setActionMessage('이 회차는 아직 인더륨 구매 장부와 연결되지 않았습니다.')
+      setActionMessage(
+        isShortForm
+          ? '이 작품은 아직 인더륨 구매 장부와 연결되지 않았습니다.'
+          : '이 회차는 아직 인더륨 구매 장부와 연결되지 않았습니다.'
+      )
       return
     }
 
@@ -92,8 +98,12 @@ export function EpisodeAccessPanel({
       unlockEpisodeLocally(scope, artworkId, episode.id)
       setActionMessage(
         result?.message === 'Already purchased'
-          ? '이미 소장한 회차입니다.'
-          : '인더륨으로 회차를 소장했습니다.'
+          ? isShortForm
+            ? '이미 소장한 작품입니다.'
+            : '이미 소장한 회차입니다.'
+          : isShortForm
+            ? '인더륨으로 작품을 소장했습니다.'
+            : '인더륨으로 회차를 소장했습니다.'
       )
       router.refresh()
     } finally {
@@ -104,6 +114,15 @@ export function EpisodeAccessPanel({
   const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
   const canRead = effective.accessState === 'free' || (effective.accessState === 'locked' && isSubscribed)
   const isNovel = episode.workType === 'novel'
+  const lockedEyebrow = isShortForm ? 'Work Locked' : 'Episode Locked'
+  const lockedTitle = isShortForm ? '이 작품은 구독자 공개입니다' : '이 회차는 구독자 공개입니다'
+  const lockedDescription = isShortForm
+    ? '작가가 정한 공개 범위의 단편 작품입니다. 구독자는 바로 볼 수 있고, 원할 때는 인더륨으로 개별 소장할 수 있습니다.'
+    : '작가가 정한 맛보기 구간을 지난 회차입니다. 구독자는 바로 읽을 수 있고, 원할 때는 인더륨으로 개별 소장할 수 있습니다.'
+  const comingSoonTitle = isShortForm ? '이 작품은 아직 준비 중입니다' : '이 회차는 아직 준비 중입니다'
+  const comingSoonDescription = isShortForm
+    ? '공개 전 작품을 표시하기 위한 자리입니다. 나중에는 예약 공개 시간이나 알림 신청 흐름을 여기에 붙일 수 있습니다.'
+    : '공개 전 회차를 표시하기 위한 자리입니다. 나중에는 예약 공개 시간이나 알림 신청 흐름을 여기에 붙일 수 있습니다.'
 
   if (canRead) {
     return (
@@ -162,10 +181,10 @@ export function EpisodeAccessPanel({
   if (effective.accessState === 'locked') {
     return (
       <section className="rounded-[32px] border border-amber-400/15 bg-white/5 p-6 backdrop-blur-xl md:p-8">
-        <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">Episode Locked</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight">이 회차는 구독자 공개입니다</h2>
+        <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">{lockedEyebrow}</p>
+        <h2 className="mt-3 text-3xl font-black tracking-tight">{lockedTitle}</h2>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-          작가가 정한 맛보기 구간을 지난 회차입니다. 구독자는 바로 읽을 수 있고, 원할 때는 인더륨으로 개별 소장할 수 있습니다.
+          {lockedDescription}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
@@ -207,9 +226,9 @@ export function EpisodeAccessPanel({
   return (
     <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
       <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Coming Soon</p>
-      <h2 className="mt-3 text-3xl font-black tracking-tight">이 회차는 아직 준비 중입니다</h2>
+      <h2 className="mt-3 text-3xl font-black tracking-tight">{comingSoonTitle}</h2>
       <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-        공개 전 회차를 표시하기 위한 자리입니다. 나중에는 예약 공개 시간이나 알림 신청 흐름을 여기에 붙일 수 있습니다.
+        {comingSoonDescription}
       </p>
     </section>
   )

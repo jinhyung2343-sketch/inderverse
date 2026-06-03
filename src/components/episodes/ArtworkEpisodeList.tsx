@@ -20,9 +20,11 @@ const badgeClassByAccess = {
 export function ArtworkEpisodeList({
   artworkId,
   episodes,
+  isShortForm = false,
 }: {
   artworkId: string
   episodes: ArtworkEpisode[]
+  isShortForm?: boolean
 }) {
   const [, forceRender] = useReducer((value: number) => value + 1, 0)
   const [pendingEpisodeId, setPendingEpisodeId] = useState<string | null>(null)
@@ -45,7 +47,9 @@ export function ArtworkEpisodeList({
         episodeId: episode.id,
         message: user
           ? '구독 결제 연결 전까지는 스토어에서 구독 안내를 확인할 수 있습니다.'
-          : '로그인 후 구독하면 맛보기 이후 회차를 이어볼 수 있습니다.',
+          : isShortForm
+            ? '로그인 후 구독하면 이 작품을 볼 수 있습니다.'
+            : '로그인 후 구독하면 맛보기 이후 회차를 이어볼 수 있습니다.',
       })
       setPendingEpisodeId(null)
     }, 250)
@@ -57,6 +61,7 @@ export function ArtworkEpisodeList({
         const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
         const href = `/main/explore/${artworkId}/episodes/${episode.id}`
         const canEnter = effective.accessState === 'free' || (effective.accessState === 'locked' && isSubscribed)
+        const itemEyebrow = isShortForm ? '본편' : `Episode ${index + 1}`
 
         if (canEnter) {
           return (
@@ -67,21 +72,21 @@ export function ArtworkEpisodeList({
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Episode {index + 1}</p>
-                <h3 className="mt-2 text-base font-semibold text-white">{episode.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">{episode.preview}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span
-                    className={`rounded-full px-3 py-1 text-[11px] ${
-                      hasServerEpisodeLink(episode)
-                        ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100'
-                        : 'border border-white/10 bg-white/5 text-zinc-400'
-                    }`}
-                  >
-                    {hasServerEpisodeLink(episode) ? '서버 연동 준비' : '프로토타입 연동'}
-                  </span>
+                  <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{itemEyebrow}</p>
+                  <h3 className="mt-2 text-base font-semibold text-white">{episode.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{episode.preview}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] ${
+                        hasServerEpisodeLink(episode)
+                          ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100'
+                          : 'border border-white/10 bg-white/5 text-zinc-400'
+                      }`}
+                    >
+                      {hasServerEpisodeLink(episode) ? '서버 연동 준비' : '프로토타입 연동'}
+                    </span>
+                  </div>
                 </div>
-              </div>
                 <span className={`rounded-full px-3 py-1 text-xs ${badgeClassByAccess[effective.accessState]}`}>
                   {effective.accessState === 'locked' && isSubscribed ? '구독 공개' : '무료'}
                 </span>
@@ -97,7 +102,7 @@ export function ArtworkEpisodeList({
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Episode {index + 1}</p>
+                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{itemEyebrow}</p>
                 <h3 className="mt-2 text-base font-semibold text-white">{episode.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">{episode.preview}</p>
                 <div className="mt-3 flex flex-wrap gap-2">

@@ -212,7 +212,11 @@ function deriveFilterTags(channel: ChannelRow, episodes: EpisodeRow[]) {
   return Array.from(tags)
 }
 
-function buildGenericEpisodePreview(artworkTitle: string, episodeTitle: string) {
+function buildGenericEpisodePreview(artworkTitle: string, episodeTitle: string, isShortForm: boolean) {
+  if (isShortForm) {
+    return `${artworkTitle}의 본편 원고입니다. 실제 작품 소개 문구는 추후 스튜디오 편집 흐름에 연결할 수 있습니다.`
+  }
+
   return `${artworkTitle}의 ${episodeTitle}입니다. 실제 회차 소개 문구는 추후 스튜디오 편집 흐름에 연결할 수 있습니다.`
 }
 
@@ -236,9 +240,20 @@ function buildNovelEpisodeBody(bodyText: string) {
     .filter(Boolean)
 }
 
-function buildGenericEpisodeBody(artworkTitle: string, episodeTitle: string, hasImages: boolean) {
+function buildGenericEpisodeBody(
+  artworkTitle: string,
+  episodeTitle: string,
+  hasImages: boolean,
+  isShortForm: boolean
+) {
   if (hasImages) {
     return []
+  }
+
+  if (isShortForm) {
+    return [
+      `${artworkTitle}의 본편 원고 이미지가 아직 준비되지 않았습니다.`,
+    ]
   }
 
   return [
@@ -257,6 +272,13 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
   const orderedEpisodes = [...bundle.episodes]
     .sort((left, right) => left.episode_number - right.episode_number)
   const totalEpisodes = bundle.channel.total_episodes || orderedEpisodes.length
+  const workScale =
+    bundle.channel.work_scale === 'short' ||
+    bundle.channel.work_scale === 'medium' ||
+    bundle.channel.work_scale === 'long'
+      ? bundle.channel.work_scale
+      : 'medium'
+  const isShortForm = workScale === 'short'
   const maxFreeEpisode = bundle.channel.is_free_archive
     ? totalEpisodes
     : getMaxFreeEpisode(totalEpisodes, bundle.channel.teaser_percentage)
@@ -292,12 +314,7 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
       bundle.channel.comment_policy_note?.trim() ||
       buildGenericCommentPreview(title),
     totalEpisodes,
-    workScale:
-      bundle.channel.work_scale === 'short' ||
-      bundle.channel.work_scale === 'medium' ||
-      bundle.channel.work_scale === 'long'
-        ? bundle.channel.work_scale
-        : 'medium',
+    workScale,
     teaserPercentage: bundle.channel.teaser_percentage,
     maxFreeEpisode,
     isFreeArchive: bundle.channel.is_free_archive,
@@ -321,11 +338,11 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
         preview:
           bundle.channel.work_type === 'novel'
             ? buildNovelEpisodePreview(episode.body_text?.trim() || '', episode.title)
-            : buildGenericEpisodePreview(title, episode.title),
+            : buildGenericEpisodePreview(title, episode.title, isShortForm),
         body:
           bundle.channel.work_type === 'novel'
             ? buildNovelEpisodeBody(episode.body_text?.trim() || '')
-            : buildGenericEpisodeBody(title, episode.title, imageUrls.length > 0),
+            : buildGenericEpisodeBody(title, episode.title, imageUrls.length > 0, isShortForm),
         imageUrls,
       }
     }),

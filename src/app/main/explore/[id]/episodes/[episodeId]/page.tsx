@@ -55,10 +55,12 @@ export default async function EpisodeReaderPage({
   const currentIndex = artwork.episodes.findIndex((item) => item.id === episode.id)
   const previousEpisode = currentIndex > 0 ? artwork.episodes[currentIndex - 1] : null
   const nextEpisode = currentIndex < artwork.episodes.length - 1 ? artwork.episodes[currentIndex + 1] : null
+  const isShortForm = artwork.workScale === 'short'
+  const backAriaLabel = isShortForm ? '작품 정보로 돌아가기' : '회차 목록으로 돌아가기'
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <PageBackLink href={`/main/explore/${artwork.id}`} ariaLabel="회차 목록으로 돌아가기" />
+        <PageBackLink href={`/main/explore/${artwork.id}`} ariaLabel={backAriaLabel} />
 
         <header className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
           <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-400">
@@ -86,44 +88,55 @@ export default async function EpisodeReaderPage({
           </div>
         </header>
 
-        <EpisodeAccessPanel artworkId={artwork.id} episode={readableEpisode} />
+        <EpisodeAccessPanel artworkId={artwork.id} episode={readableEpisode} isShortForm={isShortForm} />
 
-        <nav className="grid gap-3 rounded-[32px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:grid-cols-3">
-          <div className="flex items-center">
-            {previousEpisode ? (
-              <Link
-                href={`/main/explore/${artwork.id}/episodes/${previousEpisode.id}`}
-                className="inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
-              >
-                이전 화
-              </Link>
-            ) : (
-              <span className="text-sm text-zinc-600">첫 화입니다</span>
-            )}
-          </div>
-
-          <div className="flex items-center justify-center">
+        {isShortForm ? (
+          <nav className="flex justify-center rounded-[32px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
             <Link
               href={`/main/explore/${artwork.id}`}
               className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
             >
-              회차 목록
+              작품 정보로 돌아가기
             </Link>
-          </div>
+          </nav>
+        ) : (
+          <nav className="grid gap-3 rounded-[32px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:grid-cols-3">
+            <div className="flex items-center">
+              {previousEpisode ? (
+                <Link
+                  href={`/main/explore/${artwork.id}/episodes/${previousEpisode.id}`}
+                  className="inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
+                >
+                  이전 화
+                </Link>
+              ) : (
+                <span className="text-sm text-zinc-600">첫 화입니다</span>
+              )}
+            </div>
 
-          <div className="flex items-center justify-end">
-            {nextEpisode ? (
+            <div className="flex items-center justify-center">
               <Link
-                href={`/main/explore/${artwork.id}/episodes/${nextEpisode.id}`}
-                className="inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
+                href={`/main/explore/${artwork.id}`}
+                className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
               >
-                다음 화
+                회차 목록
               </Link>
-            ) : (
-              <span className="text-sm text-zinc-600">마지막 화입니다</span>
-            )}
-          </div>
-        </nav>
+            </div>
+
+            <div className="flex items-center justify-end">
+              {nextEpisode ? (
+                <Link
+                  href={`/main/explore/${artwork.id}/episodes/${nextEpisode.id}`}
+                  className="inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
+                >
+                  다음 화
+                </Link>
+              ) : (
+                <span className="text-sm text-zinc-600">마지막 화입니다</span>
+              )}
+            </div>
+          </nav>
+        )}
       </div>
     </main>
   )

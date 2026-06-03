@@ -11,9 +11,15 @@ import { getWorkTypeLabel } from '@/lib/work'
 
 export const revalidate = 60
 
-const sectionLinks = [
+const serialSectionLinks = [
   { id: 'overview', label: '작품 소개' },
   { id: 'episodes', label: '회차 목록' },
+  { id: 'comments', label: '댓글' },
+]
+
+const shortSectionLinks = [
+  { id: 'overview', label: '작품 소개' },
+  { id: 'episodes', label: '본편' },
   { id: 'comments', label: '댓글' },
 ]
 
@@ -35,6 +41,48 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
   const savedArtworkId = artwork.backendChannelId ?? artwork.id
   const isSaved = savedArtworkIds.includes(savedArtworkId) || savedArtworkIds.includes(artwork.id)
   const firstEpisode = artwork.episodes[0] ?? null
+  const isShortForm = artwork.workScale === 'short'
+  const sectionLinks = isShortForm ? shortSectionLinks : serialSectionLinks
+  const statusLabel = isShortForm
+    ? artwork.status === 'completed'
+      ? '단편 완결'
+      : '단편 공개'
+    : artwork.status === 'completed'
+      ? '완결'
+      : '연재중'
+  const primaryReadLabel = isShortForm ? '본편 보기' : '첫 화 보기'
+  const pendingReadLabel = isShortForm ? '본편 준비 중' : '회차 준비 중'
+  const contentSectionEyebrow = isShortForm ? 'One Shot' : 'Episodes'
+  const contentSectionTitle = isShortForm ? '본편' : '회차 목록'
+  const contentCountLabel = isShortForm
+    ? firstEpisode
+      ? firstEpisode.accessState === 'coming_soon'
+        ? '본편 준비 중'
+        : '본편 공개'
+      : '본편 준비 중'
+    : `${artwork.episodes.length}화 준비`
+  const linkedCountLabel = isShortForm
+    ? backendCoverage.hasAnyLink
+      ? '본편 서버 준비'
+      : '연결 대기'
+    : backendCoverage.hasAnyLink
+      ? `${backendCoverage.linkedCount}/${backendCoverage.totalCount}화 서버 준비`
+      : '연결 대기'
+  const backendCoverageLabel = isShortForm
+    ? backendCoverage.isFullyLinked
+      ? '서버 연동 완료'
+      : backendCoverage.hasAnyLink
+        ? '본편 연동 준비'
+        : '연결 대기'
+    : backendCoverage.isFullyLinked
+      ? '서버 연동 완료'
+      : backendCoverage.hasAnyLink
+        ? `부분 연동 ${backendCoverage.linkedCount}/${backendCoverage.totalCount}`
+        : '연결 대기'
+  const artworkFormatLabel =
+    isShortForm && artwork.workType === 'webtoon'
+      ? '단편 툰'
+      : `${artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'}${isShortForm ? ' · 단편' : ''}`
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
@@ -62,7 +110,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                   ) : (
                     artwork.authorName
                   )}{' '}
-                  · {artwork.status === 'completed' ? '완결' : '연재중'}
+                  · {statusLabel}
                 </p>
               </div>
 
@@ -82,11 +130,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                           : 'border border-white/10 bg-black/20 text-zinc-400'
                     }`}
                   >
-                    {backendCoverage.isFullyLinked
-                      ? '서버 연동 완료'
-                      : backendCoverage.hasAnyLink
-                        ? `부분 연동 ${backendCoverage.linkedCount}/${backendCoverage.totalCount}`
-                        : '연결 대기'}
+                    {backendCoverageLabel}
                   </span>
                 ) : null}
               </div>
@@ -96,11 +140,11 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
               <div className="flex flex-wrap gap-3">
                 {firstEpisode ? (
                   <Link href={`/main/explore/${artwork.id}/episodes/${firstEpisode.id}`} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200">
-                    첫 화 보기
+                    {primaryReadLabel}
                   </Link>
                 ) : (
                   <span className="rounded-full border border-white/10 bg-black/20 px-5 py-3 text-sm text-zinc-500">
-                    회차 준비 중
+                    {pendingReadLabel}
                   </span>
                 )}
                 <LibraryToggleButton artworkId={artwork.id} artworkTitle={artwork.title} initialSaved={isSaved} />
@@ -138,10 +182,10 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
           <aside className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">작품 정보</p>
             <div className="mt-5 grid gap-3 text-sm text-zinc-300">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  형식: {artwork.workType ? getWorkTypeLabel(artwork.workType) : '작품'}
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">장르: {artwork.category}</div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                형식: {artworkFormatLabel}
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">장르: {artwork.category}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 작가:{' '}
                 {artwork.creatorSlug ? (
@@ -152,11 +196,11 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                   artwork.authorName
                 )}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">상태: {artwork.status === 'completed' ? '완결' : '연재중'}</div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">상태: {statusLabel}</div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">댓글: {artwork.isCommentEnabled ? '활성화' : '비활성화'}</div>
               {backendCoverage.totalCount > 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  연동 상태: {backendCoverage.hasAnyLink ? `${backendCoverage.linkedCount}/${backendCoverage.totalCount}화 서버 준비` : '연결 대기'}
+                  연동 상태: {linkedCountLabel}
                 </div>
               ) : null}
             </div>
@@ -172,13 +216,13 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
             <section id="episodes" className="scroll-mt-24 rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Episodes</p>
-                  <h2 className="mt-2 text-2xl font-bold tracking-tight">회차 목록</h2>
+                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">{contentSectionEyebrow}</p>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight">{contentSectionTitle}</h2>
                 </div>
-                <span className="text-sm text-zinc-400">{artwork.episodes.length}화 준비</span>
+                <span className="text-sm text-zinc-400">{contentCountLabel}</span>
               </div>
 
-              <ArtworkEpisodeList artworkId={artwork.id} episodes={artwork.episodes} />
+              <ArtworkEpisodeList artworkId={artwork.id} episodes={artwork.episodes} isShortForm={isShortForm} />
             </section>
 
             <section id="comments" className="scroll-mt-24 rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
