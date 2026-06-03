@@ -6,8 +6,33 @@ import {
   deleteToonWorkWithState,
   type DeleteToonWorkActionState,
 } from '@/app/main/studio/channels/actions'
+import {
+  getWebtoonChannelDraftKey,
+  getWebtoonChannelDraftResetSignalKey,
+  getWebtoonChannelDraftStorageKey,
+} from '@/lib/work-drafts'
 
 const initialState: DeleteToonWorkActionState = { error: null }
+const WEBTOON_CHANNEL_DRAFT_TYPE = 'webtoon_channel'
+
+function clearNewWebtoonDraftBeforeDelete() {
+  window.localStorage.removeItem(getWebtoonChannelDraftStorageKey())
+  window.sessionStorage.setItem(getWebtoonChannelDraftResetSignalKey(), '1')
+
+  fetch('/api/studio/work-drafts', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      draftType: WEBTOON_CHANNEL_DRAFT_TYPE,
+      draftKey: getWebtoonChannelDraftKey(),
+    }),
+    keepalive: true,
+  }).catch(() => {
+    // The server action also tries to clear this draft after deletion.
+  })
+}
 
 function DeleteButton() {
   const { pending } = useFormStatus()
@@ -44,6 +69,11 @@ export function DeleteToonWorkButton({
 
         if (!confirmed) {
           event.preventDefault()
+          return
+        }
+
+        if (workType === 'webtoon') {
+          clearNewWebtoonDraftBeforeDelete()
         }
       }}
       className="flex flex-col items-start gap-2 md:items-end"

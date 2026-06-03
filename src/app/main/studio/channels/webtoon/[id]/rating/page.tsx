@@ -10,15 +10,19 @@ export default async function WebtoonRatingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ clearDraftKey?: string }>
+  searchParams: Promise<{ clearDraftKey?: string; flow?: string }>
 }) {
   const { id } = await params
-  const { clearDraftKey } = await searchParams
+  const { clearDraftKey, flow } = await searchParams
   const webtoon = await getCreatorWebtoonById(id)
 
   if (!webtoon) {
     notFound()
   }
+  const isShortFlow = webtoon.workScale === 'short' || flow === 'short'
+  const nextPath = isShortFlow
+    ? `/main/studio/channels/webtoon/${webtoon.id}/episodes/new?flow=short`
+    : `/main/studio/channels/webtoon/${webtoon.id}/episodes/new`
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
@@ -41,8 +45,9 @@ export default async function WebtoonRatingPage({
           ageRating={webtoon.ageRating}
           ratingChecklist={webtoon.ratingChecklist}
           backHref={`/main/studio/channels/webtoon/${webtoon.id}/edit`}
-          nextPath={`/main/studio/channels/webtoon/${webtoon.id}/episodes/new`}
-          submitLabel="등급 저장하고 회차 업로드하기"
+          nextPath={nextPath}
+          workScale={isShortFlow ? 'short' : undefined}
+          submitLabel={isShortFlow ? '등급 저장하고 단편 원고 업로드하기' : '등급 저장하고 회차 업로드하기'}
         />
       </div>
     </main>

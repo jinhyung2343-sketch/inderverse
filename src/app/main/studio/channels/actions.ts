@@ -25,7 +25,12 @@ import { createClient } from '@/lib/supabase/server'
 import type { SparkDraftInput, SparkFormat, SparkPanel, SparkStatus } from '@/lib/spark'
 import { buildSparkMeta, getSparkPanelCount, sanitizeSparkTags } from '@/lib/spark'
 import { isWorkType } from '@/lib/work'
-import { isValidWorkDraftKey, isWorkDraftType } from '@/lib/work-drafts'
+import {
+  getWebtoonChannelDraftKey,
+  getWebtoonChannelDraftStorageKey,
+  isValidWorkDraftKey,
+  isWorkDraftType,
+} from '@/lib/work-drafts'
 import type {
   NovelDraftInput,
   NovelEpisodeDraftInput,
@@ -158,6 +163,20 @@ async function deleteToonWorkMutation(formData: FormData) {
     throw new Error(deleteError.message)
   }
 
+  if (workType === 'webtoon') {
+    const newChannelDraftKey = getWebtoonChannelDraftKey()
+    const { error: draftDeleteError } = await supabase
+      .from('creator_work_drafts')
+      .delete()
+      .eq('owner_id', userId)
+      .eq('draft_type', 'webtoon_channel')
+      .eq('draft_key', newChannelDraftKey)
+
+    if (draftDeleteError) {
+      console.warn('Failed to delete new webtoon draft after work deletion:', draftDeleteError.message)
+    }
+  }
+
   revalidatePath('/main/studio')
   revalidatePath('/main/studio/channels')
   revalidatePath('/main/studio/channels/webtoon')
@@ -169,7 +188,12 @@ async function deleteToonWorkMutation(formData: FormData) {
   revalidatePath(`/main/spark/${channelId}`)
   revalidatePublicContentCache()
 
-  return '/main/studio/channels/webtoon?deleted=1'
+  const clearDraftKey =
+    workType === 'webtoon'
+      ? `&clearDraftKey=${encodeURIComponent(getWebtoonChannelDraftStorageKey())}`
+      : ''
+
+  return `/main/studio/channels/webtoon?deleted=1${clearDraftKey}`
 }
 
 export async function deleteToonWorkWithState(
@@ -1166,7 +1190,12 @@ async function createWebtoonChannelMutation(formData: FormData) {
   revalidatePublicContentCache()
   await deleteServerWorkDraft(supabase, userId, formData)
 
-  return appendLocalDraftClearParam(`/main/studio/channels/webtoon/${data.id}/rating`, formData)
+  const ratingPath =
+    input.workScale === 'short'
+      ? `/main/studio/channels/webtoon/${data.id}/rating?flow=short`
+      : `/main/studio/channels/webtoon/${data.id}/rating`
+
+  return appendLocalDraftClearParam(ratingPath, formData)
 }
 
 export async function createWebtoonChannel(formData: FormData) {
@@ -1206,13 +1235,25 @@ async function updateChannelContentRatingMutation(formData: FormData) {
     throw new Error('유효하지 않은 작품 유형입니다.')
   }
 
+  const workScaleValue = readText(formData, 'workScale')
+  const ratingPayload: {
+    age_rating: typeof contentRating.ageRating
+    rating_checklist: ReturnType<typeof buildRatingChecklistJson>
+    is_adult_only: boolean
+    work_scale?: 'short' | 'medium' | 'long'
+  } = {
+    age_rating: contentRating.ageRating,
+    rating_checklist: buildRatingChecklistJson(contentRating.ratingChecklist),
+    is_adult_only: contentRating.isAdultOnly,
+  }
+
+  if ((workType === 'webtoon' || workType === 'novel') && isWorkScale(workScaleValue)) {
+    ratingPayload.work_scale = workScaleValue
+  }
+
   const { error } = await supabase
     .from('channels')
-    .update({
-      age_rating: contentRating.ageRating,
-      rating_checklist: buildRatingChecklistJson(contentRating.ratingChecklist),
-      is_adult_only: contentRating.isAdultOnly,
-    })
+    .update(ratingPayload)
     .eq('id', channelId)
     .eq('creator_id', userId)
     .eq('work_type', workType)
@@ -1590,7 +1631,7 @@ export async function createWebtoonEpisode(formData: FormData) {
 
   const { data: channel, error: channelError } = await supabase
     .from('channels')
-    .select('id, is_adult_only')
+    .select('id, is_adult_only, work_scale')
     .eq('id', channelId)
     .eq('creator_id', userId)
     .eq('work_type', 'webtoon')
@@ -1598,6 +1639,24 @@ export async function createWebtoonEpisode(formData: FormData) {
 
   if (channelError || !channel) {
     throw new Error('내 연재 툰에서만 회차를 만들 수 있습니다.')
+  }
+
+  if (channel.work_scale === 'short') {
+    const { data: existingEpisode, error: existingEpisodeError } = await supabase
+      .from('episodes')
+      .select('id')
+      .eq('channel_id', channelId)
+      .order('episode_number', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (existingEpisodeError) {
+      throw new Error(existingEpisodeError.message)
+    }
+
+    if (existingEpisode) {
+      redirect(`/main/studio/channels/webtoon/${channelId}/episodes/${existingEpisode.id}/edit`)
+    }
   }
 
   const publishedAt = input.status === 'published' ? new Date().toISOString() : null

@@ -33,6 +33,7 @@ export function ContentRatingStepForm({
   ratingChecklist,
   backHref,
   nextPath,
+  workScale,
   submitLabel = '등급 저장하고 계속하기',
 }: {
   action: (
@@ -46,6 +47,7 @@ export function ContentRatingStepForm({
   ratingChecklist: RatingChecklist
   backHref: string
   nextPath: string
+  workScale?: string
   submitLabel?: string
 }) {
   const [state, formAction] = useActionState(action, initialActionState)
@@ -55,6 +57,7 @@ export function ContentRatingStepForm({
       <input type="hidden" name="channelId" value={channelId} />
       <input type="hidden" name="workType" value={workType} />
       <input type="hidden" name="nextPath" value={nextPath} />
+      {workScale ? <input type="hidden" name="workScale" value={workScale} /> : null}
 
       <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl md:p-8">
         <div className="space-y-3">

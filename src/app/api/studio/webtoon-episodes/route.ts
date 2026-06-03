@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     const { data: channel, error: channelError } = await supabase
       .from('channels')
-      .select('id, is_adult_only')
+      .select('id, is_adult_only, work_scale')
       .eq('id', channelId)
       .eq('creator_id', user.id)
       .eq('work_type', 'webtoon')
@@ -80,6 +80,33 @@ export async function POST(req: NextRequest) {
 
     if (channelError || !channel) {
       return NextResponse.json({ error: '내 연재 툰에서만 회차를 만들 수 있습니다.' }, { status: 403 })
+    }
+
+    if (channel.work_scale === 'short') {
+      const { data: existingEpisode, error: existingEpisodeError } = await supabase
+        .from('episodes')
+        .select('id')
+        .eq('channel_id', channelId)
+        .order('episode_number', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (existingEpisodeError) {
+        return NextResponse.json({ error: existingEpisodeError.message }, { status: 500 })
+      }
+
+      if (existingEpisode) {
+        return NextResponse.json(
+          {
+            episodeId: existingEpisode.id,
+            editPath: `/main/studio/channels/webtoon/${channelId}/episodes/${existingEpisode.id}/edit`,
+          },
+          {
+            status: 200,
+            headers: buildTrafficCostHeaders('privateApi', { includeCacheControl: true }),
+          }
+        )
+      }
     }
 
     const publishedAt = statusValue === 'published' ? new Date().toISOString() : null

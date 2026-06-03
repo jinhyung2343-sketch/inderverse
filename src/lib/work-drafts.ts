@@ -23,6 +23,14 @@ export function getWebtoonChannelDraftKey(channelId?: string) {
   return `webtoon-channel:${channelId ?? 'new'}`
 }
 
+export function getWebtoonChannelDraftStorageKey(channelId?: string) {
+  return `inderverse:webtoon-channel-draft:${channelId ?? 'new'}`
+}
+
+export function getWebtoonChannelDraftResetSignalKey(channelId?: string) {
+  return `inderverse:webtoon-channel-draft-reset:${channelId ?? 'new'}`
+}
+
 export function getWebtoonEpisodeDraftKey(channelId: string, episodeId?: string) {
   return `webtoon-episode:${channelId}:${episodeId ?? 'new'}`
 }

@@ -368,11 +368,15 @@ export function EpisodeImagesField({
   episodeId,
   initialImages,
   draftStorageKey,
+  maxImageCount,
+  imageUnitLabel = '장',
 }: {
   channelId: string
   episodeId?: string
   initialImages: WebtoonEpisodeImageRecord[]
   draftStorageKey?: string
+  maxImageCount?: number
+  imageUnitLabel?: string
 }) {
   const [images, setImages] = useState<EpisodeImageDraft[]>(() => normalizeImages(initialImages))
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
@@ -384,6 +388,9 @@ export function EpisodeImagesField({
   const draftLoadedRef = useRef(false)
   const guideItems = getWebtoonUploadGuide()
   const activeImages = images.filter((image) => image.imageUrl.trim())
+  const imageCountLimit = typeof maxImageCount === 'number' && maxImageCount > 0 ? maxImageCount : null
+  const hasImageCountLimit = imageCountLimit !== null
+  const imageCountLimitReached = imageCountLimit !== null && images.length >= imageCountLimit
   const diagnosticsByIndex = images.map((image) => {
     if (image.imageUrl.trim() || activeImages.length === 0) {
       return getImageDiagnostics(image)
@@ -403,8 +410,19 @@ export function EpisodeImagesField({
     {
       label: '이미지 등록',
       passed: activeImages.length > 0,
-      message: activeImages.length > 0 ? `${activeImages.length}장 준비됨` : '공개 전 최소 1장 필요',
+      message: activeImages.length > 0
+        ? `${activeImages.length}${imageUnitLabel} 준비됨`
+        : `공개 전 최소 1${imageUnitLabel} 필요`,
     },
+    ...(imageCountLimit !== null
+      ? [
+          {
+            label: '컷 분량',
+            passed: images.length <= imageCountLimit,
+            message: `최대 ${imageCountLimit}${imageUnitLabel}까지 제공됩니다.`,
+          },
+        ]
+      : []),
     {
       label: '업로드 완료',
       passed: images.every((image) => image.status !== 'pending' && image.status !== 'uploading'),
@@ -556,6 +574,11 @@ export function EpisodeImagesField({
   }
 
   function addImageRow() {
+    if (imageCountLimitReached) {
+      setMessage(`단편 툰은 최대 ${imageCountLimit}${imageUnitLabel}까지 제공됩니다.`)
+      return
+    }
+
     setImages((current) => [...current, createEmptyImageDraft(current.length)])
   }
 
@@ -838,7 +861,26 @@ export function EpisodeImagesField({
       return
     }
 
-    const preparedResult = await prepareEpisodeFiles(files)
+    const existingEmptyCount = images.filter((image) => !image.imageUrl.trim()).length
+    const remainingSlots = imageCountLimit !== null
+      ? episodeId
+        ? Math.max(0, imageCountLimit - images.length + existingEmptyCount)
+        : imageCountLimit
+      : files.length
+    const acceptedFiles = imageCountLimit !== null ? files.slice(0, remainingSlots) : files
+
+    if (acceptedFiles.length === 0) {
+      setMessage(`단편 툰은 최대 ${imageCountLimit}${imageUnitLabel}까지 제공됩니다.`)
+      return
+    }
+
+    if (imageCountLimit !== null && files.length > acceptedFiles.length) {
+      setMessage(
+        `단편 툰은 최대 ${imageCountLimit}${imageUnitLabel}까지 제공됩니다. 초과한 ${files.length - acceptedFiles.length}${imageUnitLabel}은 제외했습니다.`
+      )
+    }
+
+    const preparedResult = await prepareEpisodeFiles(acceptedFiles)
     const preparedFiles = preparedResult?.files
 
     if (!preparedFiles) {
@@ -874,7 +916,11 @@ export function EpisodeImagesField({
           }
         })
       )
-      setMessage('선택한 회차 이미지를 먼저 미리보고 있습니다. 회차를 저장하면 업로드가 함께 진행됩니다.')
+      setMessage(
+        imageCountLimit !== null && files.length > acceptedFiles.length
+          ? `단편 툰은 최대 ${imageCountLimit}${imageUnitLabel}까지 제공됩니다. ${preparedFiles.length}${imageUnitLabel}만 미리보기에 반영했습니다.`
+          : '선택한 회차 이미지를 먼저 미리보고 있습니다. 회차를 저장하면 업로드가 함께 진행됩니다.'
+      )
       return
     }
 
@@ -944,6 +990,12 @@ export function EpisodeImagesField({
         {episodeId
           ? '원고 이미지를 추가하면 현재 순서대로 회차에 반영됩니다.'
           : '여러 이미지를 먼저 고르고 순서를 확인한 뒤 회차를 저장할 수 있습니다.'}
+        {hasImageCountLimit ? (
+          <p className="mt-2 font-semibold text-emerald-100">
+            단편 툰은 최대 {imageCountLimit}
+            {imageUnitLabel}까지 제공됩니다.
+          </p>
+        ) : null}
       </div>
 
       {draftRestored ? (
@@ -1204,7 +1256,8 @@ export function EpisodeImagesField({
       <button
         type="button"
         onClick={addImageRow}
-        className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
+        disabled={imageCountLimitReached}
+        className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
       >
         이미지 칸 추가
       </button>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ClearLocalDraftOnMount } from '@/components/studio/ClearLocalDraftOnMount'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { DeleteToonWorkButton } from '@/components/studio/DeleteToonWorkButton'
 import { getAgeRatingLabel } from '@/lib/content-rating'
@@ -42,9 +43,9 @@ function formatUpdatedAt(value: string) {
 export default async function ToonBottegaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ deleted?: string }>
+  searchParams: Promise<{ clearDraftKey?: string; deleted?: string }>
 }) {
-  const { deleted } = await searchParams
+  const { clearDraftKey, deleted } = await searchParams
   const [webtoonChannels, sparkChannels] = await Promise.all([
     getCreatorWebtoonList(),
     getCreatorSparkList(),
@@ -82,6 +83,7 @@ export default async function ToonBottegaPage({
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-5 py-8 text-white md:px-8">
+      <ClearLocalDraftOnMount storageKey={clearDraftKey} />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="space-y-6 border-b border-white/10 pb-6">
           <div className="flex items-center justify-between gap-4">

@@ -12,6 +12,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 const statusOptions = ['draft', 'published', 'hidden'] as const
 const WEBTOON_EPISODE_DRAFT_TYPE = 'webtoon_episode'
+const SHORT_WEBTOON_MAX_CUT_COUNT = 220
 
 interface EpisodeFormDraft {
   title: string
@@ -170,6 +171,7 @@ export function WebtoonEpisodeEditorForm({
   initialValue,
   heading,
   description,
+  isShortForm = false,
   submitLabel,
   workTitle,
 }: {
@@ -179,6 +181,7 @@ export function WebtoonEpisodeEditorForm({
   initialValue?: CreatorWebtoonEpisodeRecord
   heading: string
   description: string
+  isShortForm?: boolean
   submitLabel: string
   workTitle?: string
 }) {
@@ -201,6 +204,7 @@ export function WebtoonEpisodeEditorForm({
     [channelId, episodeId]
   )
   const imagesDraftStorageKey = `${draftStorageKey}:images`
+  const defaultShortEpisodeTitle = workTitle?.trim() || '단편 툰'
 
   useEffect(() => {
     let isMounted = true
@@ -419,7 +423,9 @@ export function WebtoonEpisodeEditorForm({
     const pendingFiles = getPendingEpisodeImageFiles(formData)
 
     setSubmitError(null)
-    setSubmitMessage('회차 정보를 먼저 저장하고 있습니다.')
+    setSubmitMessage(
+      isShortForm ? '단편 원고 정보를 먼저 저장하고 있습니다.' : '회차 정보를 먼저 저장하고 있습니다.',
+    )
     setCreatedEpisodePath(null)
     setIsSubmittingNewEpisode(true)
 
@@ -464,7 +470,13 @@ export function WebtoonEpisodeEditorForm({
       await deleteServerEpisodeDraft(serverDraftKey)
       window.location.assign(`${createPayload.editPath}?saved=1`)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : '회차 저장 중 문제가 발생했습니다.')
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : isShortForm
+            ? '단편 원고 저장 중 문제가 발생했습니다.'
+            : '회차 저장 중 문제가 발생했습니다.',
+      )
       setSubmitMessage(null)
     } finally {
       setIsSubmittingNewEpisode(false)
@@ -508,30 +520,45 @@ export function WebtoonEpisodeEditorForm({
         <input type="hidden" name="coinPrice" value="0" />
         <div className="space-y-6">
           <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-            <h2 className="text-lg font-bold text-white">회차 기본값</h2>
+            <h2 className="text-lg font-bold text-white">
+              {isShortForm ? '단편 공개 설정' : '회차 기본값'}
+            </h2>
             <div className="mt-5 grid gap-4">
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>회차 제목</span>
-                <input
-                  name="title"
-                  required
-                  defaultValue={initialValue?.title ?? ''}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                  placeholder="1화. 첫 번째 장면"
-                />
-              </label>
+              {isShortForm ? (
+                <>
+                  <input type="hidden" name="title" defaultValue={initialValue?.title ?? defaultShortEpisodeTitle} />
+                  <input type="hidden" name="episodeNumber" defaultValue={initialValue?.episodeNumber ?? 1} />
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
+                    단편 툰은 한 편으로 공개되므로 회차 제목과 번호를 따로 입력하지 않습니다. 원고 이미지를 순서대로
+                    업로드하면 이 작품의 본편으로 저장됩니다.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="grid gap-2 text-sm text-zinc-300">
+                    <span>회차 제목</span>
+                    <input
+                      name="title"
+                      required
+                      defaultValue={initialValue?.title ?? ''}
+                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                      placeholder="1화. 첫 번째 장면"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>회차 번호</span>
-                <input
-                  type="number"
-                  min={1}
-                  name="episodeNumber"
-                  required
-                  defaultValue={initialValue?.episodeNumber ?? 1}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm text-zinc-300">
+                    <span>회차 번호</span>
+                    <input
+                      type="number"
+                      min={1}
+                      name="episodeNumber"
+                      required
+                      defaultValue={initialValue?.episodeNumber ?? 1}
+                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                    />
+                  </label>
+                </>
+              )}
 
               <label className="grid gap-2 text-sm text-zinc-300">
                 <span>저장 상태</span>
@@ -555,7 +582,9 @@ export function WebtoonEpisodeEditorForm({
               <div>
                 <p className="font-semibold text-emerald-100">계정 초안 자동저장</p>
                 <p className="mt-1 text-zinc-400">
-                  회차 입력값과 업로드 완료 이미지 순서를 계정 서버 초안과 이 브라우저에 함께 저장합니다. 마지막 저장:{' '}
+                  {isShortForm
+                    ? '단편 원고 설정과 업로드 완료 이미지 순서를 계정 서버 초안과 이 브라우저에 함께 저장합니다. 마지막 저장: '
+                    : '회차 입력값과 업로드 완료 이미지 순서를 계정 서버 초안과 이 브라우저에 함께 저장합니다. 마지막 저장: '}
                   {formatDraftSavedAt(lastSavedAt)}
                 </p>
                 {isAutoSavePaused ? (
@@ -580,8 +609,9 @@ export function WebtoonEpisodeEditorForm({
           </div>
 
           <div className="rounded-[24px] border border-sky-400/20 bg-sky-500/5 p-5 text-sm leading-6 text-zinc-300">
-            작품 등급과 공개 기준은 이전 단계에서 정한 값을 따릅니다. 새 회차는 먼저 회차 정보를 저장한 뒤,
-            선택한 이미지를 한 장씩 안정적으로 업로드합니다.
+            {isShortForm
+              ? '작품 등급과 공개 기준은 이전 단계에서 정한 값을 따릅니다. 단편 원고는 먼저 본편 정보를 저장한 뒤, 선택한 이미지를 한 장씩 안정적으로 업로드합니다.'
+              : '작품 등급과 공개 기준은 이전 단계에서 정한 값을 따릅니다. 새 회차는 먼저 회차 정보를 저장한 뒤, 선택한 이미지를 한 장씩 안정적으로 업로드합니다.'}
           </div>
 
           {submitMessage ? (
@@ -598,7 +628,7 @@ export function WebtoonEpisodeEditorForm({
                   href={createdEpisodePath}
                   className="mt-3 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold text-rose-50 transition hover:bg-white/10"
                 >
-                  저장된 회차 편집으로 이동
+                  {isShortForm ? '저장된 단편 원고 편집으로 이동' : '저장된 회차 편집으로 이동'}
                 </a>
               ) : null}
             </div>
@@ -609,12 +639,16 @@ export function WebtoonEpisodeEditorForm({
             disabled={isSubmittingNewEpisode}
             className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmittingNewEpisode ? '회차 저장 중...' : submitLabel}
+            {isSubmittingNewEpisode
+              ? isShortForm
+                ? '단편 원고 저장 중...'
+                : '회차 저장 중...'
+              : submitLabel}
           </button>
         </div>
 
         <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:p-6">
-          <h2 className="text-xl font-bold text-white">회차 이미지</h2>
+          <h2 className="text-xl font-bold text-white">{isShortForm ? '원고 이미지' : '회차 이미지'}</h2>
           <div className="mt-5">
             {draftLoaded ? (
               <EpisodeImagesField
@@ -622,10 +656,12 @@ export function WebtoonEpisodeEditorForm({
                 episodeId={episodeId}
                 initialImages={initialValue?.images ?? []}
                 draftStorageKey={imagesDraftStorageKey}
+                maxImageCount={isShortForm ? SHORT_WEBTOON_MAX_CUT_COUNT : undefined}
+                imageUnitLabel={isShortForm ? '컷' : '장'}
               />
             ) : (
               <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
-                저장된 회차 초안을 확인하고 있습니다.
+                {isShortForm ? '저장된 단편 원고 초안을 확인하고 있습니다.' : '저장된 회차 초안을 확인하고 있습니다.'}
               </div>
             )}
           </div>

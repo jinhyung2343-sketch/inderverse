@@ -14,7 +14,7 @@ import {
   type RatingChecklist,
 } from '@/lib/content-rating'
 import { categories } from '@/lib/explore'
-import type { CreatorWebtoonRecord } from '@/lib/webtoon'
+import type { CreatorWebtoonRecord, WorkScale } from '@/lib/webtoon'
 import {
   FLEXIBLE_SERIALIZATION_LABEL,
   getSerializationDayLabel,
@@ -25,6 +25,8 @@ import { WebtoonCoverField } from '@/components/webtoon/WebtoonCoverField'
 import type { Json } from '@/lib/supabase/types'
 import {
   getWebtoonChannelDraftKey,
+  getWebtoonChannelDraftResetSignalKey,
+  getWebtoonChannelDraftStorageKey,
   type WorkDraftRecord,
 } from '@/lib/work-drafts'
 
@@ -33,7 +35,6 @@ const statusOptions = ['draft', 'publishing', 'completed'] as const
 const categoryOptions = categories.filter((category) => category !== '전체')
 const workScaleOptions = ['short', 'medium', 'long'] as const
 const initialActionState: WebtoonChannelActionState = { error: null }
-const WEBTOON_CHANNEL_DRAFT_KEY_PREFIX = 'inderverse:webtoon-channel-draft:'
 const WEBTOON_CHANNEL_DRAFT_TYPE = 'webtoon_channel'
 
 interface WebtoonChannelFormDraft {
@@ -212,8 +213,10 @@ export function WebtoonEditorForm({
   initialValue,
   heading,
   description,
+  lockedWorkScale,
   submitLabel,
   channelId,
+  restoreDrafts = true,
   showContentRatingFieldset = true,
 }: {
   action: (
@@ -223,8 +226,10 @@ export function WebtoonEditorForm({
   initialValue?: CreatorWebtoonRecord
   heading: string
   description: string
+  lockedWorkScale?: WorkScale
   submitLabel: string
   channelId?: string
+  restoreDrafts?: boolean
   showContentRatingFieldset?: boolean
 }) {
   const [state, formAction] = useActionState(action, initialActionState)
@@ -238,7 +243,11 @@ export function WebtoonEditorForm({
   const [localDraft, setLocalDraft] = useState<WebtoonChannelFormDraft | null>(null)
   const lastServerDraftJsonRef = useRef<string | null>(null)
   const draftStorageKey = useMemo(
-    () => `${WEBTOON_CHANNEL_DRAFT_KEY_PREFIX}${channelId ?? 'new'}`,
+    () => getWebtoonChannelDraftStorageKey(channelId),
+    [channelId]
+  )
+  const draftResetSignalKey = useMemo(
+    () => getWebtoonChannelDraftResetSignalKey(channelId),
     [channelId]
   )
   const serverDraftKey = useMemo(
@@ -255,10 +264,17 @@ export function WebtoonEditorForm({
       try {
         const url = new URL(window.location.href)
         const clearDraftKey = url.searchParams.get('clearDraftKey')
-        const shouldClearSavedDraft = clearDraftKey === draftStorageKey || url.searchParams.get('saved') === '1'
+        const shouldResetDeletedDraft =
+          !channelId && window.sessionStorage.getItem(draftResetSignalKey) === '1'
+        const shouldClearSavedDraft =
+          clearDraftKey === draftStorageKey ||
+          url.searchParams.get('saved') === '1' ||
+          shouldResetDeletedDraft ||
+          !restoreDrafts
 
         if (shouldClearSavedDraft) {
           window.localStorage.removeItem(draftStorageKey)
+          window.sessionStorage.removeItem(draftResetSignalKey)
           shouldDeleteServerDraft = true
           url.searchParams.delete('clearDraftKey')
           url.searchParams.delete('saved')
@@ -314,7 +330,7 @@ export function WebtoonEditorForm({
     return () => {
       isMounted = false
     }
-  }, [draftStorageKey, serverDraftKey])
+  }, [channelId, draftResetSignalKey, draftStorageKey, restoreDrafts, serverDraftKey])
 
   useEffect(() => {
     if (!draftLoaded) {
@@ -344,7 +360,7 @@ export function WebtoonEditorForm({
         serializationDays: formData
           .getAll('serializationDays')
           .map((value) => String(value)),
-        workScale: String(formData.get('workScale') ?? 'medium'),
+        workScale: lockedWorkScale ?? String(formData.get('workScale') ?? 'medium'),
         teaserPercentage: String(formData.get('teaserPercentage') ?? '10'),
         isFreeArchive: formData.get('isFreeArchive') === 'on',
         isCommentEnabled: formData.get('isCommentEnabled') === 'on',
@@ -378,7 +394,7 @@ export function WebtoonEditorForm({
     }, 2000)
 
     return () => window.clearInterval(intervalId)
-  }, [channelId, draftLoaded, draftStorageKey, isAutoSavePaused, serverDraftKey])
+  }, [channelId, draftLoaded, draftStorageKey, isAutoSavePaused, lockedWorkScale, serverDraftKey])
 
   function clearLocalDraft() {
     window.localStorage.removeItem(draftStorageKey)
@@ -465,6 +481,7 @@ export function WebtoonEditorForm({
     localDraft?.tags ?? initialValue?.tags.filter((tag) => tag !== initialValue.category).join(', ') ?? ''
   const initialCoverImageUrl = localDraft?.coverImageUrl ?? initialValue?.coverImageUrl ?? ''
   const initialAgeRating = localDraft?.ageRating ?? initialValue?.ageRating ?? 'all'
+  const initialWorkScale = lockedWorkScale ?? localDraft?.workScale ?? initialValue?.workScale ?? 'medium'
   const initialChecklist =
     localDraft?.ratingChecklist ?? initialValue?.ratingChecklist ?? DEFAULT_RATING_CHECKLIST
 
@@ -625,20 +642,24 @@ export function WebtoonEditorForm({
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-zinc-300">
-                <span>작품 규모</span>
-                <select
-                  name="workScale"
-                  defaultValue={localDraft?.workScale ?? initialValue?.workScale ?? 'medium'}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-                >
-                  {workScaleOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {getWorkScaleLabel(option)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {lockedWorkScale ? (
+                <input type="hidden" name="workScale" value={lockedWorkScale} />
+              ) : (
+                <label className="grid gap-2 text-sm text-zinc-300">
+                  <span>작품 규모</span>
+                  <select
+                    name="workScale"
+                    defaultValue={initialWorkScale}
+                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
+                  >
+                    {workScaleOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {getWorkScaleLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label className="grid gap-2 text-sm text-zinc-300">
                 <span>맛보기 공개 비율 (%)</span>

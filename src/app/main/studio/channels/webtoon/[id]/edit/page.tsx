@@ -24,6 +24,8 @@ export default async function EditWebtoonPage({
   if (!webtoon) {
     notFound()
   }
+  const isShortForm = webtoon.workScale === 'short'
+  const shortEpisode = isShortForm ? webtoon.episodes[0] ?? null : null
 
   async function updateWebtoonChannelWithId(
     previousState: WebtoonChannelActionState,
@@ -58,26 +60,39 @@ export default async function EditWebtoonPage({
         <WebtoonEditorForm
           action={updateWebtoonChannelWithId}
           initialValue={webtoon}
-          heading="연재 툰 수정"
-          description="탐색 노출에 쓰이는 작품 메타데이터와 연재 운용 기준을 직접 다듬습니다."
+          heading={isShortForm ? '단편 툰 수정' : '연재 툰 수정'}
+          description={
+            isShortForm
+              ? '탐색 노출에 쓰이는 작품 메타데이터와 단편 공개 기준을 직접 다듬습니다.'
+              : '탐색 노출에 쓰이는 작품 메타데이터와 연재 운용 기준을 직접 다듬습니다.'
+          }
           submitLabel="변경 저장"
           channelId={webtoon.id}
+          lockedWorkScale={isShortForm ? 'short' : undefined}
         />
 
         <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Episodes</p>
-              <h2 className="mt-2 text-2xl font-bold text-white">회차 관리</h2>
+              <h2 className="mt-2 text-2xl font-bold text-white">
+                {isShortForm ? '원고 관리' : '회차 관리'}
+              </h2>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                회차별 공개 상태, 가격 정책, 이미지 업로드를 이곳에서 이어서 관리합니다.
+                {isShortForm
+                  ? '단편 본편 이미지와 공개 상태를 이곳에서 이어서 관리합니다.'
+                  : '회차별 공개 상태, 가격 정책, 이미지 업로드를 이곳에서 이어서 관리합니다.'}
               </p>
             </div>
             <Link
-              href={`/main/studio/channels/webtoon/${webtoon.id}/episodes/new`}
+              href={
+                shortEpisode
+                  ? `/main/studio/channels/webtoon/${webtoon.id}/episodes/${shortEpisode.id}/edit`
+                  : `/main/studio/channels/webtoon/${webtoon.id}/episodes/new`
+              }
               className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
             >
-              새 회차 만들기
+              {isShortForm ? (shortEpisode ? '단편 원고 편집' : '단편 원고 업로드') : '새 회차 만들기'}
             </Link>
           </div>
 
@@ -92,10 +107,12 @@ export default async function EditWebtoonPage({
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h3 className="text-xl font-bold text-white">
-                        {episode.episodeNumber}화. {episode.title}
+                        {isShortForm ? episode.title : `${episode.episodeNumber}화. ${episode.title}`}
                       </h3>
                       <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        이미지 {episode.images.length}장 · {episode.episodeNumber}화
+                        {isShortForm
+                          ? `이미지 ${episode.images.length}장 · 단편 본편`
+                          : `이미지 ${episode.images.length}장 · ${episode.episodeNumber}화`}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs text-zinc-300">

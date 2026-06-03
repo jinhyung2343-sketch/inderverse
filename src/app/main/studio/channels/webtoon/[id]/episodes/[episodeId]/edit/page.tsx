@@ -22,6 +22,7 @@ export default async function EditWebtoonEpisodePage({
   if (!episode) {
     notFound()
   }
+  const isShortForm = webtoon.workScale === 'short'
 
   async function updateEpisodeWithIds(formData: FormData) {
     'use server'
@@ -47,9 +48,14 @@ export default async function EditWebtoonEpisodePage({
           channelId={id}
           episodeId={episodeId}
           initialValue={episode}
-          heading="회차 원고 수정"
-          description="작품 설정은 유지하고, 이번 회차의 제목과 원고 이미지 순서만 다듬습니다."
-          submitLabel="회차 변경 저장"
+          heading={isShortForm ? '단편 원고 수정' : '회차 원고 수정'}
+          description={
+            isShortForm
+              ? '단편 툰의 본편 이미지 순서와 공개 상태를 다듬습니다.'
+              : '작품 설정은 유지하고, 이번 회차의 제목과 원고 이미지 순서만 다듬습니다.'
+          }
+          isShortForm={isShortForm}
+          submitLabel={isShortForm ? '단편 원고 저장' : '회차 변경 저장'}
           workTitle={webtoon.title}
         />
       </div>

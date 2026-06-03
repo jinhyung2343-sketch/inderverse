@@ -12,6 +12,7 @@ export function ClearLocalDraftOnMount({ storageKey }: { storageKey?: string | n
 
     const url = new URL(window.location.href)
     url.searchParams.delete('clearDraftKey')
+    url.searchParams.delete('deleted')
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
   }, [storageKey])
 
