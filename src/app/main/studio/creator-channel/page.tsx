@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BottegaSwitcher } from '@/components/studio/BottegaSwitcher'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { CreatorRegistrationCancelPanel } from '@/components/studio/CreatorRegistrationCancelPanel'
 import { CreatorChannelSettingsForm } from '@/components/studio/CreatorChannelSettingsForm'
@@ -89,18 +90,6 @@ export default async function CreatorChannelSettingsPage() {
   const myBottegaLabel = getBottegaLabel(channel.primaryWorkType)
   const operationLinks = [
     {
-      href: myBottegaHref,
-      title: myBottegaLabel,
-      description: channel.primaryWorkType
-        ? '선택한 장르의 개인 작업실로 돌아갑니다.'
-        : '아직 Bottega 장르를 고르지 않았다면 장르 선택부터 시작합니다.',
-    },
-    {
-      href: myBottegaHref,
-      title: '작업물 관리',
-      description: '공개 상태, 회차, 표지, 태그를 선택한 장르의 작업 화면에서 조정합니다.',
-    },
-    {
       href: publicChannelTarget,
       title: canOpenPublicChannel ? '공개 프로필 확인' : '공개 프로필 전환',
       description: canOpenPublicChannel
@@ -133,7 +122,7 @@ export default async function CreatorChannelSettingsPage() {
             <h1 className="text-4xl font-black tracking-tight md:text-5xl">공개 프로필 설정</h1>
             <p className="max-w-2xl text-sm leading-7 text-zinc-400 md:text-base">
               {channel.displayName}의 독자용 작가 프로필입니다. My Bottega는 선택한 장르 작업실에서 열리고,
-              이 화면은 공개 이름, 소개, 이미지와 외부 링크만 관리합니다.
+              이 화면에서 공개 이름, 소개, 이미지, 외부 링크와 장르 작업실 전환을 관리합니다.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -142,6 +131,7 @@ export default async function CreatorChannelSettingsPage() {
               >
                 {channel.primaryWorkType ? `${myBottegaLabel}로 돌아가기` : 'Bottega 장르 선택'}
               </Link>
+              <BottegaSwitcher currentWorkType={channel.primaryWorkType} align="left" />
               <Link
                 href="#channel-settings"
                 className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-white/[0.06] px-6 py-3 text-sm text-zinc-300 transition hover:bg-white/10"

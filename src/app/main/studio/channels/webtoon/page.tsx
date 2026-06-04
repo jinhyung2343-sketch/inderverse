@@ -100,7 +100,7 @@ export default async function ToonBottegaPage({
               href="/main/studio/creator-channel"
               className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm text-zinc-300 transition hover:bg-white/10"
             >
-              공개 프로필 설정
+              내 프로필 관리
             </Link>
           </div>
 
@@ -112,6 +112,22 @@ export default async function ToonBottegaPage({
             </p>
           </div>
         </header>
+
+        <section className="grid gap-4 rounded-lg border border-emerald-300/20 bg-emerald-400/[0.08] p-5 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-100/80">Creator Page</p>
+            <h2 className="mt-2 text-2xl font-black tracking-tight">내 프로필 관리</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300">
+              독자에게 보이는 작가명, 소개, 대표 이미지와 공개 상태를 이곳에서 관리합니다.
+            </p>
+          </div>
+          <Link
+            href="/main/studio/creator-channel"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+          >
+            프로필 관리로 이동
+          </Link>
+        </section>
 
         <section className="space-y-4">
           <div>
