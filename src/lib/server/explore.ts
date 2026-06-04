@@ -147,10 +147,15 @@ function isRecoverablePublicDataError(error: unknown) {
 }
 
 function withPublicDataTimeout<T>(promise: Promise<T>) {
+  let timeoutId: ReturnType<typeof setTimeout>
+
   return Promise.race([
-    promise,
+    promise.finally(() => clearTimeout(timeoutId)),
     new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error('Public explore data timeout')), PUBLIC_DATA_TIMEOUT_MS)
+      timeoutId = setTimeout(
+        () => reject(new Error('Public explore data timeout')),
+        PUBLIC_DATA_TIMEOUT_MS
+      )
     }),
   ])
 }

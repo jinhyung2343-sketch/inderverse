@@ -68,6 +68,7 @@ export interface CreatorWebtoonListItem {
   coverImageUrl: string | null
   ageRating: ChannelAgeRating
   status: WebtoonStatus
+  workScale: WorkScale
   category: string
   tags: string[]
   episodeCount: number

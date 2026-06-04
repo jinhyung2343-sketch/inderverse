@@ -51,20 +51,28 @@ export default async function ToonBottegaPage({
     getCreatorSparkList(),
   ])
   const toonWorks = [
-    ...webtoonChannels.map((channel) => ({
-      id: channel.id,
-      title: channel.title,
-      href: `/main/studio/channels/webtoon/${channel.id}/edit`,
-      coverImageUrl: channel.coverImageUrl,
-      category: channel.category,
-      kindLabel: '연재 툰',
-      statusLabel: getWebtoonStatusLabel(channel.status),
-      ageRatingLabel: getAgeRatingLabel(channel.ageRating),
-      workType: 'webtoon' as const,
-      itemSummary: `회차 ${channel.episodeCount}개`,
-      summary: '이미지 회차 기반 연재 작품',
-      updatedAt: channel.updatedAt,
-    })),
+    ...webtoonChannels.map((channel) => {
+      const isShortForm = channel.workScale === 'short'
+
+      return {
+        id: channel.id,
+        title: channel.title,
+        href: `/main/studio/channels/webtoon/${channel.id}/edit`,
+        coverImageUrl: channel.coverImageUrl,
+        category: channel.category,
+        kindLabel: isShortForm ? '단편 툰' : '연재 툰',
+        statusLabel: getWebtoonStatusLabel(channel.status),
+        ageRatingLabel: getAgeRatingLabel(channel.ageRating),
+        workType: 'webtoon' as const,
+        itemSummary: isShortForm
+          ? channel.episodeCount > 0
+            ? '원고 등록됨'
+            : '원고 없음'
+          : `회차 ${channel.episodeCount}개`,
+        summary: isShortForm ? '한 편으로 완결되는 단편 작품' : '이미지 회차 기반 연재 작품',
+        updatedAt: channel.updatedAt,
+      }
+    }),
     ...sparkChannels.map((spark) => ({
       id: spark.id,
       title: getSparkDisplayTitle(spark.title),

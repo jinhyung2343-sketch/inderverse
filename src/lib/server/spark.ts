@@ -102,10 +102,15 @@ function isRecoverablePublicDataError(error: unknown) {
 }
 
 function withPublicDataTimeout<T>(promise: PromiseLike<T>) {
+  let timeoutId: ReturnType<typeof setTimeout>
+
   return Promise.race([
-    promise,
+    Promise.resolve(promise).finally(() => clearTimeout(timeoutId)),
     new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error('Public spark data timeout')), PUBLIC_DATA_TIMEOUT_MS)
+      timeoutId = setTimeout(
+        () => reject(new Error('Public spark data timeout')),
+        PUBLIC_DATA_TIMEOUT_MS
+      )
     }),
   ])
 }

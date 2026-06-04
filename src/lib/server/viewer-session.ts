@@ -40,7 +40,7 @@ export const getViewerSession = cache(async () => {
     .from('profiles')
     .select('is_adult_verified')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profileError) {
     console.warn('Unable to load viewer profile:', profileError)

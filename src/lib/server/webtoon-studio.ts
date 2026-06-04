@@ -294,6 +294,7 @@ export async function getCreatorWebtoonList(): Promise<CreatorWebtoonListItem[]>
       coverImageUrl: channel.cover_image_url,
       ageRating: channel.age_rating as CreatorWebtoonListItem['ageRating'],
       status: channel.status,
+      workScale: channel.work_scale as CreatorWebtoonListItem['workScale'],
       category: getCategory(channelTags),
       tags: channelTags.map((tag) => tag.name),
       episodeCount: episodes.filter((episode) => episode.channel_id === channel.id).length,

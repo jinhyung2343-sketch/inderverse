@@ -31,7 +31,6 @@
     "react-dom": "19.2.4",
     "serwist": "^9.5.7",
     "sharp": "^0.34.5",
-    "uuid": "^14.0.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -41,7 +40,6 @@
     "@types/node-fetch": "^2.6.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
