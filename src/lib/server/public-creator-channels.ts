@@ -2,6 +2,7 @@ import 'server-only'
 
 import { unstable_cache } from 'next/cache'
 import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
+import { isProductionEnvironment } from '@/lib/env/app-env'
 import { parseCreatorChannelExternalLinks } from '@/lib/server/creator-channels'
 import { getPublicArtworkList } from '@/lib/server/explore'
 import { withPublicDataRetry } from '@/lib/server/public-data-retry'
@@ -175,7 +176,7 @@ export async function getPublicCreatorChannelList(
       .map((channel) => mapCreatorChannelSummary(channel, artworkCounts))
       .sort((left, right) => right.artworkCount - left.artworkCount)
   } catch (error) {
-    if (!isRecoverablePublicDataError(error)) {
+    if (isProductionEnvironment() && !isRecoverablePublicDataError(error)) {
       throw error
     }
 
@@ -220,7 +221,7 @@ export async function getPublicCreatorChannelPage(
       artworks: creatorArtworks,
     }
   } catch (error) {
-    if (!isRecoverablePublicDataError(error)) {
+    if (isProductionEnvironment() && !isRecoverablePublicDataError(error)) {
       throw error
     }
 

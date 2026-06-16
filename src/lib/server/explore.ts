@@ -781,7 +781,7 @@ export async function getPublicArtworkById(
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    if (isProductionEnvironment()) {
       throw error
     }
 
