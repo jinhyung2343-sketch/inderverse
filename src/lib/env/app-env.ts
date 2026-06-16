@@ -13,6 +13,10 @@ export function getAppEnvironment(): AppEnvironment {
     return value
   }
 
+  if (process.env.VERCEL_ENV === 'preview') {
+    return 'staging'
+  }
+
   return process.env.NODE_ENV === 'production' ? 'production' : 'development'
 }
 

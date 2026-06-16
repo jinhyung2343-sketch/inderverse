@@ -9,6 +9,7 @@ import {
 } from '@/lib/explore'
 import { artworks as fallbackArtworks, getArtworkById as getFallbackArtworkById } from '@/lib/mock/explore-data'
 import { PUBLIC_CACHE_REVALIDATE_SECONDS, PUBLIC_CACHE_TAGS } from '@/lib/public-cache'
+import { isProductionEnvironment } from '@/lib/env/app-env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { withPublicDataRetry } from '@/lib/server/public-data-retry'
 import type { Database } from '@/lib/supabase/types'
@@ -750,7 +751,7 @@ export async function getPublicArtworkList({
       throw error
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    if (isProductionEnvironment()) {
       throw error
     }
 
