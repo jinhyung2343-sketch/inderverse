@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSubscriptionPlan } from '@/lib/billing'
+import { canUseMockSubscriptionCheckout, isStagingEnvironment } from '@/lib/env/app-env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
 function canUseDevSubscriptionCheckout() {
-  return process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEV_SUBSCRIPTION_CHECKOUT === 'true'
+  return canUseMockSubscriptionCheckout()
 }
 
 export async function POST(request: NextRequest) {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     planId?: unknown
   }
   const admin = createAdminClient()
+  const mockProvider = isStagingEnvironment() ? 'staging-mock' : 'local-dev'
 
   if (action === 'cancel') {
     await admin
@@ -105,7 +107,7 @@ export async function POST(request: NextRequest) {
       status: 'active',
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
-      provider: 'local-dev',
+      provider: mockProvider,
     })
 
   if (subscriptionError) {
@@ -126,5 +128,6 @@ export async function POST(request: NextRequest) {
     status: 'active',
     planId: plan.id,
     currentPeriodEnd: periodEnd.toISOString(),
+    provider: mockProvider,
   })
 }

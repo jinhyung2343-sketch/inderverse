@@ -4,6 +4,7 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { LibraryToggleButton } from '@/components/library/LibraryToggleButton'
 import { ArtworkCommentsPanel } from '@/components/comments/ArtworkCommentsPanel'
 import { ArtworkEpisodeList } from '@/components/episodes/ArtworkEpisodeList'
+import { stripEpisodeReaderPayload } from '@/lib/episode-teaser'
 import { getArtworkBackendCoverage } from '@/lib/mock/episode-backend-link'
 import {
   ARTWORK_COMMENT_MAX_LENGTH,
@@ -49,6 +50,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
     ? await getPublicArtworkComments(artwork.backendChannelId)
     : { comments: [], isReady: false }
   const firstEpisode = artwork.episodes[0] ?? null
+  const episodeListItems = artwork.episodes.map(stripEpisodeReaderPayload)
   const isShortForm = artwork.workScale === 'short'
   const sectionLinks = isShortForm ? shortSectionLinks : serialSectionLinks
   const statusLabel = isShortForm
@@ -230,7 +232,7 @@ export default async function ArtworkDetailPage({ params }: { params: Promise<{ 
                 <span className="text-sm text-zinc-400">{contentCountLabel}</span>
               </div>
 
-              <ArtworkEpisodeList artworkId={artwork.id} episodes={artwork.episodes} isShortForm={isShortForm} />
+              <ArtworkEpisodeList artworkId={artwork.id} episodes={episodeListItems} isShortForm={isShortForm} />
             </section>
 
             <section id="comments" className="scroll-mt-24 rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">

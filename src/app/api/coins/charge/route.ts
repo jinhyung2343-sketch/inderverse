@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { canUseMockCoinCharge } from '@/lib/env/app-env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       idempotencyKey?: unknown
     }
 
-    if (process.env.ENABLE_DEV_COIN_CHARGE !== 'true') {
+    if (!canUseMockCoinCharge()) {
       return NextResponse.json(
         {
           error: 'Coin charge is disabled until server-side payment verification is implemented.',

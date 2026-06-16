@@ -52,6 +52,7 @@ Set these in the hosting provider:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
+APP_ENV=production
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_STORAGE_BUCKET=artwork-assets
@@ -68,8 +69,11 @@ PHONE_VERIFY_START_URL=
 AGE_VERIFICATION_STATE_SECRET=
 AGE_VERIFICATION_PROVIDER_SECRET=
 ENABLE_DEV_MANUAL_AGE_VERIFICATION=false
+ENABLE_STAGING_MOCK_AGE_VERIFICATION=false
 
 ENABLE_DEV_COIN_CHARGE=false
+ENABLE_DEV_SUBSCRIPTION_CHECKOUT=false
+ENABLE_STAGING_MOCK_BILLING=false
 
 CRON_SECRET=
 STORAGE_CLEANUP_SECRET=
@@ -89,8 +93,21 @@ Production must keep these disabled:
 
 ```env
 ENABLE_DEV_MANUAL_AGE_VERIFICATION=false
+ENABLE_STAGING_MOCK_AGE_VERIFICATION=false
 ENABLE_DEV_COIN_CHARGE=false
+ENABLE_DEV_SUBSCRIPTION_CHECKOUT=false
+ENABLE_STAGING_MOCK_BILLING=false
 ```
+
+Staging or closed beta deployments may enable mock flows with a separate environment:
+
+```env
+APP_ENV=staging
+ENABLE_STAGING_MOCK_AGE_VERIFICATION=true
+ENABLE_STAGING_MOCK_BILLING=true
+```
+
+Never reuse the staging environment variables on the production domain.
 
 ## 3. Supabase Production Setup
 

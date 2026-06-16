@@ -6,6 +6,7 @@
 #   npm run env:secrets
 
 # Supabase
+APP_ENV=production
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
@@ -26,9 +27,12 @@ PHONE_VERIFY_START_URL=https://phone-provider.your-domain.com/start
 AGE_VERIFICATION_STATE_SECRET=generated-secret
 AGE_VERIFICATION_PROVIDER_SECRET=generated-secret
 ENABLE_DEV_MANUAL_AGE_VERIFICATION=false
+ENABLE_STAGING_MOCK_AGE_VERIFICATION=false
 
 # Coin charge must remain disabled until real payment verification exists
 ENABLE_DEV_COIN_CHARGE=false
+ENABLE_DEV_SUBSCRIPTION_CHECKOUT=false
+ENABLE_STAGING_MOCK_BILLING=false
 
 # Internal cron/job authorization
 CRON_SECRET=generated-secret

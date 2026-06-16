@@ -3,12 +3,34 @@ import { notFound } from 'next/navigation'
 import { EpisodeAccessPanel } from '@/components/episodes/EpisodeAccessPanel'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { getEpisodeById } from '@/lib/explore'
+import { getReaderSafeEpisodePayload } from '@/lib/episode-teaser'
 import { checkEpisodeDynamicAccess } from '@/lib/server/dynamic-access'
 import { getPublicArtworkById } from '@/lib/server/explore'
 import { getViewerSession } from '@/lib/server/viewer-session'
+import { createClient } from '@/lib/supabase/server'
 import { getWorkTypeLabel } from '@/lib/work'
 
 export const revalidate = 60
+
+async function hasViewerPurchasedEpisode(userId: string | null, episodeId: string | undefined) {
+  if (!userId || !episodeId) {
+    return false
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('episode_id', episodeId)
+    .maybeSingle()
+
+  if (error) {
+    return false
+  }
+
+  return Boolean(data)
+}
 
 export default async function EpisodeReaderPage({
   params,
@@ -32,30 +54,49 @@ export default async function EpisodeReaderPage({
     notFound()
   }
 
+  const isShortForm = artwork.workScale === 'short'
   const accessDecision = episode.backendEpisodeId && episode.backendChannelId
     ? await checkEpisodeDynamicAccess({
         channelId: episode.backendChannelId,
         episodeId: episode.backendEpisodeId,
       })
     : null
+  const hasPurchased = isShortForm && accessDecision?.reason === 'teaser'
+    ? await hasViewerPurchasedEpisode(viewer.userId, episode.backendEpisodeId)
+    : false
+  const hasFullShortFormAccess = isShortForm && accessDecision?.reason === 'teaser' && (viewer.isSubscribed || hasPurchased)
+  const accessState = accessDecision
+    ? accessDecision.allowed
+      ? hasFullShortFormAccess
+        ? 'free' as const
+        : isShortForm && accessDecision.reason === 'teaser'
+          ? 'teaser' as const
+          : 'free' as const
+      : 'locked' as const
+    : episode.accessState
   const readableEpisode = accessDecision
     ? {
-        ...episode,
-        accessState: accessDecision.allowed ? 'free' as const : 'locked' as const,
+        ...getReaderSafeEpisodePayload(episode, accessState, artwork.teaserPercentage ?? 10),
+        accessState,
         accessLabel: accessDecision.allowed
-          ? accessDecision.reason === 'subscriber'
+          ? hasFullShortFormAccess && viewer.isSubscribed
+            ? '구독 공개'
+            : hasFullShortFormAccess && hasPurchased
+              ? '소장 공개'
+              : accessDecision.reason === 'subscriber'
             ? '구독 공개'
             : accessDecision.reason === 'purchased'
               ? '소장 공개'
-            : '맛보기 공개'
+              : isShortForm && accessDecision.reason === 'teaser'
+                ? `${artwork.teaserPercentage ?? 10}% 맛보기`
+                : '맛보기 공개'
           : '구독 필요',
       }
-    : episode
+    : getReaderSafeEpisodePayload(episode, episode.accessState, artwork.teaserPercentage ?? 10)
 
   const currentIndex = artwork.episodes.findIndex((item) => item.id === episode.id)
   const previousEpisode = currentIndex > 0 ? artwork.episodes[currentIndex - 1] : null
   const nextEpisode = currentIndex < artwork.episodes.length - 1 ? artwork.episodes[currentIndex + 1] : null
-  const isShortForm = artwork.workScale === 'short'
   const backAriaLabel = isShortForm ? '작품 정보로 돌아가기' : '회차 목록으로 돌아가기'
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-8 text-white selection:bg-white/30">
@@ -88,7 +129,12 @@ export default async function EpisodeReaderPage({
           </div>
         </header>
 
-        <EpisodeAccessPanel artworkId={artwork.id} episode={readableEpisode} isShortForm={isShortForm} />
+        <EpisodeAccessPanel
+          artworkId={artwork.id}
+          episode={readableEpisode}
+          isShortForm={isShortForm}
+          teaserPercentage={artwork.teaserPercentage ?? 10}
+        />
 
         {isShortForm ? (
           <nav className="flex justify-center rounded-[32px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">

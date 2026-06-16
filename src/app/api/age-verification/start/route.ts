@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getVerificationProvider } from '@/lib/age-verification/providers'
-import { createVerificationState } from '@/lib/age-verification/service'
+import { createVerificationState, isDevManualAgeVerificationEnabled } from '@/lib/age-verification/service'
 import { AgeVerificationProvider } from '@/lib/age-verification/types'
 
 export const runtime = 'nodejs'
@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
   const providerConfig = getVerificationProvider(provider)
 
-  if (provider === 'manual' && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Manual verification is disabled in production' }, { status: 403 })
+  if (provider === 'manual' && !isDevManualAgeVerificationEnabled()) {
+    return NextResponse.json({ error: 'Manual verification is disabled outside approved test environments' }, { status: 403 })
   }
 
   if (providerConfig.mode === 'redirect' && !providerConfig.externalStartUrl) {
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     redirectUrl,
     verificationState,
     isConfigured:
-      (providerConfig.mode === 'manual' && process.env.NODE_ENV !== 'production') ||
+      (providerConfig.mode === 'manual' && isDevManualAgeVerificationEnabled()) ||
       Boolean(providerConfig.externalStartUrl),
     instructions: providerConfig.instructions,
   })

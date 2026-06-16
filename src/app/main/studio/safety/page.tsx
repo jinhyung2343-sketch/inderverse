@@ -1,4 +1,9 @@
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { StagingAgeVerificationPanel } from '@/components/studio/StagingAgeVerificationPanel'
+import { canUseMockAgeVerification } from '@/lib/env/app-env'
+import { createClient } from '@/lib/supabase/server'
+
+export const dynamic = 'force-dynamic'
 
 const safetyNotes = [
   '성인 작품은 태그와 작품 플래그를 함께 사용해 노출과 접근을 분리 제어합니다.',
@@ -6,7 +11,20 @@ const safetyNotes = [
   '법적 제한 대상과 플랫폼 정책 위반은 별도 운영 도구로 다루되, 표현 가능 범위는 최대한 넓게 유지하는 방향입니다.',
 ]
 
-export default function StudioSafetyPage() {
+export default async function StudioSafetyPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase
+        .from('profiles')
+        .select('is_adult_verified')
+        .eq('id', user.id)
+        .maybeSingle()
+    : { data: null }
+  const isMockAgeVerificationEnabled = canUseMockAgeVerification()
+
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -26,6 +44,12 @@ export default function StudioSafetyPage() {
             ))}
           </ul>
         </section>
+
+        <StagingAgeVerificationPanel
+          isLoggedIn={Boolean(user)}
+          isAdultVerified={profile?.is_adult_verified ?? false}
+          isMockEnabled={isMockAgeVerificationEnabled}
+        />
       </div>
     </main>
   )

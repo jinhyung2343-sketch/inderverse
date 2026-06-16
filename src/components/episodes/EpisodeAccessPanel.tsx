@@ -6,6 +6,7 @@ import { useEffect, useReducer, useState } from 'react'
 import { ProtectedEpisodeImage, ProtectedReaderSurface } from '@/components/content/ProtectedReaderSurface'
 import type { ArtworkEpisode } from '@/lib/explore'
 import { formatInderium } from '@/lib/billing'
+import { normalizeTeaserPercentage } from '@/lib/episode-teaser'
 import { useAuthStore } from '@/stores/auth'
 import {
   getEffectiveEpisodeAccess,
@@ -19,10 +20,12 @@ export function EpisodeAccessPanel({
   artworkId,
   episode,
   isShortForm = false,
+  teaserPercentage = 10,
 }: {
   artworkId: string
   episode: ArtworkEpisode
   isShortForm?: boolean
+  teaserPercentage?: number
 }) {
   const router = useRouter()
   const [, forceRender] = useReducer((value: number) => value + 1, 0)
@@ -112,8 +115,15 @@ export function EpisodeAccessPanel({
   }
 
   const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
-  const canRead = effective.accessState === 'free' || (effective.accessState === 'locked' && isSubscribed)
+  const isTeaserPreview = effective.accessState === 'teaser' && !isSubscribed
+  const canRead =
+    effective.accessState === 'free' ||
+    effective.accessState === 'teaser' ||
+    (effective.accessState === 'locked' && isSubscribed)
   const isNovel = episode.workType === 'novel'
+  const normalizedTeaserPercentage = normalizeTeaserPercentage(teaserPercentage)
+  const readableBody = episode.body
+  const readableImageUrls = episode.imageUrls
   const lockedEyebrow = isShortForm ? 'Work Locked' : 'Episode Locked'
   const lockedTitle = isShortForm ? '이 작품은 구독자 공개입니다' : '이 회차는 구독자 공개입니다'
   const lockedDescription = isShortForm
@@ -137,26 +147,31 @@ export function EpisodeAccessPanel({
             구독자 공개
           </div>
         ) : null}
+        {isTeaserPreview ? (
+          <div className="mb-5 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-xs text-sky-100">
+            단편 맛보기 {normalizedTeaserPercentage}% 공개
+          </div>
+        ) : null}
         {isNovel ? (
           <div className="mx-auto max-w-3xl space-y-7 font-serif text-[17px] leading-9 text-zinc-100 md:text-xl md:leading-10">
-            {episode.body.length > 0 ? (
-              episode.body.map((paragraph) => (
+            {readableBody.length > 0 ? (
+              readableBody.map((paragraph) => (
                 <p key={paragraph}>{paragraph}</p>
               ))
             ) : (
               <p className="text-zinc-400">아직 공개 본문이 준비되지 않았습니다.</p>
             )}
           </div>
-        ) : episode.imageUrls && episode.imageUrls.length > 0 ? (
+        ) : readableImageUrls && readableImageUrls.length > 0 ? (
           <div className="grid gap-4">
-            {episode.body.length > 0 ? (
+            {readableBody.length > 0 ? (
               <div className="space-y-4 text-sm leading-7 text-zinc-300 md:text-base">
-                {episode.body.map((paragraph) => (
+                {readableBody.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
             ) : null}
-            {episode.imageUrls.map((imageUrl, index) => (
+            {readableImageUrls.map((imageUrl, index) => (
               <ProtectedEpisodeImage
                 key={`${imageUrl}-${index + 1}`}
                 artworkId={artworkId}
@@ -169,11 +184,42 @@ export function EpisodeAccessPanel({
           </div>
         ) : (
           <div className="space-y-6 text-[15px] leading-8 text-zinc-200 md:text-lg md:leading-9">
-            {episode.body.map((paragraph) => (
+            {readableBody.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
         )}
+        {isTeaserPreview ? (
+          <div className="mt-8 rounded-3xl border border-amber-400/15 bg-amber-500/10 p-5">
+            <p className="text-sm font-semibold text-amber-50">
+              여기까지가 작가가 설정한 단편 맛보기입니다.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              전체 작품은 구독 권한 또는 인더륨 소장으로 열람할 수 있습니다.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleSubscribePrompt}
+                disabled={isPending}
+                className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
+              >
+                {isPending ? '확인 중...' : user ? '구독하고 전체 보기' : '로그인하고 구독하기'}
+              </button>
+              {episode.backendEpisodeId && episode.coinPrice && episode.coinPrice > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleInderiumPurchase}
+                  disabled={isPending}
+                  className="rounded-full border border-amber-300/25 bg-amber-500/15 px-5 py-3 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isPending ? '처리 중...' : `${formatInderium(episode.coinPrice)}으로 소장`}
+                </button>
+              ) : null}
+            </div>
+            {actionMessage ? <p className="mt-4 text-sm leading-6 text-zinc-400">{actionMessage}</p> : null}
+          </div>
+        ) : null}
       </ProtectedReaderSurface>
     )
   }

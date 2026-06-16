@@ -18,6 +18,9 @@ type HybridBillingPanelProps = {
   isSubscribed: boolean
   paidBalance: number
   freeBalance: number
+  appEnvironment: 'development' | 'staging' | 'production'
+  isMockSubscriptionEnabled: boolean
+  isMockCoinChargeEnabled: boolean
 }
 
 type PendingAction =
@@ -47,6 +50,9 @@ export function HybridBillingPanel({
   isSubscribed,
   paidBalance,
   freeBalance,
+  appEnvironment,
+  isMockSubscriptionEnabled,
+  isMockCoinChargeEnabled,
 }: HybridBillingPanelProps) {
   const router = useRouter()
   const { checkSession } = useAuthStore()
@@ -60,6 +66,11 @@ export function HybridBillingPanel({
   }
 
   async function activateSubscription(planId: SubscriptionPlanId) {
+    if (!isMockSubscriptionEnabled) {
+      setMessage('테스트 구독은 staging 또는 로컬 개발 환경에서만 사용할 수 있습니다.')
+      return
+    }
+
     if (!isLoggedIn) {
       setMessage('로그인 후 구독을 시작할 수 있습니다.')
       return
@@ -91,6 +102,11 @@ export function HybridBillingPanel({
   }
 
   async function cancelSubscription() {
+    if (!isMockSubscriptionEnabled) {
+      setMessage('테스트 구독은 staging 또는 로컬 개발 환경에서만 사용할 수 있습니다.')
+      return
+    }
+
     if (!isLoggedIn) {
       setMessage('로그인 후 구독 상태를 변경할 수 있습니다.')
       return
@@ -122,6 +138,11 @@ export function HybridBillingPanel({
   }
 
   async function chargeInderium(amountKrw: number) {
+    if (!isMockCoinChargeEnabled) {
+      setMessage('테스트 인더륨 충전은 staging 또는 로컬 개발 환경에서만 사용할 수 있습니다.')
+      return
+    }
+
     if (!isLoggedIn) {
       setMessage('로그인 후 인더륨을 충전할 수 있습니다.')
       return
@@ -140,8 +161,8 @@ export function HybridBillingPanel({
         },
         body: JSON.stringify({
           amount,
-          paymentProvider: 'local-dev',
-          idempotencyKey: `local-dev-${crypto.randomUUID()}`,
+          paymentProvider: appEnvironment === 'staging' ? 'staging-mock' : 'local-dev',
+          idempotencyKey: `${appEnvironment}-mock-${crypto.randomUUID()}`,
         }),
       })
       const result = await response.json().catch(() => null) as { error?: string } | null
@@ -149,7 +170,7 @@ export function HybridBillingPanel({
       if (!response.ok) {
         setMessage(
           result?.error === 'Coin charge is disabled until server-side payment verification is implemented.'
-            ? '로컬 충전을 쓰려면 ENABLE_DEV_COIN_CHARGE=true가 필요합니다.'
+            ? '테스트 충전을 쓰려면 staging mock billing 또는 로컬 충전 플래그가 필요합니다.'
             : result?.error ?? '인더륨 충전을 완료하지 못했습니다.'
         )
         return
@@ -177,7 +198,13 @@ export function HybridBillingPanel({
             <p>구독: <span className="font-semibold text-white">{isSubscribed ? '활성' : '미구독'}</span></p>
             <p>유료 인더륨: <span className="font-semibold text-white">{formatInderium(paidBalance)}</span></p>
             <p>무료 인더륨: <span className="font-semibold text-white">{formatInderium(freeBalance)}</span></p>
+            <p>환경: <span className="font-semibold text-white">{appEnvironment}</span></p>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-sky-300/20 bg-sky-500/10 px-4 py-3 text-sm leading-6 text-sky-100">
+          <p>구독 테스트: {isMockSubscriptionEnabled ? '사용 가능' : '비활성'}</p>
+          <p>인더륨 테스트 충전: {isMockCoinChargeEnabled ? '사용 가능' : '비활성'}</p>
         </div>
 
         {message ? (
@@ -232,10 +259,16 @@ export function HybridBillingPanel({
                 <button
                   type="button"
                   onClick={() => activateSubscription(plan.id)}
-                  disabled={Boolean(pendingAction)}
+                  disabled={Boolean(pendingAction) || !isMockSubscriptionEnabled}
                   className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {pendingKey === actionKey ? '적용 중...' : isSubscribed ? '플랜 변경 테스트' : '구독 시작 테스트'}
+                  {pendingKey === actionKey
+                    ? '적용 중...'
+                    : !isMockSubscriptionEnabled
+                      ? '테스트 비활성'
+                      : isSubscribed
+                        ? '플랜 변경 테스트'
+                        : '구독 시작 테스트'}
                 </button>
               </article>
             )
@@ -246,7 +279,7 @@ export function HybridBillingPanel({
           <button
             type="button"
             onClick={cancelSubscription}
-            disabled={Boolean(pendingAction)}
+            disabled={Boolean(pendingAction) || !isMockSubscriptionEnabled}
             className="inline-flex min-h-11 items-center rounded-full border border-white/10 bg-white/5 px-5 text-sm font-semibold text-zinc-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingKey === 'cancel-subscription' ? '해지 중...' : '로컬 구독 해지'}
@@ -276,10 +309,10 @@ export function HybridBillingPanel({
                 <button
                   type="button"
                   onClick={() => chargeInderium(option.amountKrw)}
-                  disabled={Boolean(pendingAction)}
+                  disabled={Boolean(pendingAction) || !isMockCoinChargeEnabled}
                   className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-amber-300/30 bg-amber-500/15 px-4 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {pendingKey === actionKey ? '충전 중...' : '로컬 충전 테스트'}
+                  {pendingKey === actionKey ? '충전 중...' : isMockCoinChargeEnabled ? '테스트 충전' : '테스트 비활성'}
                 </button>
               </article>
             )

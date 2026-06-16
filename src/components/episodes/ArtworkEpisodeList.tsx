@@ -13,9 +13,30 @@ import { hasServerEpisodeLink } from '@/lib/mock/episode-backend-link'
 
 const badgeClassByAccess = {
   free: 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100',
+  teaser: 'border border-sky-400/20 bg-sky-500/10 text-sky-100',
   locked: 'border border-amber-400/20 bg-amber-500/10 text-amber-100',
   coming_soon: 'border border-white/10 bg-white/5 text-zinc-400',
 } as const
+
+function getAccessBadgeLabel(accessState: ArtworkEpisode['accessState'], isSubscribed: boolean) {
+  if ((accessState === 'locked' || accessState === 'teaser') && isSubscribed) {
+    return '구독 공개'
+  }
+
+  if (accessState === 'teaser') {
+    return '일부 공개'
+  }
+
+  if (accessState === 'free') {
+    return '무료'
+  }
+
+  if (accessState === 'locked') {
+    return '잠금'
+  }
+
+  return '준비중'
+}
 
 export function ArtworkEpisodeList({
   artworkId,
@@ -60,7 +81,10 @@ export function ArtworkEpisodeList({
       {episodes.map((episode, index) => {
         const effective = getEffectiveEpisodeAccess(scope, artworkId, episode)
         const href = `/main/explore/${artworkId}/episodes/${episode.id}`
-        const canEnter = effective.accessState === 'free' || (effective.accessState === 'locked' && isSubscribed)
+        const canEnter =
+          effective.accessState === 'free' ||
+          effective.accessState === 'teaser' ||
+          (effective.accessState === 'locked' && isSubscribed)
         const itemEyebrow = isShortForm ? '본편' : `Episode ${index + 1}`
 
         if (canEnter) {
@@ -88,7 +112,7 @@ export function ArtworkEpisodeList({
                   </div>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs ${badgeClassByAccess[effective.accessState]}`}>
-                  {effective.accessState === 'locked' && isSubscribed ? '구독 공개' : '무료'}
+                  {getAccessBadgeLabel(effective.accessState, isSubscribed)}
                 </span>
               </div>
             </Link>
@@ -139,9 +163,7 @@ export function ArtworkEpisodeList({
                 ) : null}
               </div>
               <span className={`rounded-full px-3 py-1 text-xs ${badgeClassByAccess[effective.accessState]}`}>
-                {effective.accessState === 'locked'
-                    ? '잠금'
-                    : '준비중'}
+                {getAccessBadgeLabel(effective.accessState, isSubscribed)}
               </span>
             </div>
           </article>

@@ -1,5 +1,5 @@
 export type ArtworkStatus = 'publishing' | 'completed'
-export type EpisodeAccessState = 'free' | 'locked' | 'coming_soon'
+export type EpisodeAccessState = 'free' | 'teaser' | 'locked' | 'coming_soon'
 
 export interface ArtworkEpisode {
   id: string

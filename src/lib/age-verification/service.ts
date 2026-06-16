@@ -1,5 +1,6 @@
 import 'server-only'
 import { createHmac, timingSafeEqual } from 'crypto'
+import { canUseMockAgeVerification } from '@/lib/env/app-env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AgeVerificationProvider, VerificationStatePayload } from './types'
 
@@ -84,7 +85,7 @@ export function verifyProviderResultSignature({
 }
 
 export function isDevManualAgeVerificationEnabled() {
-  return process.env.ENABLE_DEV_MANUAL_AGE_VERIFICATION === 'true'
+  return canUseMockAgeVerification()
 }
 
 export async function recordAdultVerification({

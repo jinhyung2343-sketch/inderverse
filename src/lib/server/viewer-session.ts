@@ -8,6 +8,7 @@ function getGuestViewerSession() {
   return {
     userId: null,
     isAdultVerified: false,
+    isSubscribed: false,
   }
 }
 
@@ -38,7 +39,7 @@ export const getViewerSession = cache(async () => {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('is_adult_verified')
+    .select('is_adult_verified, is_subscribed')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -49,5 +50,6 @@ export const getViewerSession = cache(async () => {
   return {
     userId: user.id,
     isAdultVerified: profile?.is_adult_verified ?? false,
+    isSubscribed: profile?.is_subscribed ?? false,
   }
 })

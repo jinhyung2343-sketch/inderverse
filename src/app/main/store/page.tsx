@@ -2,6 +2,7 @@ import { HybridBillingPanel } from '@/components/store/HybridBillingPanel'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { formatWon } from '@/lib/billing'
+import { canUseMockCoinCharge, canUseMockSubscriptionCheckout, getAppEnvironment } from '@/lib/env/app-env'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,9 @@ export default async function StorePage() {
   const isSubscribed = Boolean(profileResult.data?.is_subscribed)
   const paidBalance = walletResult.data?.paid_balance ?? 0
   const freeBalance = walletResult.data?.free_balance ?? 0
+  const appEnvironment = getAppEnvironment()
+  const isMockSubscriptionEnabled = canUseMockSubscriptionCheckout()
+  const isMockCoinChargeEnabled = canUseMockCoinCharge()
 
   return (
     <main className="min-h-[100dvh] bg-[#050505] px-5 py-8 text-white md:px-8">
@@ -78,6 +82,9 @@ export default async function StorePage() {
           isSubscribed={isSubscribed}
           paidBalance={paidBalance}
           freeBalance={freeBalance}
+          appEnvironment={appEnvironment}
+          isMockSubscriptionEnabled={isMockSubscriptionEnabled}
+          isMockCoinChargeEnabled={isMockCoinChargeEnabled}
         />
       </div>
     </main>

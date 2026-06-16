@@ -75,13 +75,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (provider === 'manual') {
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Manual verification is disabled in production' }, { status: 403 })
-    }
-
     if (!isDevManualAgeVerificationEnabled()) {
       return NextResponse.json(
-        { error: 'Manual verification is disabled until explicitly enabled for development' },
+        { error: 'Manual verification is disabled outside approved test environments' },
         { status: 403 }
       )
     }

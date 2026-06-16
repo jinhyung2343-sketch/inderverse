@@ -57,11 +57,24 @@ if (!keysBefore.has('NEXT_PUBLIC_SITE_URL')) {
 }
 
 lines.push('')
+lines.push('# Local app environment')
+changes.push(['APP_ENV', upsertEnv(lines, 'APP_ENV', 'development')])
+
+lines.push('')
 lines.push('# Local billing test switches')
 changes.push(['ENABLE_DEV_COIN_CHARGE', upsertEnv(lines, 'ENABLE_DEV_COIN_CHARGE', 'true', { overwrite: true })])
 changes.push([
   'ENABLE_DEV_SUBSCRIPTION_CHECKOUT',
   upsertEnv(lines, 'ENABLE_DEV_SUBSCRIPTION_CHECKOUT', 'true', { overwrite: true }),
+])
+changes.push([
+  'ENABLE_DEV_MANUAL_AGE_VERIFICATION',
+  upsertEnv(lines, 'ENABLE_DEV_MANUAL_AGE_VERIFICATION', 'true', { overwrite: true }),
+])
+changes.push(['ENABLE_STAGING_MOCK_BILLING', upsertEnv(lines, 'ENABLE_STAGING_MOCK_BILLING', 'false')])
+changes.push([
+  'ENABLE_STAGING_MOCK_AGE_VERIFICATION',
+  upsertEnv(lines, 'ENABLE_STAGING_MOCK_AGE_VERIFICATION', 'false'),
 ])
 
 const secretDefaults = [

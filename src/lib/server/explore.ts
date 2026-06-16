@@ -296,7 +296,9 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
   const isShortForm = workScale === 'short'
   const maxFreeEpisode = bundle.channel.is_free_archive
     ? totalEpisodes
-    : getMaxFreeEpisode(totalEpisodes, bundle.channel.teaser_percentage)
+    : isShortForm
+      ? 0
+      : getMaxFreeEpisode(totalEpisodes, bundle.channel.teaser_percentage)
   const summary =
     bundle.channel.description?.trim() ||
     '아직 작품 소개가 입력되지 않은 채널입니다.'
@@ -334,10 +336,13 @@ function mapBackendArtwork(bundle: ArtworkBundle): ExploreArtwork {
     episodes: orderedEpisodes.map((episode) => {
       const imageUrls = [...(bundle.episodeImagesByEpisodeId.get(episode.id) ?? [])]
       const access =
-        episode.status === 'published' &&
-        (bundle.channel.is_free_archive || episode.episode_number <= maxFreeEpisode)
-          ? { accessState: 'free' as const, accessLabel: '맛보기 공개' }
-          : mapEpisodeAccessState(episode)
+        episode.status === 'published' && bundle.channel.is_free_archive
+          ? { accessState: 'free' as const, accessLabel: '무료 공개' }
+          : episode.status === 'published' && isShortForm
+            ? { accessState: 'teaser' as const, accessLabel: `${bundle.channel.teaser_percentage}% 맛보기` }
+            : episode.status === 'published' && episode.episode_number <= maxFreeEpisode
+              ? { accessState: 'free' as const, accessLabel: '맛보기 공개' }
+              : mapEpisodeAccessState(episode)
 
       return {
         id: getEpisodePublicId(episode.episode_number),

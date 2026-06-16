@@ -45,6 +45,7 @@ loadEnvFile('.env.production')
 loadEnvFile('.env.production.local')
 
 const requiredEnv = [
+  'APP_ENV',
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
@@ -141,8 +142,24 @@ if (readEnv('ENABLE_DEV_MANUAL_AGE_VERIFICATION') === 'true') {
   errors.push('ENABLE_DEV_MANUAL_AGE_VERIFICATION must not be true in production')
 }
 
+if (readEnv('ENABLE_STAGING_MOCK_AGE_VERIFICATION') === 'true') {
+  errors.push('ENABLE_STAGING_MOCK_AGE_VERIFICATION must not be true in production')
+}
+
 if (readEnv('ENABLE_DEV_COIN_CHARGE') === 'true') {
   errors.push('ENABLE_DEV_COIN_CHARGE must not be true in production')
+}
+
+if (readEnv('ENABLE_DEV_SUBSCRIPTION_CHECKOUT') === 'true') {
+  errors.push('ENABLE_DEV_SUBSCRIPTION_CHECKOUT must not be true in production')
+}
+
+if (readEnv('ENABLE_STAGING_MOCK_BILLING') === 'true') {
+  errors.push('ENABLE_STAGING_MOCK_BILLING must not be true in production')
+}
+
+if (readEnv('APP_ENV') !== 'production') {
+  errors.push('APP_ENV must be production for the production release gate')
 }
 
 if (!readEnv('PASS_VERIFY_START_URL') && !readEnv('PHONE_VERIFY_START_URL')) {
