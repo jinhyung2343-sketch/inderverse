@@ -7,6 +7,7 @@ import {
   rememberAccountSession,
   type StoredInderverseAccount,
 } from '@/lib/auth/account-registry'
+import { clearBrowserAuthStorage, getCurrentAccessToken } from '@/lib/auth/browser-session'
 import {
   buildStagingMockProfile,
   buildStagingMockUser,
@@ -302,15 +303,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     clearStagingMockAuth()
     const supabase = createClient()
+    const accessToken = await getCurrentAccessToken().catch(() => null)
 
     await Promise.allSettled([
-      supabase.auth.signOut(),
+      supabase.auth.signOut({ scope: 'global' }),
       fetch('/api/auth/sign-out', {
         method: 'POST',
         cache: 'no-store',
+        credentials: 'include',
+        headers: accessToken
+          ? {
+              authorization: `Bearer ${accessToken}`,
+            }
+          : undefined,
       }),
     ])
 
+    clearBrowserAuthStorage()
     sessionCheckPromise = null
     set({
       user: null,

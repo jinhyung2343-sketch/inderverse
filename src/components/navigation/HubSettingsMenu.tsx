@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { getCurrentAccessToken } from '@/lib/auth/browser-session'
 import { readStagingMockAuth } from '@/lib/auth/staging-mock-auth'
 import { getForcedJoinPromptHref } from '@/lib/guest-policy'
 import { useAuthStore } from '@/stores/auth'
@@ -252,8 +253,16 @@ export function SettingsPageClient({
         return
       }
 
+      const accessToken = await getCurrentAccessToken().catch(() => null)
       const response = await fetch('/api/auth/withdrawal', {
         method: 'POST',
+        cache: 'no-store',
+        credentials: 'include',
+        headers: accessToken
+          ? {
+              authorization: `Bearer ${accessToken}`,
+            }
+          : undefined,
       })
       const result = await response.json().catch(() => null) as {
         error?: string
