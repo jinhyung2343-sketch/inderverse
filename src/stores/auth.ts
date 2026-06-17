@@ -7,6 +7,12 @@ import {
   rememberAccountSession,
   type StoredInderverseAccount,
 } from '@/lib/auth/account-registry'
+import {
+  buildStagingMockProfile,
+  buildStagingMockUser,
+  clearStagingMockAuth,
+  readStagingMockAuth,
+} from '@/lib/auth/staging-mock-auth'
 import { Database } from '@/lib/supabase/types'
 import {
   clearPendingUserTermsConsent,
@@ -101,6 +107,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     const currentSessionCheck = (async () => {
       set({ isLoading: true })
       try {
+        const stagingMockAuth = readStagingMockAuth()
+
+        if (stagingMockAuth) {
+          const mockProfile = buildStagingMockProfile(stagingMockAuth)
+          const mockUser = buildStagingMockUser(stagingMockAuth)
+
+          set({
+            user: mockUser,
+            profile: mockProfile,
+            isLoading: false,
+            isAdultVerified: mockProfile.is_adult_verified,
+            isSubscribed: mockProfile.is_subscribed,
+            guardianConsentStatus: mockProfile.guardian_consent_status,
+            isLoggedIn: true,
+            userNickname: mockProfile.display_name,
+            storedAccounts: readStoredAccounts(),
+          })
+          return
+        }
+
         const supabase = createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -243,6 +269,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
+    clearStagingMockAuth()
     await fetch('/api/auth/sign-out', {
       method: 'POST',
       cache: 'no-store',

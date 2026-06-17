@@ -8,6 +8,10 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
 import {
+  storeStagingMockAuth,
+  type StagingMockAuthPayload,
+} from '@/lib/auth/staging-mock-auth'
+import {
   buildMinorGuardianConsentRecord,
   storePendingMinorGuardianConsent,
   type MinorGuardianConsentFields,
@@ -39,6 +43,7 @@ type SignUpResponse = {
     access_token?: string
     refresh_token?: string
   } | null
+  mockAuth?: StagingMockAuthPayload | null
 }
 
 const STAGING_SIGNUP_CODE_KEY_PREFIX = 'inderverse:staging-signup-code:'
@@ -257,6 +262,14 @@ export function SignUpPageClient({
       if (ageConsentMode === 'guardian') {
         storePendingMinorGuardianConsent(buildMinorGuardianConsentRecord(result.userId, guardianFields))
       }
+    }
+
+    if (result?.mockAuth) {
+      storeStagingMockAuth(result.mockAuth)
+      setIsSubmitting(false)
+      router.replace(afterVerifyPath)
+      router.refresh()
+      return
     }
 
     if (result?.session?.access_token && result.session.refresh_token) {

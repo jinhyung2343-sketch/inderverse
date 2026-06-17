@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import {
   buildGuardianProfileMetadata,
   buildMinorGuardianConsentRecord,
@@ -16,12 +15,10 @@ import {
 } from '@/lib/user-consent-log'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { isStagingEnvironment } from '@/lib/env/app-env'
-import { getPublicSupabaseEnv } from '@/lib/env/public'
 import { getSupabaseServiceRoleKey } from '@/lib/env/server'
 import { buildSignupConfirmationEmail } from '@/lib/server/signup-confirmation-email'
 import { sendSmtpMail } from '@/lib/server/smtp-mailer'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Database } from '@/lib/supabase/types'
 
 export const runtime = 'nodejs'
 
@@ -112,7 +109,6 @@ async function createStagingUserWithoutAdmin({
   email,
   guardianConsentStatus,
   guardianRequestedAt,
-  password,
   redirectTo,
   consents,
 }: {
@@ -121,25 +117,28 @@ async function createStagingUserWithoutAdmin({
   email: string
   guardianConsentStatus: GuardianConsentStatus
   guardianRequestedAt: string | null
-  password: string
   redirectTo: string
   consents: SignUpConsentValues
 }) {
-  const { url, anonKey } = getPublicSupabaseEnv()
-  const supabase = createSupabaseClient<Database>(url, anonKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
+  const createdAt = new Date().toISOString()
+  const userId = crypto.randomUUID()
 
-  const anonymousResult = await supabase.auth.signInAnonymously({
-    options: {
-      data: {
-        display_name: displayName,
-        staging_signup_email: email,
-        staging_signup_password_set: password.length > 0,
-        staging_signup_redirect_to: redirectTo,
+  return NextResponse.json({
+    ok: true,
+    email,
+    userId,
+    emailDelivery: 'staging_mock_no_email',
+    adminMode: 'staging_mock_fallback',
+    mockAuth: {
+      createdAt,
+      displayName,
+      email,
+      guardianConsentStatus,
+      redirectTo,
+      userId,
+      metadata: {
+        ageBand,
+        guardianRequestedAt,
         ...buildUserTermsConsentMetadata(consents),
         ...buildGuardianProfileMetadata({
           ageBand,
@@ -147,30 +146,6 @@ async function createStagingUserWithoutAdmin({
           requestedAt: guardianRequestedAt,
         }),
       },
-    },
-  })
-
-  if (anonymousResult.error || !anonymousResult.data.user || !anonymousResult.data.session) {
-    const message =
-      anonymousResult.error?.message ??
-      '스테이징 테스트 세션을 만들지 못했습니다. Vercel Preview에 SUPABASE_SERVICE_ROLE_KEY를 설정하거나 Supabase Auth 익명 로그인을 확인해 주세요.'
-    console.error('Staging anonymous signup fallback failed:', message)
-
-    return NextResponse.json(
-      getSignUpErrorPayload(message),
-      { status: anonymousResult.error?.status ?? 500 }
-    )
-  }
-
-  return NextResponse.json({
-    ok: true,
-    email,
-    userId: anonymousResult.data.user.id,
-    emailDelivery: 'staging_mock_no_email',
-    adminMode: 'staging_anonymous_fallback',
-    session: {
-      access_token: anonymousResult.data.session.access_token,
-      refresh_token: anonymousResult.data.session.refresh_token,
     },
   })
 }
@@ -243,7 +218,6 @@ export async function POST(request: NextRequest) {
         email,
         guardianConsentStatus,
         guardianRequestedAt,
-        password,
         redirectTo,
         consents,
       })
