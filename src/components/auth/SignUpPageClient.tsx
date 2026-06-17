@@ -8,13 +8,18 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
 import {
+  buildMinorGuardianConsentRecord,
+  storePendingMinorGuardianConsent,
   type MinorGuardianConsentFields,
 } from '@/lib/minor-guardian-consent'
 import {
+  buildUserTermsConsentRecord,
   getInitialSignUpConsentValues,
   hasAcceptedAllRequiredSignUpConsents,
+  storePendingUserTermsConsent,
   type SignUpConsentValues,
 } from '@/lib/user-consent-log'
+import { createClient } from '@/lib/supabase/client'
 import {
   AGE_ADULT_CONSENT_LABEL,
   AGE_GUARDIAN_CONSENT_LABEL,
@@ -29,6 +34,11 @@ type AgeConsentMode = 'adult' | 'guardian' | null
 type SignUpResponse = {
   error?: string
   debugVerificationCode?: string
+  userId?: string
+  session?: {
+    access_token?: string
+    refresh_token?: string
+  } | null
 }
 
 const STAGING_SIGNUP_CODE_KEY_PREFIX = 'inderverse:staging-signup-code:'
@@ -240,6 +250,27 @@ export function SignUpPageClient({
     }
 
     storeStagingSignupCode(normalizedEmail, result?.debugVerificationCode)
+
+    if (result?.userId) {
+      storePendingUserTermsConsent(buildUserTermsConsentRecord(result.userId, consents))
+
+      if (ageConsentMode === 'guardian') {
+        storePendingMinorGuardianConsent(buildMinorGuardianConsentRecord(result.userId, guardianFields))
+      }
+    }
+
+    if (result?.session?.access_token && result.session.refresh_token) {
+      const supabase = createClient()
+      await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token,
+      })
+
+      setIsSubmitting(false)
+      router.replace(afterVerifyPath)
+      router.refresh()
+      return
+    }
 
     setIsSubmitting(false)
     router.replace(

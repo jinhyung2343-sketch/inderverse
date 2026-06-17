@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import {
   buildGuardianProfileMetadata,
   buildMinorGuardianConsentRecord,
@@ -15,9 +16,11 @@ import {
 } from '@/lib/user-consent-log'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { isStagingEnvironment } from '@/lib/env/app-env'
+import { getPublicSupabaseEnv } from '@/lib/env/public'
 import { buildSignupConfirmationEmail } from '@/lib/server/signup-confirmation-email'
 import { sendSmtpMail } from '@/lib/server/smtp-mailer'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { Database } from '@/lib/supabase/types'
 
 export const runtime = 'nodejs'
 
@@ -82,6 +85,10 @@ function canUseStagingVerificationCodeFallback() {
   return isStagingEnvironment()
 }
 
+function hasServerAdminKey() {
+  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim())
+}
+
 function getSignUpErrorPayload(errorMessage: string) {
   const readableMessage = getReadableSignUpErrorMessage(errorMessage)
 
@@ -96,6 +103,75 @@ function getSignUpErrorPayload(errorMessage: string) {
   }
 
   return { error: readableMessage }
+}
+
+async function createStagingUserWithoutAdmin({
+  ageBand,
+  displayName,
+  email,
+  guardianConsentStatus,
+  guardianRequestedAt,
+  password,
+  redirectTo,
+  consents,
+}: {
+  ageBand: GuardianAgeBand
+  displayName: string
+  email: string
+  guardianConsentStatus: GuardianConsentStatus
+  guardianRequestedAt: string | null
+  password: string
+  redirectTo: string
+  consents: SignUpConsentValues
+}) {
+  const { url, anonKey } = getPublicSupabaseEnv()
+  const supabase = createSupabaseClient<Database>(url, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: redirectTo,
+      data: {
+        display_name: displayName,
+        ...buildUserTermsConsentMetadata(consents),
+        ...buildGuardianProfileMetadata({
+          ageBand,
+          guardianConsentStatus,
+          requestedAt: guardianRequestedAt,
+        }),
+      },
+    },
+  })
+
+  if (error || !data.user) {
+    const message = error?.message ?? 'Supabase 일반 회원가입을 완료하지 못했습니다.'
+    console.error('Staging anon signup failed:', message)
+
+    return NextResponse.json(
+      getSignUpErrorPayload(message),
+      { status: error?.status ?? 400 }
+    )
+  }
+
+  return NextResponse.json({
+    ok: true,
+    email,
+    userId: data.user.id,
+    emailDelivery: 'supabase_default',
+    adminMode: 'staging_anon_fallback',
+    session: data.session
+      ? {
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        }
+      : null,
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -157,6 +233,21 @@ export async function POST(request: NextRequest) {
   let admin: ReturnType<typeof createAdminClient> | null = null
 
   try {
+    if (!hasServerAdminKey() && isStagingEnvironment()) {
+      console.warn('SUPABASE_SERVICE_ROLE_KEY missing in staging; using anon signup fallback.')
+
+      return await createStagingUserWithoutAdmin({
+        ageBand,
+        displayName,
+        email,
+        guardianConsentStatus,
+        guardianRequestedAt,
+        password,
+        redirectTo,
+        consents,
+      })
+    }
+
     admin = createAdminClient()
 
     const { data, error } = await admin.auth.admin.generateLink({
