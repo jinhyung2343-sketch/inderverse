@@ -16,12 +16,14 @@ type JoinPromptInitialAuth = {
 export function JoinPromptPageClient({
   initialAuth,
   nextPath,
+  shouldForceJoinPrompt = false,
 }: {
   initialAuth: JoinPromptInitialAuth
   nextPath: string | null
+  shouldForceJoinPrompt?: boolean
 }) {
   const router = useRouter()
-  const { refreshStoredAccounts, storedAccounts, switchAccount } = useAuthStore()
+  const { checkSession, refreshStoredAccounts, storedAccounts, switchAccount } = useAuthStore()
   const [isRestoringAccount, setIsRestoringAccount] = useState(false)
   const [restoreError, setRestoreError] = useState('')
   const safeNextPath = nextPath ? sanitizeInternalPath(nextPath, '/main') : null
@@ -36,6 +38,27 @@ export function JoinPromptPageClient({
   useEffect(() => {
     refreshStoredAccounts()
   }, [refreshStoredAccounts])
+
+  useEffect(() => {
+    if (shouldForceJoinPrompt) {
+      return
+    }
+
+    let isMounted = true
+
+    checkSession().finally(() => {
+      if (!isMounted || !useAuthStore.getState().isLoggedIn) {
+        return
+      }
+
+      router.replace(continueHref)
+      router.refresh()
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [checkSession, continueHref, router, shouldForceJoinPrompt])
 
   const handleStoredAccountContinue = async () => {
     if (!storedAccount || isRestoringAccount) {

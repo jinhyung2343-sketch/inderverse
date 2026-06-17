@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { LandingStartLink } from '@/components/auth/LandingStartLink';
 import { BRAND } from '@/lib/brand';
 import { createClient } from '@/lib/supabase/server';
 
@@ -37,19 +37,7 @@ export default async function LandingPage() {
         className="z-10 w-full flex justify-center pb-24 md:pb-32 animate-slide-up opacity-0" 
         style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
       >
-        <Link
-          href={startHref}
-          prefetch={false}
-          className="group relative inline-flex items-center justify-center px-12 py-4 font-medium text-white transition-all duration-700 ease-out"
-        >
-          {/* Base Button Background with Glassmorphism & Glow */}
-          <span className="absolute inset-0 w-full h-full border border-white/10 rounded-full bg-white/5 backdrop-blur-sm transition-all duration-700 ease-out group-hover:bg-white/10 group-hover:border-white/30 group-hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] group-active:scale-95"></span>
-          
-          {/* Text */}
-          <span className="relative tracking-widest text-sm transition-transform duration-700 group-hover:scale-105">
-            시작하기
-          </span>
-        </Link>
+        <LandingStartLink initialHref={startHref} />
       </div>
     </main>
   );

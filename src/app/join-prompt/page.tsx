@@ -41,6 +41,7 @@ export default async function JoinPromptPage({
   return (
     <JoinPromptPageClient
       nextPath={nextPath}
+      shouldForceJoinPrompt={shouldForceJoinPrompt}
       initialAuth={{
         isLoggedIn: true,
         userNickname: profile?.display_name || fallbackNickname,

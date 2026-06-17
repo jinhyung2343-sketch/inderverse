@@ -44,6 +44,7 @@ yarn-error.log*
 
 # local audit artifacts
 inderverse_audit_*.txt
+inderverse_inspection_report.md
 
 # typescript
 *.tsbuildinfo

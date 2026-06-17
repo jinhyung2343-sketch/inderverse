@@ -12,15 +12,17 @@ function getGuestViewerSession() {
   }
 }
 
-function isSupabaseAuthCookie(name: string) {
-  return name.startsWith('sb-') && name.includes('auth-token')
+function isSupabaseSessionCookie(name: string, value: string) {
+  return name.startsWith('sb-') && value.length > 0
 }
 
 export const getViewerSession = cache(async () => {
   const cookieStore = await cookies()
-  const hasAuthCookie = cookieStore.getAll().some(({ name }) => isSupabaseAuthCookie(name))
+  const hasSessionCookie = cookieStore
+    .getAll()
+    .some(({ name, value }) => isSupabaseSessionCookie(name, value))
 
-  if (!hasAuthCookie) {
+  if (!hasSessionCookie) {
     return getGuestViewerSession()
   }
 
