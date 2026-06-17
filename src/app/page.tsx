@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import { BRAND } from '@/lib/brand';
+import { createClient } from '@/lib/supabase/server';
 
-export default function LandingPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const startHref = user ? '/main' : '/join-prompt?next=%2Fmain'
+
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-[#050505] overflow-hidden selection:bg-white/30">
       
@@ -29,7 +38,7 @@ export default function LandingPage() {
         style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
       >
         <Link
-          href="/join-prompt?next=%2Fmain"
+          href={startHref}
           prefetch={false}
           className="group relative inline-flex items-center justify-center px-12 py-4 font-medium text-white transition-all duration-700 ease-out"
         >

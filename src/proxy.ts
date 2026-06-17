@@ -20,7 +20,7 @@ function isApiPath(pathname: string) {
 function hasSupabaseAuthCookie(request: NextRequest) {
   return request.cookies
     .getAll()
-    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
+    .some(({ name, value }) => name.startsWith('sb-') && value.length > 0)
 }
 
 function buildPassThroughResponse(request: NextRequest, pathname: string) {
