@@ -9,12 +9,12 @@ function readFlag(name: string) {
 export function getAppEnvironment(): AppEnvironment {
   const value = process.env.APP_ENV?.trim().toLowerCase()
 
-  if (value === 'development' || value === 'staging' || value === 'production') {
-    return value
-  }
-
   if (process.env.VERCEL_ENV === 'preview') {
     return 'staging'
+  }
+
+  if (value === 'development' || value === 'staging' || value === 'production') {
+    return value
   }
 
   return process.env.NODE_ENV === 'production' ? 'production' : 'development'

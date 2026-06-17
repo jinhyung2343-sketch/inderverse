@@ -82,6 +82,22 @@ function canUseStagingVerificationCodeFallback() {
   return isStagingEnvironment()
 }
 
+function getSignUpErrorPayload(errorMessage: string) {
+  const readableMessage = getReadableSignUpErrorMessage(errorMessage)
+
+  if (
+    isStagingEnvironment() &&
+    readableMessage === '회원가입을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.' &&
+    errorMessage
+  ) {
+    return {
+      error: `스테이징 회원가입 설정을 확인해야 합니다: ${errorMessage}`,
+    }
+  }
+
+  return { error: readableMessage }
+}
+
 export async function POST(request: NextRequest) {
   let body: SignUpRequestBody
 
@@ -130,7 +146,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const admin = createAdminClient()
   const guardianRequestedAt = requiresGuardianDetails ? new Date().toISOString() : null
   const ageBand: GuardianAgeBand = requiresGuardianDetails ? 'under_14' : '14_or_over'
   const guardianConsentStatus: GuardianConsentStatus = requiresGuardianDetails
@@ -139,8 +154,11 @@ export async function POST(request: NextRequest) {
   const afterVerifyPath = requiresGuardianDetails ? '/main/guardian-consent' : nextPath
   const redirectTo = `${request.nextUrl.origin}/auth/callback?next=${encodeURIComponent(afterVerifyPath)}`
   let createdUserId: string | null = null
+  let admin: ReturnType<typeof createAdminClient> | null = null
 
   try {
+    admin = createAdminClient()
+
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'signup',
       email,
@@ -160,8 +178,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (error || !data.user || !data.properties?.email_otp) {
+      const message = error?.message ?? 'Supabase 인증코드를 생성하지 못했습니다.'
+      console.error('Signup link generation failed:', message)
+
       return NextResponse.json(
-        { error: getReadableSignUpErrorMessage(error?.message ?? '') },
+        getSignUpErrorPayload(message),
         { status: error?.status ?? 400 }
       )
     }
@@ -220,13 +241,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, email, nextPath: afterVerifyPath, emailDelivery: 'sent' })
   } catch (error) {
-    if (createdUserId) {
+    if (createdUserId && admin) {
       await admin.auth.admin.deleteUser(createdUserId).catch(() => null)
     }
 
     const message = error instanceof Error ? error.message : String(error)
+    console.error('Signup failed:', message)
+
     return NextResponse.json(
-      { error: getReadableSignUpErrorMessage(message) },
+      getSignUpErrorPayload(message),
       { status: 500 }
     )
   }
