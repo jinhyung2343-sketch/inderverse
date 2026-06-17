@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { replaceAfterAuth } from '@/lib/auth/navigation'
 import {
+  clearStagingMockAuth,
   storeStagingMockAuth,
   type StagingMockAuthPayload,
 } from '@/lib/auth/staging-mock-auth'
@@ -110,6 +111,7 @@ export function SignInPageClient({
     }
 
     setIsSubmitting(false)
+    clearStagingMockAuth()
     replaceAfterAuth(redirectPath)
   }
 

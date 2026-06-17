@@ -103,6 +103,187 @@ function getSignUpErrorPayload(errorMessage: string) {
   return { error: readableMessage }
 }
 
+function buildSignUpUserMetadata({
+  ageBand,
+  consents,
+  displayName,
+  guardianConsentStatus,
+  guardianRequestedAt,
+}: {
+  ageBand: GuardianAgeBand
+  consents: SignUpConsentValues
+  displayName: string
+  guardianConsentStatus: GuardianConsentStatus
+  guardianRequestedAt: string | null
+}) {
+  return {
+    display_name: displayName,
+    ...buildUserTermsConsentMetadata(consents),
+    ...buildGuardianProfileMetadata({
+      ageBand,
+      guardianConsentStatus,
+      requestedAt: guardianRequestedAt,
+    }),
+  }
+}
+
+async function findAuthUserByEmail(admin: ReturnType<typeof createAdminClient>, email: string) {
+  const perPage = 1000
+
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+
+    if (error) {
+      throw new Error(error.message || '기존 회원 정보를 확인하지 못했습니다.')
+    }
+
+    const user = data.users.find((candidate) => candidate.email?.toLowerCase() === email)
+
+    if (user) {
+      return user
+    }
+
+    if (!data.nextPage) {
+      return null
+    }
+  }
+
+  return null
+}
+
+async function syncStagingProfileAndConsents({
+  admin,
+  ageBand,
+  consents,
+  displayName,
+  guardianConsentStatus,
+  guardianFields,
+  guardianRequestedAt,
+  requiresGuardianDetails,
+  userId,
+}: {
+  admin: ReturnType<typeof createAdminClient>
+  ageBand: GuardianAgeBand
+  consents: SignUpConsentValues
+  displayName: string
+  guardianConsentStatus: GuardianConsentStatus
+  guardianFields: MinorGuardianConsentFields
+  guardianRequestedAt: string | null
+  requiresGuardianDetails: boolean
+  userId: string
+}) {
+  const { error: profileError } = await admin
+    .from('profiles')
+    .upsert(
+      {
+        id: userId,
+        display_name: displayName,
+        age_band: ageBand,
+        guardian_consent_status: guardianConsentStatus,
+        guardian_consent_requested_at: guardianRequestedAt,
+      },
+      { onConflict: 'id' }
+    )
+
+  if (profileError) {
+    throw new Error(profileError.message || '프로필 정보를 저장하지 못했습니다.')
+  }
+
+  const consentRecord = buildUserTermsConsentRecord(userId, consents)
+  const { error: consentError } = await admin
+    .from('user_terms_consents')
+    .upsert(consentRecord, { onConflict: USER_TERMS_CONSENT_CONFLICT_KEY })
+
+  if (consentError) {
+    throw new Error(consentError.message || '약관 동의 기록을 저장하지 못했습니다.')
+  }
+
+  if (requiresGuardianDetails && guardianRequestedAt) {
+    const guardianRecord = buildMinorGuardianConsentRecord(
+      userId,
+      guardianFields,
+      guardianRequestedAt
+    )
+    const { error: guardianConsentError } = await admin
+      .from('minor_guardian_consents')
+      .upsert(guardianRecord, { onConflict: 'user_id' })
+
+    if (guardianConsentError) {
+      throw new Error(guardianConsentError.message || '보호자 동의 정보를 저장하지 못했습니다.')
+    }
+  }
+}
+
+async function createOrUpdateStagingUserWithAdmin({
+  admin,
+  ageBand,
+  consents,
+  displayName,
+  email,
+  guardianConsentStatus,
+  guardianFields,
+  guardianRequestedAt,
+  password,
+  requiresGuardianDetails,
+}: {
+  admin: ReturnType<typeof createAdminClient>
+  ageBand: GuardianAgeBand
+  consents: SignUpConsentValues
+  displayName: string
+  email: string
+  guardianConsentStatus: GuardianConsentStatus
+  guardianFields: MinorGuardianConsentFields
+  guardianRequestedAt: string | null
+  password: string
+  requiresGuardianDetails: boolean
+}) {
+  const userMetadata = buildSignUpUserMetadata({
+    ageBand,
+    consents,
+    displayName,
+    guardianConsentStatus,
+    guardianRequestedAt,
+  })
+  const existingUser = await findAuthUserByEmail(admin, email)
+  const authResult = existingUser
+    ? await admin.auth.admin.updateUserById(existingUser.id, {
+        email_confirm: true,
+        password,
+        user_metadata: userMetadata,
+      })
+    : await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        password,
+        user_metadata: userMetadata,
+      })
+
+  if (authResult.error || !authResult.data.user) {
+    throw new Error(authResult.error?.message || '스테이징 테스트 회원을 생성하지 못했습니다.')
+  }
+
+  await syncStagingProfileAndConsents({
+    admin,
+    ageBand,
+    consents,
+    displayName,
+    guardianConsentStatus,
+    guardianFields,
+    guardianRequestedAt,
+    requiresGuardianDetails,
+    userId: authResult.data.user.id,
+  })
+
+  return NextResponse.json({
+    ok: true,
+    autoSignIn: true,
+    email,
+    emailDelivery: 'staging_admin_confirmed',
+    adminMode: existingUser ? 'staging_admin_updated' : 'staging_admin_created',
+    userId: authResult.data.user.id,
+  })
+}
+
 async function createStagingUserWithoutAdmin({
   ageBand,
   displayName,
@@ -210,7 +391,7 @@ export async function POST(request: NextRequest) {
 
   try {
     if (!hasServerAdminKey() && isStagingEnvironment()) {
-      console.warn('SUPABASE_SERVICE_ROLE_KEY missing in staging; using anon signup fallback.')
+      console.warn('SUPABASE_SERVICE_ROLE_KEY missing in staging; using mock signup fallback.')
 
       return await createStagingUserWithoutAdmin({
         ageBand,
@@ -225,21 +406,34 @@ export async function POST(request: NextRequest) {
 
     admin = createAdminClient()
 
+    if (isStagingEnvironment()) {
+      return await createOrUpdateStagingUserWithAdmin({
+        admin,
+        ageBand,
+        consents,
+        displayName,
+        email,
+        guardianConsentStatus,
+        guardianFields,
+        guardianRequestedAt,
+        password,
+        requiresGuardianDetails,
+      })
+    }
+
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'signup',
       email,
       password,
       options: {
         redirectTo,
-        data: {
-          display_name: displayName,
-          ...buildUserTermsConsentMetadata(consents),
-          ...buildGuardianProfileMetadata({
-            ageBand,
-            guardianConsentStatus,
-            requestedAt: guardianRequestedAt,
-          }),
-        },
+        data: buildSignUpUserMetadata({
+          ageBand,
+          consents,
+          displayName,
+          guardianConsentStatus,
+          guardianRequestedAt,
+        }),
       },
     })
 

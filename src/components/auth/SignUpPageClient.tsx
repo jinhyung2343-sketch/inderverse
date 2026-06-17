@@ -8,6 +8,7 @@ import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { BRAND } from '@/lib/brand'
 import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
 import {
+  clearStagingMockAuth,
   storeStagingMockAuth,
   type StagingMockAuthPayload,
 } from '@/lib/auth/staging-mock-auth'
@@ -36,6 +37,7 @@ import {
 
 type AgeConsentMode = 'adult' | 'guardian' | null
 type SignUpResponse = {
+  autoSignIn?: boolean
   error?: string
   debugVerificationCode?: string
   userId?: string
@@ -272,7 +274,30 @@ export function SignUpPageClient({
       return
     }
 
+    if (result?.autoSignIn) {
+      clearStagingMockAuth()
+
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      })
+
+      if (signInError) {
+        setIsSubmitting(false)
+        setErrorMessage('회원가입은 완료됐지만 자동 로그인을 하지 못했습니다. 로그인 화면에서 다시 시도해 주세요.')
+        return
+      }
+
+      setIsSubmitting(false)
+      router.replace(afterVerifyPath)
+      router.refresh()
+      return
+    }
+
     if (result?.session?.access_token && result.session.refresh_token) {
+      clearStagingMockAuth()
+
       const supabase = createClient()
       await supabase.auth.setSession({
         access_token: result.session.access_token,
