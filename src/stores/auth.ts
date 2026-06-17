@@ -270,10 +270,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     clearStagingMockAuth()
-    await fetch('/api/auth/sign-out', {
-      method: 'POST',
-      cache: 'no-store',
-    }).catch(() => null)
+    const supabase = createClient()
+
+    await Promise.allSettled([
+      supabase.auth.signOut(),
+      fetch('/api/auth/sign-out', {
+        method: 'POST',
+        cache: 'no-store',
+      }),
+    ])
+
+    sessionCheckPromise = null
     set({
       user: null,
       profile: null,
