@@ -4,9 +4,18 @@ import Link from 'next/link'
 import { FormEvent, useState } from 'react'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
 import { replaceAfterAuth } from '@/lib/auth/navigation'
+import {
+  storeStagingMockAuth,
+  type StagingMockAuthPayload,
+} from '@/lib/auth/staging-mock-auth'
 import { BRAND } from '@/lib/brand'
 import { getJoinPromptHref, sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/client'
+
+type StagingMockSignInResponse = {
+  error?: string
+  mockAuth?: StagingMockAuthPayload
+}
 
 function getReadableSignInErrorMessage(errorMessage: string) {
   const normalizedMessage = errorMessage.toLowerCase()
@@ -72,9 +81,31 @@ export function SignInPageClient({
     }
 
     if (signInError) {
+      const stagingResponse = await fetch('/api/auth/staging-mock-sign-in', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
+      }).catch(() => null)
+
+      const stagingResult = stagingResponse
+        ? await stagingResponse.json().catch(() => null) as StagingMockSignInResponse | null
+        : null
+
+      if (stagingResponse?.ok && stagingResult?.mockAuth) {
+        storeStagingMockAuth(stagingResult.mockAuth)
+        setIsSubmitting(false)
+        replaceAfterAuth(redirectPath)
+        return
+      }
+
       setIsSubmitting(false)
       setNeedsEmailVerification(signInError.message.toLowerCase().includes('email not confirmed'))
-      setErrorMessage(getReadableSignInErrorMessage(signInError.message))
+      setErrorMessage(stagingResult?.error ?? getReadableSignInErrorMessage(signInError.message))
       return
     }
 

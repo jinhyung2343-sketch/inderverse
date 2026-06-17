@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageBackLink } from '@/components/navigation/PageBackLink'
+import { readStagingMockAuth } from '@/lib/auth/staging-mock-auth'
 import { getForcedJoinPromptHref } from '@/lib/guest-policy'
 import { useAuthStore } from '@/stores/auth'
 import type { Database } from '@/lib/supabase/types'
@@ -241,6 +242,16 @@ export function SettingsPageClient({
     setWithdrawalError('')
 
     try {
+      const stagingMockAuth = readStagingMockAuth()
+
+      if (stagingMockAuth) {
+        await signOut()
+        setConfirmDialog(null)
+        router.push('/')
+        router.refresh()
+        return
+      }
+
       const response = await fetch('/api/auth/withdrawal', {
         method: 'POST',
       })
