@@ -1,6 +1,5 @@
 import { MainHubClient, type InitialHubAuth } from '@/components/main/MainHubClient'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 
 function getGuestInitialAuth(): InitialHubAuth {
   return {
@@ -12,15 +11,6 @@ function getGuestInitialAuth(): InitialHubAuth {
 }
 
 export default async function MainHubPage() {
-  const cookieStore = await cookies()
-  const hasAuthCookie = cookieStore
-    .getAll()
-    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
-
-  if (!hasAuthCookie) {
-    return <MainHubClient initialAuth={getGuestInitialAuth()} />
-  }
-
   const supabase = await createClient()
   const {
     data: { user },

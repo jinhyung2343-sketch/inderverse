@@ -1,6 +1,5 @@
 import { SettingsPageClient, type InitialSettingsAuth } from '@/components/navigation/HubSettingsMenu'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 
 function getGuestInitialAuth(): InitialSettingsAuth {
   return {
@@ -12,15 +11,6 @@ function getGuestInitialAuth(): InitialSettingsAuth {
 }
 
 export default async function SettingsPage() {
-  const cookieStore = await cookies()
-  const hasAuthCookie = cookieStore
-    .getAll()
-    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
-
-  if (!hasAuthCookie) {
-    return <SettingsPageClient initialAuth={getGuestInitialAuth()} />
-  }
-
   const supabase = await createClient()
   const {
     data: { user },

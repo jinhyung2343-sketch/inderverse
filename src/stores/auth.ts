@@ -28,6 +28,37 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 
 let sessionCheckPromise: Promise<void> | null = null
 
+type SessionProfileResponse = {
+  displayName?: string
+  profile?: Profile | null
+}
+
+function readDisplayName(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function getFallbackNickname(user: User) {
+  return readDisplayName(user.user_metadata?.display_name) || user.email?.split('@')[0] || '유저'
+}
+
+async function fetchServerSessionProfile(accessToken: string | null) {
+  const response = await fetch('/api/auth/session-profile', {
+    method: 'GET',
+    cache: 'no-store',
+    headers: accessToken
+      ? {
+          authorization: `Bearer ${accessToken}`,
+        }
+      : undefined,
+  }).catch(() => null)
+
+  if (!response?.ok) {
+    return null
+  }
+
+  return response.json().catch(() => null) as Promise<SessionProfileResponse | null>
+}
+
 function syncViewerAccountGroup() {
   return fetch('/api/auth/account-groups', {
     method: 'GET',
@@ -159,11 +190,11 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
           }
 
-          const { data: profile } = await supabase
+          const { data: clientProfile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
-            .single()
+            .maybeSingle()
           const {
             data: { session },
             error: sessionError,
@@ -174,14 +205,14 @@ export const useAuthStore = create<AuthState>((set) => ({
           }
 
           const verifiedSession = session?.user.id === user.id ? session : null
+          const serverSessionProfile = await fetchServerSessionProfile(
+            verifiedSession?.access_token ?? null
+          )
+          const profile = serverSessionProfile?.profile ?? clientProfile
           const storedAccounts = verifiedSession
             ? rememberAccountSession({ profile, session: verifiedSession, user })
             : readStoredAccounts()
-
-          const fallbackNickname =
-            user.user_metadata?.display_name ||
-            user.email?.split('@')[0] ||
-            '유저'
+          const fallbackNickname = serverSessionProfile?.displayName || getFallbackNickname(user)
 
           set({
             user,
