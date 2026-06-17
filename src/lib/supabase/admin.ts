@@ -1,7 +1,7 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { getPublicSupabaseEnv } from '@/lib/env/public'
-import { requireServerEnv } from '@/lib/env/server'
+import { requireSupabaseServiceRoleKey } from '@/lib/env/server'
 import { Database } from './types'
 
 // This client uses the service_role key to bypass RLS.
@@ -9,7 +9,7 @@ import { Database } from './types'
 // It is intended for server-side logic only (e.g. within API routes or background jobs).
 export const createAdminClient = () => {
   const { url } = getPublicSupabaseEnv()
-  const serviceRoleKey = requireServerEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const serviceRoleKey = requireSupabaseServiceRoleKey()
 
   return createClient<Database>(
     url,

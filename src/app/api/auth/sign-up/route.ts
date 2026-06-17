@@ -17,6 +17,7 @@ import {
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { isStagingEnvironment } from '@/lib/env/app-env'
 import { getPublicSupabaseEnv } from '@/lib/env/public'
+import { getSupabaseServiceRoleKey } from '@/lib/env/server'
 import { buildSignupConfirmationEmail } from '@/lib/server/signup-confirmation-email'
 import { sendSmtpMail } from '@/lib/server/smtp-mailer'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -86,7 +87,7 @@ function canUseStagingVerificationCodeFallback() {
 }
 
 function hasServerAdminKey() {
-  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim())
+  return Boolean(getSupabaseServiceRoleKey())
 }
 
 function getSignUpErrorPayload(errorMessage: string) {
@@ -132,13 +133,13 @@ async function createStagingUserWithoutAdmin({
     },
   })
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
+  const anonymousResult = await supabase.auth.signInAnonymously({
     options: {
-      emailRedirectTo: redirectTo,
       data: {
         display_name: displayName,
+        staging_signup_email: email,
+        staging_signup_password_set: password.length > 0,
+        staging_signup_redirect_to: redirectTo,
         ...buildUserTermsConsentMetadata(consents),
         ...buildGuardianProfileMetadata({
           ageBand,
@@ -149,28 +150,28 @@ async function createStagingUserWithoutAdmin({
     },
   })
 
-  if (error || !data.user) {
-    const message = error?.message ?? 'Supabase 일반 회원가입을 완료하지 못했습니다.'
-    console.error('Staging anon signup failed:', message)
+  if (anonymousResult.error || !anonymousResult.data.user || !anonymousResult.data.session) {
+    const message =
+      anonymousResult.error?.message ??
+      '스테이징 테스트 세션을 만들지 못했습니다. Vercel Preview에 SUPABASE_SERVICE_ROLE_KEY를 설정하거나 Supabase Auth 익명 로그인을 확인해 주세요.'
+    console.error('Staging anonymous signup fallback failed:', message)
 
     return NextResponse.json(
       getSignUpErrorPayload(message),
-      { status: error?.status ?? 400 }
+      { status: anonymousResult.error?.status ?? 500 }
     )
   }
 
   return NextResponse.json({
     ok: true,
     email,
-    userId: data.user.id,
-    emailDelivery: 'supabase_default',
-    adminMode: 'staging_anon_fallback',
-    session: data.session
-      ? {
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        }
-      : null,
+    userId: anonymousResult.data.user.id,
+    emailDelivery: 'staging_mock_no_email',
+    adminMode: 'staging_anonymous_fallback',
+    session: {
+      access_token: anonymousResult.data.session.access_token,
+      refresh_token: anonymousResult.data.session.refresh_token,
+    },
   })
 }
 

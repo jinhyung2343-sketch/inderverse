@@ -16,6 +16,25 @@ export function requireServerEnv(name: RequiredServerEnv) {
   return value
 }
 
+export function getSupabaseServiceRoleKey() {
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE?.trim() ||
+    ''
+  )
+}
+
+export function requireSupabaseServiceRoleKey() {
+  const value = getSupabaseServiceRoleKey()
+
+  if (!value) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY 환경 변수가 필요합니다.')
+  }
+
+  return value
+}
+
 export function getOptionalServerEnv(name: string) {
   return process.env[name]?.trim() || ''
 }
