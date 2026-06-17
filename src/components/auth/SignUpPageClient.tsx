@@ -26,6 +26,20 @@ import {
 } from '@/lib/user-terms'
 
 type AgeConsentMode = 'adult' | 'guardian' | null
+type SignUpResponse = {
+  error?: string
+  debugVerificationCode?: string
+}
+
+const STAGING_SIGNUP_CODE_KEY_PREFIX = 'inderverse:staging-signup-code:'
+
+function storeStagingSignupCode(email: string, code: string | undefined) {
+  if (typeof window === 'undefined' || !code) {
+    return
+  }
+
+  window.sessionStorage.setItem(`${STAGING_SIGNUP_CODE_KEY_PREFIX}${email}`, code)
+}
 
 function ConsentRow({
   checked,
@@ -217,13 +231,15 @@ export function SignUpPageClient({
       }),
     })
 
-    const result = await response.json().catch(() => null) as { error?: string } | null
+    const result = await response.json().catch(() => null) as SignUpResponse | null
 
     if (!response.ok) {
       setIsSubmitting(false)
       setErrorMessage(result?.error ?? '회원가입을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.')
       return
     }
+
+    storeStagingSignupCode(normalizedEmail, result?.debugVerificationCode)
 
     setIsSubmitting(false)
     router.replace(

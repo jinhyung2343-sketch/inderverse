@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
+import { isStagingEnvironment } from '@/lib/env/app-env'
 import { buildSignupConfirmationEmail } from '@/lib/server/signup-confirmation-email'
 import { sendSmtpMail } from '@/lib/server/smtp-mailer'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -23,6 +24,10 @@ function getReadableResendErrorMessage(errorMessage: string) {
   }
 
   return '인증코드를 다시 보내지 못했습니다. 이메일을 확인한 뒤 잠시 후 다시 시도해 주세요.'
+}
+
+function canUseStagingVerificationCodeFallback() {
+  return isStagingEnvironment()
 }
 
 export async function POST(request: NextRequest) {
@@ -99,12 +104,27 @@ export async function POST(request: NextRequest) {
       otp: generated.data.properties.email_otp,
     })
 
-    await sendSmtpMail({
-      to: email,
-      ...confirmationEmail,
-    })
+    try {
+      await sendSmtpMail({
+        to: email,
+        ...confirmationEmail,
+      })
+    } catch (mailError) {
+      if (!canUseStagingVerificationCodeFallback()) {
+        throw mailError
+      }
 
-    return NextResponse.json({ ok: true, email })
+      console.warn('Using staging signup resend verification code fallback:', mailError)
+
+      return NextResponse.json({
+        ok: true,
+        email,
+        emailDelivery: 'staging_fallback',
+        debugVerificationCode: generated.data.properties.email_otp,
+      })
+    }
+
+    return NextResponse.json({ ok: true, email, emailDelivery: 'sent' })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 

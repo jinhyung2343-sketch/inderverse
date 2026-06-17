@@ -14,6 +14,7 @@ import {
   type SignUpConsentValues,
 } from '@/lib/user-consent-log'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
+import { isStagingEnvironment } from '@/lib/env/app-env'
 import { buildSignupConfirmationEmail } from '@/lib/server/signup-confirmation-email'
 import { sendSmtpMail } from '@/lib/server/smtp-mailer'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -75,6 +76,10 @@ function getReadableSignUpErrorMessage(errorMessage: string) {
   }
 
   return '회원가입을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+}
+
+function canUseStagingVerificationCodeFallback() {
+  return isStagingEnvironment()
 }
 
 export async function POST(request: NextRequest) {
@@ -187,17 +192,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const confirmationEmail = buildSignupConfirmationEmail({
-      displayName,
-      otp: data.properties.email_otp,
-    })
+    try {
+      const confirmationEmail = buildSignupConfirmationEmail({
+        displayName,
+        otp: data.properties.email_otp,
+      })
 
-    await sendSmtpMail({
-      to: email,
-      ...confirmationEmail,
-    })
+      await sendSmtpMail({
+        to: email,
+        ...confirmationEmail,
+      })
+    } catch (mailError) {
+      if (!canUseStagingVerificationCodeFallback()) {
+        throw mailError
+      }
 
-    return NextResponse.json({ ok: true, email, nextPath: afterVerifyPath })
+      console.warn('Using staging signup verification code fallback:', mailError)
+
+      return NextResponse.json({
+        ok: true,
+        email,
+        nextPath: afterVerifyPath,
+        emailDelivery: 'staging_fallback',
+        debugVerificationCode: data.properties.email_otp,
+      })
+    }
+
+    return NextResponse.json({ ok: true, email, nextPath: afterVerifyPath, emailDelivery: 'sent' })
   } catch (error) {
     if (createdUserId) {
       await admin.auth.admin.deleteUser(createdUserId).catch(() => null)

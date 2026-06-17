@@ -18,6 +18,40 @@ const emailLinkOtpTypes = new Set<EmailLinkOtpType>([
   'email_change',
   'email',
 ])
+const STAGING_SIGNUP_CODE_KEY_PREFIX = 'inderverse:staging-signup-code:'
+
+type ResendSignupCodeResponse = {
+  error?: string
+  debugVerificationCode?: string
+}
+
+function getStagingSignupCodeKey(email: string) {
+  return `${STAGING_SIGNUP_CODE_KEY_PREFIX}${email}`
+}
+
+function storeStagingSignupCode(email: string, code: string | undefined) {
+  if (typeof window === 'undefined' || !code) {
+    return
+  }
+
+  window.sessionStorage.setItem(getStagingSignupCodeKey(email), code)
+}
+
+function readStagingSignupCode(email: string) {
+  if (typeof window === 'undefined' || !email) {
+    return null
+  }
+
+  return window.sessionStorage.getItem(getStagingSignupCodeKey(email))
+}
+
+function clearStagingSignupCode(email: string) {
+  if (typeof window === 'undefined' || !email) {
+    return
+  }
+
+  window.sessionStorage.removeItem(getStagingSignupCodeKey(email))
+}
 
 function readHashParam(key: string) {
   if (typeof window === 'undefined') {
@@ -67,6 +101,21 @@ export function VerifyEmailPageClient({
 
   const normalizedEmail = verificationEmail.trim().toLowerCase()
   const trimmedCode = verificationCode.trim()
+
+  useEffect(() => {
+    const stagingCode = readStagingSignupCode(normalizedEmail)
+
+    if (!stagingCode) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setVerificationCode(stagingCode)
+      setMessage('스테이징 테스트용 인증코드를 자동으로 입력했습니다.')
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [normalizedEmail])
 
   useEffect(() => {
     let isMounted = true
@@ -192,6 +241,7 @@ export function VerifyEmailPageClient({
 
     await requestWelcomeEmail()
 
+    clearStagingSignupCode(normalizedEmail)
     setMessage('이메일 인증이 완료되었습니다.')
     replaceAfterAuth(redirectPath)
   }
@@ -219,11 +269,19 @@ export function VerifyEmailPageClient({
 
     setIsResending(false)
 
+    const result = (await response.json().catch(() => null)) as ResendSignupCodeResponse | null
+
     if (!response.ok) {
-      const result = (await response.json().catch(() => null)) as { error?: string } | null
       setErrorMessage(
         result?.error ?? '인증코드를 다시 보내지 못했습니다. 이메일을 확인한 뒤 잠시 후 다시 시도해 주세요.'
       )
+      return
+    }
+
+    if (result?.debugVerificationCode) {
+      storeStagingSignupCode(normalizedEmail, result.debugVerificationCode)
+      setVerificationCode(result.debugVerificationCode)
+      setMessage('스테이징 테스트용 인증코드를 다시 발급해 자동으로 입력했습니다.')
       return
     }
 
