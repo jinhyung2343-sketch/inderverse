@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
+const isPreviewOrStaging =
+  process.env.VERCEL_ENV === "preview" || process.env.APP_ENV === "staging";
+
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
-  disable: process.env.NODE_ENV === "development", // 개발 모드에서는 SW 사용 안함
+  disable: process.env.NODE_ENV === "development" || isPreviewOrStaging,
 });
 
 function parseUrl(value: string | undefined) {
@@ -35,6 +38,19 @@ const supabaseStorageHostname = supabasePublicUrl
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, max-age=0, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '20mb',
