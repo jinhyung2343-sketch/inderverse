@@ -157,6 +157,7 @@ export function SettingsPageClient({
     storedAccounts,
     switchAccount,
     forgetAccount,
+    clearSession,
     user,
     userNickname,
     signOut,
@@ -280,14 +281,14 @@ export function SettingsPageClient({
         await forgetAccount(withdrawnUserId)
       }
 
-      await signOut()
+      clearSession()
       setConfirmDialog(null)
       router.push('/')
       router.refresh()
     } finally {
       setIsWithdrawing(false)
     }
-  }, [forgetAccount, isWithdrawing, resolvedUserId, router, signOut, user?.id])
+  }, [clearSession, forgetAccount, isWithdrawing, resolvedUserId, router, signOut, user?.id])
 
   const closeConfirmDialog = useCallback(() => {
     if (!isSigningOut && !isWithdrawing) {

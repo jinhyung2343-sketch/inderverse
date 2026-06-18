@@ -56,13 +56,13 @@ function resolveDisplayName(user: User, profile: Profile | null) {
   const metadataDisplayName = readDisplayName(user.user_metadata?.display_name)
   const profileDisplayName = readDisplayName(profile?.display_name)
   const emailLocalPart = user.email?.split('@')[0] ?? ''
+  const profileLooksLikeFallback =
+    !profileDisplayName ||
+    profileDisplayName === '유저' ||
+    profileDisplayName === user.email ||
+    profileDisplayName === emailLocalPart
 
-  if (
-    metadataDisplayName &&
-    (!profileDisplayName ||
-      profileDisplayName === user.email ||
-      profileDisplayName === emailLocalPart)
-  ) {
+  if (metadataDisplayName && profileLooksLikeFallback) {
     return metadataDisplayName
   }
 

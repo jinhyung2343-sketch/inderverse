@@ -82,6 +82,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
   }
 
+  if (accessToken) {
+    await admin.auth.admin.signOut(accessToken, 'global').catch(() => null)
+  }
+
+  const supabase = await createClient()
+  await supabase.auth.signOut().catch(() => null)
+
   const { error } = await admin.auth.admin.deleteUser(user.id)
 
   if (error) {
@@ -99,12 +106,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (accessToken) {
-    await admin.auth.admin.signOut(accessToken, 'global').catch(() => null)
-  }
-
-  const supabase = await createClient()
-  await supabase.auth.signOut().catch(() => null)
   await deleteSupabaseCookies()
 
   return NextResponse.json({ ok: true, withdrawnUserId: user.id })

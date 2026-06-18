@@ -151,7 +151,7 @@ async function findAuthUserByEmail(admin: ReturnType<typeof createAdminClient>, 
   return null
 }
 
-async function syncStagingProfileAndConsents({
+async function syncProfileAndConsents({
   admin,
   ageBand,
   consents,
@@ -262,7 +262,7 @@ async function createOrUpdateStagingUserWithAdmin({
     throw new Error(authResult.error?.message || '스테이징 테스트 회원을 생성하지 못했습니다.')
   }
 
-  await syncStagingProfileAndConsents({
+  await syncProfileAndConsents({
     admin,
     ageBand,
     consents,
@@ -448,30 +448,34 @@ export async function POST(request: NextRequest) {
     }
 
     createdUserId = data.user.id
+    const userMetadata = buildSignUpUserMetadata({
+      ageBand,
+      consents,
+      displayName,
+      guardianConsentStatus,
+      guardianRequestedAt,
+    })
 
-    const consentRecord = buildUserTermsConsentRecord(data.user.id, consents)
-    const { error: consentError } = await admin
-      .from('user_terms_consents')
-      .upsert(consentRecord, { onConflict: USER_TERMS_CONSENT_CONFLICT_KEY })
+    await admin.auth.admin
+      .updateUserById(data.user.id, {
+        user_metadata: {
+          ...data.user.user_metadata,
+          ...userMetadata,
+        },
+      })
+      .catch(() => null)
 
-    if (consentError) {
-      throw new Error(consentError.message || '약관 동의 기록을 저장하지 못했습니다.')
-    }
-
-    if (requiresGuardianDetails && guardianRequestedAt) {
-      const guardianRecord = buildMinorGuardianConsentRecord(
-        data.user.id,
-        guardianFields,
-        guardianRequestedAt
-      )
-      const { error: guardianConsentError } = await admin
-        .from('minor_guardian_consents')
-        .upsert(guardianRecord, { onConflict: 'user_id' })
-
-      if (guardianConsentError) {
-        throw new Error(guardianConsentError.message || '보호자 동의 정보를 저장하지 못했습니다.')
-      }
-    }
+    await syncProfileAndConsents({
+      admin,
+      ageBand,
+      consents,
+      displayName,
+      guardianConsentStatus,
+      guardianFields,
+      guardianRequestedAt,
+      requiresGuardianDetails,
+      userId: data.user.id,
+    })
 
     try {
       const confirmationEmail = buildSignupConfirmationEmail({

@@ -117,7 +117,22 @@ interface AuthState {
   refreshStoredAccounts: () => void;
   switchAccount: (userId: string) => Promise<void>;
   forgetAccount: (userId: string) => Promise<void>;
+  clearSession: () => void;
   signOut: () => Promise<void>;
+}
+
+function getSignedOutState() {
+  return {
+    user: null,
+    profile: null,
+    isLoading: false,
+    isAdultVerified: false,
+    isSubscribed: false,
+    guardianConsentStatus: null,
+    isLoggedIn: false,
+    userNickname: 'Guest',
+    storedAccounts: readStoredAccounts(),
+  }
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -300,6 +315,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ storedAccounts })
   },
 
+  clearSession: () => {
+    clearStagingMockAuth()
+    clearBrowserAuthStorage()
+    sessionCheckPromise = null
+    set(getSignedOutState())
+  },
+
   signOut: async () => {
     clearStagingMockAuth()
     const supabase = createClient()
@@ -321,16 +343,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     clearBrowserAuthStorage()
     sessionCheckPromise = null
-    set({
-      user: null,
-      profile: null,
-      isLoading: false,
-      isAdultVerified: false,
-      isSubscribed: false,
-      guardianConsentStatus: null,
-      isLoggedIn: false,
-      userNickname: 'Guest',
-      storedAccounts: readStoredAccounts(),
-    })
+    set(getSignedOutState())
   }
 }))
