@@ -23,8 +23,9 @@ export function JoinPromptPageClient({
   shouldForceJoinPrompt?: boolean
 }) {
   const router = useRouter()
-  const { checkSession, refreshStoredAccounts, storedAccounts, switchAccount } = useAuthStore()
+  const { checkSession, clearSession, refreshStoredAccounts, signOut, storedAccounts, switchAccount } = useAuthStore()
   const [isRestoringAccount, setIsRestoringAccount] = useState(false)
+  const [isStartingNewAccount, setIsStartingNewAccount] = useState(false)
   const [restoreError, setRestoreError] = useState('')
   const safeNextPath = nextPath ? sanitizeInternalPath(nextPath, '/main') : null
   const continueHref = safeNextPath ?? '/main'
@@ -78,6 +79,32 @@ export function JoinPromptPageClient({
       )
     } finally {
       setIsRestoringAccount(false)
+    }
+  }
+
+  const handleStartNewAccount = async () => {
+    if (isStartingNewAccount) {
+      return
+    }
+
+    setIsStartingNewAccount(true)
+    setRestoreError('')
+
+    try {
+      if (initialAuth?.isLoggedIn) {
+        await signOut()
+      } else {
+        clearSession()
+      }
+
+      router.push(signUpHref)
+      router.refresh()
+    } catch (error) {
+      setRestoreError(
+        error instanceof Error ? error.message : '새 계정 만들기를 시작하지 못했습니다. 다시 시도해 주세요.'
+      )
+    } finally {
+      setIsStartingNewAccount(false)
     }
   }
 
@@ -151,12 +178,14 @@ export function JoinPromptPageClient({
           </Link>
 
           {initialAuth?.isLoggedIn || storedAccount ? (
-            <Link
-              href={signUpHref}
+            <button
+              type="button"
+              onClick={handleStartNewAccount}
+              disabled={isStartingNewAccount}
               className="flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 py-4 font-medium text-zinc-200 transition-colors hover:scale-[1.02] hover:bg-white/10 active:scale-[0.98]"
             >
-              새 계정 만들기
-            </Link>
+              {isStartingNewAccount ? '준비 중...' : '새 계정 만들기'}
+            </button>
           ) : null}
 
           {!initialAuth?.isLoggedIn ? (

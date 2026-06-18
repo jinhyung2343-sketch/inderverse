@@ -327,19 +327,28 @@ export const useAuthStore = create<AuthState>((set) => ({
     const supabase = createClient()
     const accessToken = await getCurrentAccessToken().catch(() => null)
 
-    await Promise.allSettled([
-      supabase.auth.signOut({ scope: 'global' }),
-      fetch('/api/auth/sign-out', {
+    await fetch('/api/auth/sign-out', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: accessToken
+        ? {
+            authorization: `Bearer ${accessToken}`,
+          }
+        : undefined,
+    }).catch(() => null)
+
+    await supabase.auth
+      .signOut({ scope: 'global' })
+      .catch(() => null)
+
+    if (accessToken) {
+      await fetch('/api/auth/sign-out', {
         method: 'POST',
         cache: 'no-store',
         credentials: 'include',
-        headers: accessToken
-          ? {
-              authorization: `Bearer ${accessToken}`,
-            }
-          : undefined,
-      }),
-    ])
+      }).catch(() => null)
+    }
 
     clearBrowserAuthStorage()
     sessionCheckPromise = null
