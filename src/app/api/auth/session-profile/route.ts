@@ -4,14 +4,11 @@ import { getSupabaseServiceRoleKey } from '@/lib/env/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/types'
+import { readDisplayName, resolveStoredDisplayName } from '@/lib/auth/display-name'
 
 export const runtime = 'nodejs'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
-
-function readDisplayName(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
-}
 
 function getBearerToken(request: NextRequest) {
   const authorization = request.headers.get('authorization')?.trim()
@@ -53,20 +50,11 @@ async function getCurrentUser(request: NextRequest, admin: ReturnType<typeof cre
 }
 
 function resolveDisplayName(user: User, profile: Profile | null) {
-  const metadataDisplayName = readDisplayName(user.user_metadata?.display_name)
-  const profileDisplayName = readDisplayName(profile?.display_name)
-  const emailLocalPart = user.email?.split('@')[0] ?? ''
-  const profileLooksLikeFallback =
-    !profileDisplayName ||
-    profileDisplayName === '유저' ||
-    profileDisplayName === user.email ||
-    profileDisplayName === emailLocalPart
-
-  if (metadataDisplayName && profileLooksLikeFallback) {
-    return metadataDisplayName
-  }
-
-  return profileDisplayName || metadataDisplayName || emailLocalPart || '유저'
+  return resolveStoredDisplayName({
+    email: user.email,
+    metadataDisplayName: user.user_metadata?.display_name,
+    profileDisplayName: profile?.display_name,
+  })
 }
 
 export async function GET(request: NextRequest) {
