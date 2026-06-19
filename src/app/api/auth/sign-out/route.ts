@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { expireSupabaseAuthCookies } from '@/lib/auth/server-session-cookies'
 import { getSupabaseServiceRoleKey } from '@/lib/env/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
-
-function isSupabaseCookie(name: string) {
-  return name.startsWith('sb-')
-}
 
 function getBearerToken(request: NextRequest) {
   const authorization = request.headers.get('authorization')?.trim()
@@ -31,14 +27,8 @@ export async function POST(request: NextRequest) {
     await admin.auth.admin.signOut(accessToken, 'global').catch(() => null)
   }
 
-  const cookieStore = await cookies()
+  const response = NextResponse.json({ ok: true })
+  await expireSupabaseAuthCookies(request, response)
 
-  cookieStore
-    .getAll()
-    .filter((cookie) => isSupabaseCookie(cookie.name))
-    .forEach((cookie) => {
-      cookieStore.delete(cookie.name)
-    })
-
-  return NextResponse.json({ ok: true })
+  return response
 }

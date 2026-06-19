@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import type { User } from '@supabase/supabase-js'
+import { expireSupabaseAuthCookies } from '@/lib/auth/server-session-cookies'
 import {
   AccountGroupsSchemaUnavailableError,
   detachAccountGroupMembershipsForWithdrawal,
@@ -24,11 +24,12 @@ function getBearerToken(request: NextRequest) {
 async function getUserFromRequest({
   accessToken,
   admin,
+  supabase,
 }: {
   accessToken: string | null
   admin: ReturnType<typeof createAdminClient>
+  supabase: Awaited<ReturnType<typeof createClient>>
 }) {
-  const supabase = await createClient()
   const {
     data: { user },
     error: userError,
@@ -54,45 +55,48 @@ async function getUserFromRequest({
   return tokenUser
 }
 
-function deleteSupabaseCookies() {
-  return cookies().then((cookieStore) => {
-    cookieStore
-      .getAll()
-      .filter((cookie) => cookie.name.startsWith('sb-'))
-      .forEach((cookie) => {
-        cookieStore.delete(cookie.name)
-      })
-  })
+async function jsonWithExpiredAuthCookies(
+  request: NextRequest,
+  body: Record<string, unknown>,
+  init?: ResponseInit
+) {
+  const response = NextResponse.json(body, init)
+  await expireSupabaseAuthCookies(request, response)
+
+  return response
 }
 
 export async function POST(request: NextRequest) {
   const accessToken = getBearerToken(request)
+  const supabase = await createClient()
 
   if (!getSupabaseServiceRoleKey()) {
-    return NextResponse.json(
+    await supabase.auth.signOut().catch(() => null)
+    return jsonWithExpiredAuthCookies(
+      request,
       { error: '회원 탈퇴를 처리할 서버 설정이 필요합니다.' },
       { status: 500 }
     )
   }
 
   const admin = createAdminClient()
-  const user: User | null = await getUserFromRequest({ accessToken, admin })
+  const user: User | null = await getUserFromRequest({ accessToken, admin, supabase })
 
   if (!user) {
-    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
+    return jsonWithExpiredAuthCookies(request, { error: '로그인이 필요합니다.' }, { status: 401 })
   }
 
   if (accessToken) {
     await admin.auth.admin.signOut(accessToken, 'global').catch(() => null)
   }
 
-  const supabase = await createClient()
   await supabase.auth.signOut().catch(() => null)
 
   const { error } = await admin.auth.admin.deleteUser(user.id)
 
   if (error) {
-    return NextResponse.json(
+    return jsonWithExpiredAuthCookies(
+      request,
       { error: '회원 탈퇴를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.' },
       { status: error.status ?? 500 }
     )
@@ -106,7 +110,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  await deleteSupabaseCookies()
-
-  return NextResponse.json({ ok: true, withdrawnUserId: user.id })
+  return jsonWithExpiredAuthCookies(request, { ok: true, withdrawnUserId: user.id })
 }
