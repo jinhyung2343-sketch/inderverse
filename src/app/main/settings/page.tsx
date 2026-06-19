@@ -1,10 +1,12 @@
 import { SettingsPageClient, type InitialSettingsAuth } from '@/components/navigation/HubSettingsMenu'
+import { resolveStoredDisplayName } from '@/lib/auth/display-name'
 import { createClient } from '@/lib/supabase/server'
 
 function getGuestInitialAuth(): InitialSettingsAuth {
   return {
     isLoggedIn: false,
     userId: null,
+    userEmail: null,
     userNickname: 'Guest',
     profile: null,
   }
@@ -26,15 +28,15 @@ export default async function SettingsPage() {
       .eq('id', user.id)
       .maybeSingle()
 
-    const fallbackNickname =
-      (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name) ||
-      user.email?.split('@')[0] ||
-      '유저'
-
     initialAuth = {
       isLoggedIn: true,
       userId: user.id,
-      userNickname: profile?.display_name || fallbackNickname,
+      userEmail: user.email ?? null,
+      userNickname: resolveStoredDisplayName({
+        email: user.email,
+        metadataDisplayName: user.user_metadata?.display_name,
+        profileDisplayName: profile?.display_name,
+      }),
       profile,
     }
   }

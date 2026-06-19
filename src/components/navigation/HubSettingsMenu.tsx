@@ -18,6 +18,7 @@ type SettingsProfile = Pick<
 export type InitialSettingsAuth = {
   isLoggedIn: boolean
   userId: string | null
+  userEmail: string | null
   userNickname: string
   profile: SettingsProfile
 }
@@ -187,6 +188,7 @@ export function SettingsPageClient({
 
   const resolvedIsLoggedIn = isUsingInitialAuth ? initialAuth.isLoggedIn : isLoggedIn
   const resolvedUserId = isUsingInitialAuth ? initialAuth.userId : user?.id ?? null
+  const resolvedUserEmail = isUsingInitialAuth ? initialAuth.userEmail : user?.email ?? null
   const resolvedProfile = isUsingInitialAuth ? initialAuth.profile : profile
   const resolvedUserNickname = isUsingInitialAuth ? initialAuth.userNickname : userNickname
   const isCreator =
@@ -500,6 +502,21 @@ export function SettingsPageClient({
                   </div>
                 )
               })
+            ) : resolvedIsLoggedIn ? (
+              <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-50">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{displayNickname}</span>
+                  <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[11px] font-semibold text-emerald-100">
+                    현재 접속
+                  </span>
+                </div>
+                {resolvedUserEmail ? (
+                  <p className="mt-1 truncate text-xs text-emerald-100/70">{resolvedUserEmail}</p>
+                ) : null}
+                <p className="mt-2 text-xs leading-5 text-emerald-100/75">
+                  현재 계정 세션은 확인되었습니다. 계정 전환 목록이 비어 있어도 로그아웃과 회원 탈퇴는 사용할 수 있습니다.
+                </p>
+              </div>
             ) : (
               <div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-zinc-500">
                 아직 이 브라우저에 저장된 계정이 없습니다. 로그인하면 이곳에 계정이 등록됩니다.

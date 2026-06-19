@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js'
+import { resolveStoredDisplayName } from '@/lib/auth/display-name'
 import type { Database } from '@/lib/supabase/types'
 
 type AccountProfile = Pick<
@@ -148,11 +149,11 @@ export function rememberAccountSession({
     return readStoredAccounts()
   }
 
-  const displayName =
-    profile?.display_name ||
-    (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name) ||
-    email.split('@')[0] ||
-    '유저'
+  const displayName = resolveStoredDisplayName({
+    email,
+    metadataDisplayName: user.user_metadata?.display_name,
+    profileDisplayName: profile?.display_name,
+  })
   const account: StoredInderverseAccount = {
     userId: user.id,
     email,

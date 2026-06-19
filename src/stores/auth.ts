@@ -8,6 +8,7 @@ import {
   type StoredInderverseAccount,
 } from '@/lib/auth/account-registry'
 import { clearBrowserAuthStorage, getCurrentAccessToken } from '@/lib/auth/browser-session'
+import { resolveStoredDisplayName } from '@/lib/auth/display-name'
 import {
   buildStagingMockProfile,
   buildStagingMockUser,
@@ -229,6 +230,12 @@ export const useAuthStore = create<AuthState>((set) => ({
             ? rememberAccountSession({ profile, session: verifiedSession, user })
             : readStoredAccounts()
           const fallbackNickname = serverSessionProfile?.displayName || getFallbackNickname(user)
+          const displayName = resolveStoredDisplayName({
+            email: user.email,
+            metadataDisplayName: user.user_metadata?.display_name,
+            profileDisplayName: profile?.display_name,
+            fallback: fallbackNickname,
+          })
 
           set({
             user,
@@ -238,7 +245,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             isSubscribed: profile?.is_subscribed ?? false,
             guardianConsentStatus: profile?.guardian_consent_status ?? null,
             isLoggedIn: true,
-            userNickname: profile?.display_name || fallbackNickname,
+            userNickname: displayName,
             storedAccounts,
           })
           await Promise.all([

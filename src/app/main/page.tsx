@@ -1,4 +1,5 @@
 import { MainHubClient, type InitialHubAuth } from '@/components/main/MainHubClient'
+import { resolveStoredDisplayName } from '@/lib/auth/display-name'
 import { createClient } from '@/lib/supabase/server'
 
 function getGuestInitialAuth(): InitialHubAuth {
@@ -26,14 +27,13 @@ export default async function MainHubPage() {
       .eq('id', user.id)
       .maybeSingle()
 
-    const fallbackNickname =
-      (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name) ||
-      user.email?.split('@')[0] ||
-      '유저'
-
     initialAuth = {
       isLoggedIn: true,
-      userNickname: profile?.display_name || fallbackNickname,
+      userNickname: resolveStoredDisplayName({
+        email: user.email,
+        metadataDisplayName: user.user_metadata?.display_name,
+        profileDisplayName: profile?.display_name,
+      }),
       profile,
       guardianConsentStatus: profile?.guardian_consent_status ?? null,
     }

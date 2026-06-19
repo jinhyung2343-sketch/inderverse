@@ -1,4 +1,5 @@
 import { JoinPromptPageClient } from '@/components/auth/JoinPromptPageClient'
+import { resolveStoredDisplayName } from '@/lib/auth/display-name'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -33,10 +34,6 @@ export default async function JoinPromptPage({
     .select('display_name')
     .eq('id', user.id)
     .maybeSingle()
-  const fallbackNickname =
-    (typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name) ||
-    user.email?.split('@')[0] ||
-    '유저'
 
   return (
     <JoinPromptPageClient
@@ -44,7 +41,11 @@ export default async function JoinPromptPage({
       shouldForceJoinPrompt={shouldForceJoinPrompt}
       initialAuth={{
         isLoggedIn: true,
-        userNickname: profile?.display_name || fallbackNickname,
+        userNickname: resolveStoredDisplayName({
+          email: user.email,
+          metadataDisplayName: user.user_metadata?.display_name,
+          profileDisplayName: profile?.display_name,
+        }),
       }}
     />
   )
