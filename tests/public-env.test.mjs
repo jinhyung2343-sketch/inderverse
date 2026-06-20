@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { getPublicSupabaseEnv } from '../src/lib/env/public.ts'
 
-test('public Supabase env falls back to bundled preview-safe values', () => {
+test('public Supabase env requires explicit values', () => {
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const originalAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -11,10 +11,10 @@ test('public Supabase env falls back to bundled preview-safe values', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    const env = getPublicSupabaseEnv()
-
-    assert.match(env.url, /^https:\/\/.+\.supabase\.co$/)
-    assert.ok(env.anonKey.length > 40)
+    assert.throws(
+      () => getPublicSupabaseEnv(),
+      /NEXT_PUBLIC_SUPABASE_URL 환경 변수가 필요합니다/,
+    )
   } finally {
     if (originalUrl === undefined) {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL
