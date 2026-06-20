@@ -247,8 +247,9 @@ export function SettingsPageClient({
 
     try {
       const stagingMockAuth = readStagingMockAuth()
+      const accessToken = await getCurrentAccessToken().catch(() => null)
 
-      if (stagingMockAuth) {
+      if (stagingMockAuth && !accessToken) {
         await signOut()
         setConfirmDialog(null)
         router.push('/')
@@ -256,7 +257,6 @@ export function SettingsPageClient({
         return
       }
 
-      const accessToken = await getCurrentAccessToken().catch(() => null)
       const response = await fetch('/api/auth/withdrawal', {
         method: 'POST',
         cache: 'no-store',

@@ -155,30 +155,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     const currentSessionCheck = (async () => {
       set({ isLoading: true })
       try {
-        const stagingMockAuth = readStagingMockAuth()
-
-        if (stagingMockAuth) {
-          const mockProfile = buildStagingMockProfile(stagingMockAuth)
-          const mockUser = buildStagingMockUser(stagingMockAuth)
-
-          set({
-            user: mockUser,
-            profile: mockProfile,
-            isLoading: false,
-            isAdultVerified: mockProfile.is_adult_verified,
-            isSubscribed: mockProfile.is_subscribed,
-            guardianConsentStatus: mockProfile.guardian_consent_status,
-            isLoggedIn: true,
-            userNickname: mockProfile.display_name,
-            storedAccounts: readStoredAccounts(),
-          })
-          return
-        }
-
         const supabase = createClient()
         const { data: { user }, error } = await supabase.auth.getUser()
 
         if (user && !error) {
+          clearStagingMockAuth()
           const pendingConsent = readPendingUserTermsConsent()
 
           if (pendingConsent && pendingConsent.user_id === user.id) {
@@ -253,6 +234,26 @@ export const useAuthStore = create<AuthState>((set) => ({
             syncLinkedStoredAccounts(user.id, storedAccounts),
           ])
         } else {
+          const stagingMockAuth = readStagingMockAuth()
+
+          if (stagingMockAuth) {
+            const mockProfile = buildStagingMockProfile(stagingMockAuth)
+            const mockUser = buildStagingMockUser(stagingMockAuth)
+
+            set({
+              user: mockUser,
+              profile: mockProfile,
+              isLoading: false,
+              isAdultVerified: mockProfile.is_adult_verified,
+              isSubscribed: mockProfile.is_subscribed,
+              guardianConsentStatus: mockProfile.guardian_consent_status,
+              isLoggedIn: true,
+              userNickname: mockProfile.display_name,
+              storedAccounts: readStoredAccounts(),
+            })
+            return
+          }
+
           set({
             user: null,
             profile: null,

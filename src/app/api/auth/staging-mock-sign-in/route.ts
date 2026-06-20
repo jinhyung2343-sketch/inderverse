@@ -121,6 +121,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  if (getSupabaseServiceRoleKey()) {
+    return NextResponse.json(
+      { error: '로그인 정보가 맞지 않습니다. 가입한 이메일과 비밀번호를 다시 확인해 주세요.' },
+      { status: 401 }
+    )
+  }
+
   const createdAt = new Date().toISOString()
   let storedAccount: Awaited<ReturnType<typeof readStoredStagingAccount>> = null
 
