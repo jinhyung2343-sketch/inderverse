@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { getStagingAuthEmail } from '@/lib/auth/staging-email'
 import { isStagingEnvironment } from '@/lib/env/app-env'
 import { getSupabaseServiceRoleKey } from '@/lib/env/server'
 import { resolveStoredDisplayName } from '@/lib/auth/display-name'
@@ -64,7 +65,8 @@ async function readStoredStagingAccount(email: string) {
   }
 
   const admin = createAdminClient()
-  const user = await findAuthUserByEmail(admin, email)
+  const signInEmail = getStagingAuthEmail(email)
+  const user = await findAuthUserByEmail(admin, signInEmail)
 
   if (!user) {
     return null
@@ -94,6 +96,7 @@ async function readStoredStagingAccount(email: string) {
       (typeof user.user_metadata?.guardian_consent_status === 'string'
         ? user.user_metadata.guardian_consent_status
         : 'not_required'),
+    signInEmail,
     userId: user.id,
   }
 }
@@ -116,35 +119,51 @@ export async function POST(request: NextRequest) {
 
   if (!email || password.length < 8) {
     return NextResponse.json(
-      { error: '스테이징 테스트 로그인을 위해 이메일과 비밀번호 8자 이상을 입력해 주세요.' },
+      {
+        error: '스테이징 테스트 로그인을 위해 이메일과 비밀번호 8자 이상을 입력해 주세요.',
+        staging: true,
+      },
       { status: 400 }
     )
   }
 
   if (getSupabaseServiceRoleKey()) {
-    return NextResponse.json(
-      { error: '로그인 정보가 맞지 않습니다. 가입한 이메일과 비밀번호를 다시 확인해 주세요.' },
-      { status: 401 }
-    )
+    let storedAccount: Awaited<ReturnType<typeof readStoredStagingAccount>> = null
+
+    try {
+      storedAccount = await readStoredStagingAccount(email)
+    } catch (error) {
+      console.warn('Unable to load stored staging account profile:', error)
+    }
+
+    if (!storedAccount) {
+      return NextResponse.json(
+        {
+          error: '스테이징 계정을 찾지 못했습니다. 이 주소에서 다시 회원가입을 진행해 주세요.',
+          staging: true,
+        },
+        { status: 401 }
+      )
+    }
+
+    return NextResponse.json({
+      ok: true,
+      staging: true,
+      signInEmail: storedAccount.signInEmail,
+    })
   }
 
   const createdAt = new Date().toISOString()
-  let storedAccount: Awaited<ReturnType<typeof readStoredStagingAccount>> = null
-
-  try {
-    storedAccount = await readStoredStagingAccount(email)
-  } catch (error) {
-    console.warn('Unable to load stored staging account profile:', error)
-  }
 
   return NextResponse.json({
     ok: true,
+    staging: true,
     mockAuth: {
       createdAt,
-      displayName: storedAccount?.displayName ?? getDisplayNameFromEmail(email),
+      displayName: getDisplayNameFromEmail(email),
       email,
-      guardianConsentStatus: storedAccount?.guardianConsentStatus ?? 'not_required',
-      userId: storedAccount?.userId ?? buildStableMockUserId(email),
+      guardianConsentStatus: 'not_required',
+      userId: buildStableMockUserId(email),
     },
   })
 }

@@ -40,6 +40,7 @@ type SignUpResponse = {
   autoSignIn?: boolean
   error?: string
   debugVerificationCode?: string
+  signInEmail?: string
   userId?: string
   session?: {
     access_token?: string
@@ -279,7 +280,7 @@ export function SignUpPageClient({
 
       const supabase = createClient()
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
+        email: result.signInEmail ?? normalizedEmail,
         password,
       })
 

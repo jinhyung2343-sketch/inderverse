@@ -14,6 +14,7 @@ import {
   type SignUpConsentValues,
 } from '@/lib/user-consent-log'
 import { sanitizeInternalPath } from '@/lib/guest-policy'
+import { getStagingAuthEmail } from '@/lib/auth/staging-email'
 import { isStagingEnvironment } from '@/lib/env/app-env'
 import { getSupabaseServiceRoleKey } from '@/lib/env/server'
 import { buildSignupConfirmationEmail } from '@/lib/server/signup-confirmation-email'
@@ -237,6 +238,7 @@ async function createOrUpdateStagingUserWithAdmin({
   password: string
   requiresGuardianDetails: boolean
 }) {
+  const stagingAuthEmail = getStagingAuthEmail(email)
   const userMetadata = buildSignUpUserMetadata({
     ageBand,
     consents,
@@ -244,18 +246,22 @@ async function createOrUpdateStagingUserWithAdmin({
     guardianConsentStatus,
     guardianRequestedAt,
   })
-  const existingUser = await findAuthUserByEmail(admin, email)
+  const stagingUserMetadata = {
+    ...userMetadata,
+    staging_original_email: email,
+  }
+  const existingUser = await findAuthUserByEmail(admin, stagingAuthEmail)
   const authResult = existingUser
     ? await admin.auth.admin.updateUserById(existingUser.id, {
         email_confirm: true,
         password,
-        user_metadata: userMetadata,
+        user_metadata: stagingUserMetadata,
       })
     : await admin.auth.admin.createUser({
-        email,
+        email: stagingAuthEmail,
         email_confirm: true,
         password,
-        user_metadata: userMetadata,
+        user_metadata: stagingUserMetadata,
       })
 
   if (authResult.error || !authResult.data.user) {
@@ -280,6 +286,7 @@ async function createOrUpdateStagingUserWithAdmin({
     email,
     emailDelivery: 'staging_admin_confirmed',
     adminMode: existingUser ? 'staging_admin_updated' : 'staging_admin_created',
+    signInEmail: stagingAuthEmail,
     userId: authResult.data.user.id,
   })
 }

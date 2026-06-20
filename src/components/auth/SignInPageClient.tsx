@@ -16,6 +16,8 @@ import { createClient } from '@/lib/supabase/client'
 type StagingMockSignInResponse = {
   error?: string
   mockAuth?: StagingMockAuthPayload
+  signInEmail?: string
+  staging?: boolean
 }
 
 function getReadableSignInErrorMessage(errorMessage: string) {
@@ -65,6 +67,49 @@ export function SignInPageClient({
     setErrorMessage('')
     setNeedsEmailVerification(false)
 
+    const stagingResponse = await fetch('/api/auth/staging-mock-sign-in', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: normalizedEmail,
+        password,
+      }),
+    }).catch(() => null)
+
+    const stagingResult = stagingResponse
+      ? await stagingResponse.json().catch(() => null) as StagingMockSignInResponse | null
+      : null
+
+    if (stagingResult?.staging) {
+      if (stagingResponse?.ok && stagingResult.mockAuth) {
+        storeStagingMockAuth(stagingResult.mockAuth)
+        setIsSubmitting(false)
+        replaceAfterAuth(redirectPath)
+        return
+      }
+
+      if (stagingResponse?.ok && stagingResult.signInEmail) {
+        const supabase = createClient()
+        const { error } = await supabase.auth.signInWithPassword({
+          email: stagingResult.signInEmail,
+          password,
+        })
+
+        if (!error) {
+          clearStagingMockAuth()
+          setIsSubmitting(false)
+          replaceAfterAuth(redirectPath)
+          return
+        }
+      }
+
+      setIsSubmitting(false)
+      setErrorMessage(stagingResult.error ?? '스테이징 로그인 정보를 확인하지 못했습니다.')
+      return
+    }
+
     let signInError: { message: string } | null = null
 
     try {
@@ -82,7 +127,7 @@ export function SignInPageClient({
     }
 
     if (signInError) {
-      const stagingResponse = await fetch('/api/auth/staging-mock-sign-in', {
+      const legacyStagingResponse = await fetch('/api/auth/staging-mock-sign-in', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -93,12 +138,12 @@ export function SignInPageClient({
         }),
       }).catch(() => null)
 
-      const stagingResult = stagingResponse
-        ? await stagingResponse.json().catch(() => null) as StagingMockSignInResponse | null
+      const legacyStagingResult = legacyStagingResponse
+        ? await legacyStagingResponse.json().catch(() => null) as StagingMockSignInResponse | null
         : null
 
-      if (stagingResponse?.ok && stagingResult?.mockAuth) {
-        storeStagingMockAuth(stagingResult.mockAuth)
+      if (legacyStagingResponse?.ok && legacyStagingResult?.mockAuth) {
+        storeStagingMockAuth(legacyStagingResult.mockAuth)
         setIsSubmitting(false)
         replaceAfterAuth(redirectPath)
         return
@@ -106,7 +151,7 @@ export function SignInPageClient({
 
       setIsSubmitting(false)
       setNeedsEmailVerification(signInError.message.toLowerCase().includes('email not confirmed'))
-      setErrorMessage(stagingResult?.error ?? getReadableSignInErrorMessage(signInError.message))
+      setErrorMessage(legacyStagingResult?.error ?? getReadableSignInErrorMessage(signInError.message))
       return
     }
 

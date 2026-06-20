@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isStagingAuthEmail } from '@/lib/auth/staging-email'
 import { getPublicSupabaseEnv } from '@/lib/env/public'
 import { Database } from './types'
 
@@ -31,6 +32,10 @@ function getAccessProfileFromJwt(user: User | null): AccessProfile {
       user.app_metadata?.guardian_consent_status ?? user.user_metadata?.guardian_consent_status
     ),
   }
+}
+
+function isStagingRequestEnvironment() {
+  return process.env.VERCEL_ENV === 'preview' || process.env.APP_ENV === 'staging'
 }
 
 export type SessionContext = {
@@ -69,8 +74,14 @@ export async function updateSession(request: NextRequest): Promise<SessionContex
   // Do not wrap this in a try/catch block.
   // We want to perform a database call to refresh the session naturally.
   const {
-    data: { user },
+    data: { user: currentUser },
   } = await supabase.auth.getUser()
+  let user = currentUser
+
+  if (user && isStagingRequestEnvironment() && !isStagingAuthEmail(user.email)) {
+    await supabase.auth.signOut().catch(() => null)
+    user = null
+  }
 
   const { data: profileRow, error: profileError } = user
     ? await supabase
