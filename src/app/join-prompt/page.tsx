@@ -1,23 +1,18 @@
 import { JoinPromptPageClient } from '@/components/auth/JoinPromptPageClient'
+import { sanitizeInternalPath } from '@/lib/guest-policy'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
 export default async function JoinPromptPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>
+  searchParams: Promise<{ next?: string; force?: string }>
 }) {
   const params = await searchParams
-  const cookieStore = await cookies()
-  const hasAuthCookie = cookieStore
-    .getAll()
-    .some(({ name }) => name.startsWith('sb-') && name.includes('auth-token'))
-
-  if (!hasAuthCookie) {
-    return <JoinPromptPageClient nextPath={params.next ?? null} initialAuth={null} />
-  }
+  const nextPath = sanitizeInternalPath(params.next, '/main')
+  const shouldForceJoinPrompt = params.force === '1'
 
   const supabase = await createClient()
   const {
@@ -26,7 +21,11 @@ export default async function JoinPromptPage({
   } = await supabase.auth.getUser()
 
   if (!user || error) {
-    return <JoinPromptPageClient nextPath={params.next ?? null} initialAuth={null} />
+    return <JoinPromptPageClient nextPath={nextPath} initialAuth={null} />
+  }
+
+  if (!shouldForceJoinPrompt) {
+    redirect(nextPath)
   }
 
   const { data: profile } = await supabase
@@ -41,7 +40,7 @@ export default async function JoinPromptPage({
 
   return (
     <JoinPromptPageClient
-      nextPath={params.next ?? null}
+      nextPath={nextPath}
       initialAuth={{
         isLoggedIn: true,
         userNickname: profile?.display_name || fallbackNickname,
